@@ -1,0 +1,19 @@
+{
+  "name": "tanzania-biashara-festival",
+  "version": "1.0.0",
+  "description": "Tanzania Biashara Festival (TBF) — Premier Roving Business, Innovation & Investment Platform",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "tanzania",
+    "biashara",
+    "festival",
+    "trade-fair",
+    "exhibition",
+    "investment",
+    "innovation"
+  ],
+  "license": "MIT"
+}

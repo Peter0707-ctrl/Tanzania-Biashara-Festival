@@ -1,0 +1,2056 @@
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+
+function loadEnvFile(envPath) {
+  try {
+    if (!fs.existsSync(envPath)) return;
+    const raw = fs.readFileSync(envPath, 'utf-8');
+    raw.split(/\r?\n/).forEach(line => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) return;
+      const eq = trimmed.indexOf('=');
+      if (eq <= 0) return;
+      const key = trimmed.slice(0, eq).trim();
+      let val = trimmed.slice(eq + 1).trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      if (key && process.env[key] === undefined) {
+        process.env[key] = val;
+      }
+    });
+  } catch (err) {}
+}
+
+loadEnvFile(path.join(__dirname, '.env'));
+
+const IS_PROD = String(process.env.NODE_ENV || 'production').toLowerCase() === 'production';
+const DEBUG_MODE = !IS_PROD && process.env.TBF_DEBUG === '1';
+const PORT = process.env.PORT || 3000;
+const DATA_DIR = path.join(__dirname, 'data');
+const DB_PATH = path.join(DATA_DIR, 'db.json');
+const SECRET_PATH = path.join(DATA_DIR, '.auth_secret');
+const PUBLIC_DIR = path.join(__dirname, 'public');
+
+const HOLD_TTL_MS = 10 * 60 * 1000; // 10 minutes temporary booth reservation hold
+const UNPAID_BOOKING_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours auto-expiry for unpaid online reservations
+const ADMIN_SESSION_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours sliding session
+const MANAGE_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes step-up management token
+
+const ADMIN_IDENTIFIER = String(process.env.TBF_ADMIN_EMAIL || 'info@biasharafestival.co.tz').trim().toLowerCase();
+const ADMIN_SECRET_CONFIGURED = String(process.env.TBF_ADMIN_PASSWORD || '').trim();
+
+// In-memory runtime security & presence state (bounded/pruned)
+const activeVisitorSessions = new Map();
+const rateLimitStore = new Map();
+const authLockoutStore = new Map();
+const pinLockoutStore = new Map();
+const revokedAdminTokens = new Map();
+
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon'
+};
+
+function getHmacSecret() {
+  if (process.env.TBF_SESSION_SECRET && String(process.env.TBF_SESSION_SECRET).trim().length >= 32) {
+    return String(process.env.TBF_SESSION_SECRET).trim();
+  }
+  try {
+    if (fs.existsSync(SECRET_PATH)) {
+      const existing = fs.readFileSync(SECRET_PATH, 'utf-8').trim();
+      if (existing.length >= 32) return existing;
+    }
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 });
+    const created = crypto.randomBytes(32).toString('hex');
+    fs.writeFileSync(SECRET_PATH, created, { encoding: 'utf-8', mode: 0o600 });
+    return created;
+  } catch (err) {
+    return crypto.randomBytes(32).toString('hex');
+  }
+}
+
+const HMAC_SECRET = getHmacSecret();
+// Separate cryptographic subkeys (never reuse a single raw key across signing, encryption, and blind indexing)
+const AUTH_SIGNING_KEY = crypto.createHmac('sha256', HMAC_SECRET).update('tbf:auth-signing:v2').digest();
+const DATA_ENC_KEY = crypto.createHmac('sha256', HMAC_SECRET).update('tbf:aes256gcm-pii:v1').digest();
+const BLIND_INDEX_KEY = crypto.createHmac('sha256', HMAC_SECRET).update('tbf:blind-index:v1').digest();
+const ENC_PREFIX = 'enc:v1:';
+
+function encryptField(plainText) {
+  if (plainText === undefined || plainText === null) return '';
+  const str = String(plainText);
+  if (!str) return '';
+  if (str.startsWith(ENC_PREFIX)) return str;
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', DATA_ENC_KEY, iv);
+  const ciphertext = Buffer.concat([cipher.update(str, 'utf8'), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  return `${ENC_PREFIX}${iv.toString('base64url')}:${authTag.toString('base64url')}:${ciphertext.toString('base64url')}`;
+}
+
+function decryptField(stored) {
+  if (stored === undefined || stored === null) return '';
+  const str = String(stored);
+  if (!str.startsWith(ENC_PREFIX)) return str;
+  try {
+    const parts = str.slice(ENC_PREFIX.length).split(':');
+    if (parts.length !== 3) return '';
+    const iv = Buffer.from(parts[0], 'base64url');
+    const authTag = Buffer.from(parts[1], 'base64url');
+    const ciphertext = Buffer.from(parts[2], 'base64url');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', DATA_ENC_KEY, iv);
+    decipher.setAuthTag(authTag);
+    return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+  } catch (err) {
+    return '';
+  }
+}
+
+function computeBlindIndex(normalizedValue) {
+  const s = String(normalizedValue || '').trim();
+  if (!s) return '';
+  return crypto.createHmac('sha256', BLIND_INDEX_KEY).update(s).digest('hex').slice(0, 32);
+}
+
+function sanitizeTextInput(value, maxLen = 180) {
+  return String(value ?? '')
+    .replace(/[\u0000-\u001F\u007F]/g, ' ')
+    .replace(/[<>]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLen);
+}
+
+function isValidEmail(email) {
+  return /^[^\s@<>]{1,64}@[^\s@<>]{1,120}\.[^\s@<>]{2,32}$/.test(String(email || '').trim().toLowerCase());
+}
+
+function hashSecret(plainText) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.scryptSync(String(plainText), salt, 32, { N: 16384, r: 8, p: 1 }).toString('hex');
+  return `${salt}:${hash}`;
+}
+
+function verifySecret(plainText, storedHash) {
+  if (!storedHash || !String(storedHash).includes(':')) return false;
+  const [salt, originalHex] = String(storedHash).split(':');
+  if (!salt || !originalHex) return false;
+  try {
+    const derived = crypto.scryptSync(String(plainText), salt, 32, { N: 16384, r: 8, p: 1 });
+    const expected = Buffer.from(originalHex, 'hex');
+    if (derived.length !== expected.length) return false;
+    return crypto.timingSafeEqual(derived, expected);
+  } catch (err) {
+    return false;
+  }
+}
+
+const ADMIN_CREDENTIAL_HASH = ADMIN_SECRET_CONFIGURED ? hashSecret(ADMIN_SECRET_CONFIGURED) : null;
+
+function signPayload(obj, ttlMs) {
+  const body = { ...obj, exp: Date.now() + ttlMs };
+  const encoded = Buffer.from(JSON.stringify(body), 'utf8').toString('base64url');
+  const sig = crypto.createHmac('sha256', AUTH_SIGNING_KEY).update(encoded).digest('base64url');
+  return `${encoded}.${sig}`;
+}
+
+function verifySignedToken(token) {
+  if (!token || typeof token !== 'string' || !token.includes('.')) return null;
+  const [encoded, sig] = token.split('.');
+  if (!encoded || !sig) return null;
+  const expectedSig = crypto.createHmac('sha256', AUTH_SIGNING_KEY).update(encoded).digest('base64url');
+  const sigBuf = Buffer.from(sig);
+  const expBuf = Buffer.from(expectedSig);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'));
+    if (!parsed || typeof parsed.exp !== 'number' || parsed.exp < Date.now()) return null;
+    return parsed;
+  } catch (e) {
+    return null;
+  }
+}
+
+function isHttpsRequest(req) {
+  if (!req) return false;
+  return Boolean(req.socket?.encrypted) || String(req.headers['x-forwarded-proto'] || '').toLowerCase() === 'https';
+}
+
+function parseCookies(req) {
+  const header = req.headers.cookie || '';
+  const map = {};
+  header.split(';').forEach(part => {
+    const idx = part.indexOf('=');
+    if (idx === -1) return;
+    const k = part.slice(0, idx).trim();
+    const v = part.slice(idx + 1).trim();
+    if (k) {
+      try { map[k] = decodeURIComponent(v); } catch (e) { map[k] = v; }
+    }
+  });
+  return map;
+}
+
+// Extract mobile-IP-tolerant contextual fingerprint (deviceId + UA family)
+function getClientContext(req) {
+  const cookies = parseCookies(req);
+  const existingDeviceId = cookies.tbf_device_id;
+  const deviceId = existingDeviceId && /^[a-zA-Z0-9_-]{12,64}$/.test(existingDeviceId)
+    ? existingDeviceId
+    : crypto.randomBytes(16).toString('hex');
+  const ua = String(req.headers['user-agent'] || 'unknown');
+  const uaFamily = crypto.createHash('sha256').update(ua.replace(/[\d.]+/g, 'x')).digest('hex').slice(0, 16);
+  const fwd = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  const clientIp = fwd || req.socket.remoteAddress || '127.0.0.1';
+  return {
+    deviceId,
+    isNewDeviceCookie: !existingDeviceId,
+    uaFamily,
+    clientIp
+  };
+}
+
+function buildCookieHeader(name, value, { maxAge = 0, httpOnly = true, secure = false } = {}) {
+  const attrs = [
+    `${name}=${encodeURIComponent(value)}`,
+    'Path=/',
+    'SameSite=Lax',
+    `Max-Age=${Math.max(0, Math.floor(maxAge))}`
+  ];
+  if (httpOnly) attrs.push('HttpOnly');
+  if (secure) attrs.push('Secure');
+  return attrs.join('; ');
+}
+
+function pruneMapStore(store, maxSize = 5000) {
+  if (store.size <= maxSize) return;
+  const now = Date.now();
+  for (const [k, v] of store.entries()) {
+    if ((v.resetAt && v.resetAt <= now) || (v.lockedUntil && v.lockedUntil <= now) || store.size > maxSize) {
+      store.delete(k);
+    }
+    if (store.size <= Math.floor(maxSize * 0.75)) break;
+  }
+}
+
+function checkRateLimit(bucket, maxHits, windowMs) {
+  pruneMapStore(rateLimitStore);
+  const now = Date.now();
+  const entry = rateLimitStore.get(bucket);
+  if (!entry || entry.resetAt <= now) {
+    rateLimitStore.set(bucket, { count: 1, resetAt: now + windowMs });
+    return { allowed: true, retryAfterSec: 0 };
+  }
+  if (entry.count >= maxHits) {
+    return { allowed: false, retryAfterSec: Math.max(1, Math.ceil((entry.resetAt - now) / 1000)) };
+  }
+  entry.count += 1;
+  return { allowed: true, retryAfterSec: 0 };
+}
+
+function getLockoutState(store, key) {
+  const entry = store.get(key);
+  if (!entry) return { locked: false, retryAfterSec: 0 };
+  if (entry.lockedUntil && entry.lockedUntil > Date.now()) {
+    return { locked: true, retryAfterSec: Math.max(1, Math.ceil((entry.lockedUntil - Date.now()) / 1000)) };
+  }
+  if (entry.lockedUntil && entry.lockedUntil <= Date.now()) {
+    store.delete(key);
+  }
+  return { locked: false, retryAfterSec: 0 };
+}
+
+function recordFailure(store, key, maxAttempts = 5, lockDurationMs = 10 * 60 * 1000) {
+  pruneMapStore(store);
+  const entry = store.get(key) || { failures: 0, lockedUntil: 0 };
+  entry.failures += 1;
+  if (entry.failures >= maxAttempts) {
+    entry.lockedUntil = Date.now() + lockDurationMs;
+  }
+  store.set(key, entry);
+  return entry;
+}
+
+// FIFO Atomic DB Transaction Queue (solves JSON file concurrency & partial writes)
+let dbQueue = Promise.resolve();
+let atomicWriteSeq = 0;
+
+function ensureDbShape(db) {
+  if (!Array.isArray(db.regions)) db.regions = [];
+  if (!Array.isArray(db.boothPackages)) db.boothPackages = [];
+  if (!Array.isArray(db.bookings)) db.bookings = [];
+  if (!Array.isArray(db.sponsors)) db.sponsors = [];
+  if (!Array.isArray(db.announcements)) db.announcements = [];
+  if (!Array.isArray(db.newsletterSubscribers)) db.newsletterSubscribers = [];
+  if (!Array.isArray(db.boothHolds)) db.boothHolds = [];
+  if (!Array.isArray(db.securityLog)) db.securityLog = [];
+  if (!Array.isArray(db.organizerAccounts)) db.organizerAccounts = [];
+  if (!db.analytics) db.analytics = {};
+  return db;
+}
+
+function readDB() {
+  try {
+    const raw = fs.readFileSync(DB_PATH, 'utf-8');
+    return ensureDbShape(JSON.parse(raw));
+  } catch (err) {
+    if (DEBUG_MODE) console.error('Error reading DB:', err);
+    return ensureDbShape({});
+  }
+}
+
+function writeDBAtomic(data) {
+  atomicWriteSeq += 1;
+  const tmpPath = `${DB_PATH}.tmp.${process.pid}.${atomicWriteSeq}`;
+  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), { encoding: 'utf-8', mode: 0o600 });
+  try {
+    fs.chmodSync(tmpPath, 0o600);
+  } catch (e) {}
+  fs.renameSync(tmpPath, DB_PATH);
+}
+
+function recalcRegionCodeIfUnused(db, regionName, boothCode) {
+  const stillBooked = db.bookings.some(b => {
+    const status = String(b.status || '').toLowerCase();
+    return status !== 'cancelled' && status !== 'expired'
+      && Array.isArray(b.cities) && b.cities.includes(regionName)
+      && b.boothCode === boothCode;
+  });
+  if (!stillBooked) {
+    const reg = db.regions.find(r => r.name === regionName);
+    if (reg && Array.isArray(reg.bookedCodes)) {
+      const idx = reg.bookedCodes.indexOf(boothCode);
+      if (idx !== -1) {
+        reg.bookedCodes.splice(idx, 1);
+        if (reg.bookedBooths > 0) reg.bookedBooths -= 1;
+      }
+    }
+  }
+}
+
+function pruneExpiredRecords(db) {
+  const now = Date.now();
+  let changed = false;
+
+  const beforeHolds = db.boothHolds.length;
+  db.boothHolds = db.boothHolds.filter(h => Number(h.expiresAt || 0) > now);
+  if (db.boothHolds.length !== beforeHolds) changed = true;
+
+  db.bookings.forEach(b => {
+    const st = String(b.status || '').toLowerCase();
+    if (st === 'awaiting payment' && b.paymentExpiresAt && Date.parse(b.paymentExpiresAt) <= now) {
+      b.status = 'Expired';
+      changed = true;
+      if (Array.isArray(b.cities)) {
+        b.cities.forEach(cityName => recalcRegionCodeIfUnused(db, cityName, b.boothCode));
+      }
+    }
+  });
+
+  if (db.securityLog.length > 100) {
+    db.securityLog = db.securityLog.slice(0, 100);
+    changed = true;
+  }
+  return changed;
+}
+
+function withDbTransaction(mutator) {
+  const run = dbQueue.then(async () => {
+    const db = readDB();
+    const pruned = pruneExpiredRecords(db);
+    const result = await mutator(db);
+    if (pruned || (result && result.dirty !== false)) {
+      writeDBAtomic(db);
+    }
+    return result ? result.value : undefined;
+  });
+  dbQueue = run.catch(() => {});
+  return run;
+}
+
+function readDbClean() {
+  const db = readDB();
+  if (pruneExpiredRecords(db)) {
+    try { writeDBAtomic(db); } catch (e) {}
+  }
+  return db;
+}
+
+function findBoothConflict(db, boothCode, cities, excludeHoldToken = null, excludeBookingId = null) {
+  const citySet = new Set(cities);
+  const bookedConflict = db.bookings.find(b => {
+    if (excludeBookingId && b.id === excludeBookingId) return false;
+    const status = String(b.status || '').toLowerCase();
+    if (status === 'cancelled' || status === 'expired') return false;
+    return b.boothCode === boothCode && Array.isArray(b.cities) && b.cities.some(c => citySet.has(c));
+  });
+  if (bookedConflict) return { type: 'BOOKED', ref: bookedConflict.id };
+
+  const now = Date.now();
+  const holdConflict = db.boothHolds.find(h => {
+    if (h.expiresAt <= now) return false;
+    if (excludeHoldToken && h.holdToken === excludeHoldToken) return false;
+    return h.boothCode === boothCode && Array.isArray(h.cities) && h.cities.some(c => citySet.has(c));
+  });
+  if (holdConflict) return { type: 'HELD', expiresAt: holdConflict.expiresAt };
+  return null;
+}
+
+function getLiveStats(db) {
+  const now = Date.now();
+  for (const [vid, info] of activeVisitorSessions.entries()) {
+    if (now - info.lastSeen > 10 * 60 * 1000) activeVisitorSessions.delete(vid);
+  }
+  const regionLiveMap = {};
+  for (const info of activeVisitorSessions.values()) {
+    regionLiveMap[info.region] = (regionLiveMap[info.region] || 0) + 1;
+  }
+  const liveOnlineCount = Math.max(1, activeVisitorSessions.size);
+  const activeBookings = (db.bookings || []).filter(b => {
+    const st = String(b.status || '').toLowerCase();
+    return st !== 'cancelled' && st !== 'expired';
+  });
+
+  return {
+    liveOnlineCount,
+    regionLiveMap,
+    totalCookieVisitors: db.analytics?.totalCookieVisitors || 71997,
+    totalRegisteredAttendees: db.analytics?.totalRegisteredAttendees || 18450,
+    totalBusinessesShowcased: (db.analytics?.totalBusinessesShowcased || 493) + activeBookings.length,
+    totalPartnersAndInvestors: (db.analytics?.totalPartnersAndInvestors || 149) + (db.sponsors?.length || 0)
+  };
+}
+
+// Public /api/data SANITIZATION: never expose PII, controlNumbers, PIN hashes, or unpublished inquiries
+function sanitizePublicDb(db) {
+  const now = Date.now();
+  const publicBookings = (db.bookings || [])
+    .filter(b => {
+      const st = String(b.status || '').toLowerCase();
+      return st !== 'cancelled' && st !== 'expired' && b.featured !== false;
+    })
+    .map(b => ({
+      id: b.id,
+      businessName: b.businessName,
+      tagline: b.tagline,
+      ...(b.taglineEn ? { taglineEn: b.taglineEn } : {}),
+      ...(b.taglineZh ? { taglineZh: b.taglineZh } : {}),
+      sector: b.sector,
+      packageId: b.packageId,
+      packageName: b.packageName,
+      boothCode: b.boothCode,
+      cities: Array.isArray(b.cities) ? b.cities : [],
+      status: b.status,
+      featured: Boolean(b.featured),
+      images: Array.isArray(b.images) ? b.images : undefined
+    }));
+
+  const activeHolds = (db.boothHolds || [])
+    .filter(h => h.expiresAt > now)
+    .map(h => ({
+      boothCode: h.boothCode,
+      cities: h.cities,
+      expiresAt: h.expiresAt
+    }));
+
+  return {
+    regions: db.regions,
+    boothPackages: db.boothPackages,
+    bookings: publicBookings,
+    activeHolds,
+    announcements: db.announcements,
+    destination: db.destination,
+    analytics: db.analytics,
+    sponsorsCount: (db.sponsors || []).length
+  };
+}
+
+function maskPhone(phone) {
+  const s = String(phone || '').trim();
+  const digits = s.replace(/\D/g, '');
+  if (digits.length < 4) return '***';
+  return `+255 *** *** ${digits.slice(-3)}`;
+}
+
+function maskEmail(email) {
+  const s = String(email || '').trim();
+  if (!s.includes('@')) return '***';
+  const [local, domain] = s.split('@');
+  return `${local.slice(0, 1)}***@${domain}`;
+}
+
+function normalizePhoneTail(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  return digits.length >= 9 ? digits.slice(-9) : digits;
+}
+
+function buildSecurityHeaders(req, { isHtml = false } = {}) {
+  const headers = {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=(), usb=()',
+    'Cross-Origin-Opener-Policy': 'same-origin',
+    'Cross-Origin-Resource-Policy': 'same-origin',
+    'X-Permitted-Cross-Domain-Policies': 'none',
+    'X-DNS-Prefetch-Control': 'off',
+    'X-XSS-Protection': '0'
+  };
+  if (isHttpsRequest(req)) {
+    headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains';
+  }
+  if (isHtml) {
+    headers['Content-Security-Policy'] = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com",
+      "style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com data:",
+      "img-src 'self' data: blob: https:",
+      "connect-src 'self'",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'"
+    ].join('; ');
+  } else {
+    headers['Content-Security-Policy'] = "default-src 'none'; frame-ancestors 'none'";
+  }
+  return headers;
+}
+
+function getAllowedCorsOrigin(req) {
+  if (!req) return '';
+  const origin = String(req.headers.origin || '').trim();
+  const host = String(req.headers.host || '').trim().toLowerCase();
+  if (!origin || !host) return '';
+  try {
+    const parsed = new URL(origin);
+    if ((parsed.protocol === 'http:' || parsed.protocol === 'https:') && parsed.host.toLowerCase() === host) {
+      return origin;
+    }
+  } catch (e) {}
+  return '';
+}
+
+function verifySameOriginMutation(req) {
+  const method = String(req.method || 'GET').toUpperCase();
+  if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return true;
+  const secFetchSite = String(req.headers['sec-fetch-site'] || '').trim().toLowerCase();
+  if (secFetchSite === 'cross-site') return false;
+  const origin = String(req.headers.origin || '').trim();
+  if (origin) {
+    return Boolean(getAllowedCorsOrigin(req));
+  }
+  return true;
+}
+
+function verifyAdminRequest(req) {
+  const cookies = parseCookies(req);
+  const token = cookies.tbf_admin_session;
+  const session = verifySignedToken(token);
+  if (!session || session.role !== 'admin' || !session.jti) return null;
+  const revokedExp = revokedAdminTokens.get(session.jti);
+  if (revokedExp && revokedExp > Date.now()) return null;
+  const ctx = getClientContext(req);
+  if (session.uaFamily !== ctx.uaFamily) return null;
+  if (!cookies.tbf_device_id || session.deviceId !== cookies.tbf_device_id) return null;
+  return session;
+}
+
+function appendSetCookies(headers, cookieStrings) {
+  if (!cookieStrings || !cookieStrings.length) return headers;
+  const prev = headers['Set-Cookie'];
+  const list = Array.isArray(prev) ? prev.slice() : (prev ? [prev] : []);
+  headers['Set-Cookie'] = list.concat(cookieStrings);
+  return headers;
+}
+
+function sendJSON(res, statusCode, payload, extraHeaders = {}, cookiesToSet = []) {
+  const req = res._tbfReq || null;
+  const allowedOrigin = getAllowedCorsOrigin(req);
+  const headers = {
+    ...buildSecurityHeaders(req, { isHtml: false }),
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store',
+    'Vary': 'Origin',
+    ...(allowedOrigin ? {
+      'Access-Control-Allow-Origin': allowedOrigin,
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    } : {}),
+    ...extraHeaders
+  };
+  appendSetCookies(headers, cookiesToSet);
+  res.writeHead(statusCode, headers);
+  res.end(JSON.stringify(payload));
+}
+
+function parseBody(req, maxBytes = 131072) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    let aborted = false;
+    req.on('data', chunk => {
+      if (aborted) return;
+      body += chunk.toString('utf8');
+      if (Buffer.byteLength(body, 'utf8') > maxBytes) {
+        aborted = true;
+        const err = new Error('Payload too large');
+        err.statusCode = 413;
+        reject(err);
+        req.destroy();
+      }
+    });
+    req.on('end', () => {
+      if (aborted) return;
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch (e) {
+        const err = new Error('Invalid JSON payload');
+        err.statusCode = 400;
+        reject(err);
+      }
+    });
+    req.on('error', err => {
+      if (!aborted) reject(err);
+    });
+  });
+}
+
+function findBookingByRefAndPhone(db, refInput, phoneTail) {
+  return (db.bookings || []).find(b => {
+    const bId = String(b.id || '').trim().toUpperCase();
+    const bCtrl = String(b.controlNumber || '').trim().toUpperCase();
+    const bTail = normalizePhoneTail(b.phone);
+    const refMatch = (bId && bId === refInput) || (bCtrl && bCtrl === refInput);
+    const phoneMatch = bTail && bTail === phoneTail;
+    return refMatch && phoneMatch;
+  });
+}
+
+function findBookingByRefAndContact(db, refInput, phoneTail, emailInput) {
+  const emailIdx = emailInput ? computeBlindIndex(emailInput) : '';
+  const phoneIdx = phoneTail ? computeBlindIndex(phoneTail) : '';
+  return (db.bookings || []).find(b => {
+    const bId = String(b.id || '').trim().toUpperCase();
+    const bCtrl = decryptField(b.controlNumber).trim().toUpperCase();
+    const refMatch = (bId && bId === refInput) || (bCtrl && bCtrl === refInput);
+    if (!refMatch) return false;
+    if (emailInput) {
+      if (b.emailIdx && b.emailIdx === emailIdx) return true;
+      const bEmail = decryptField(b.email).trim().toLowerCase();
+      if (bEmail && bEmail === emailInput) return true;
+    }
+    if (phoneTail) {
+      if (b.phoneIdx && b.phoneIdx === phoneIdx) return true;
+      const bTail = normalizePhoneTail(decryptField(b.phone));
+      if (bTail && bTail === phoneTail) return true;
+    }
+    return false;
+  });
+}
+
+function bookingMatchesEmail(b, emailInput, emailIdx) {
+  if (!b || !emailInput) return false;
+  if (b.emailIdx && b.emailIdx === emailIdx) return true;
+  return decryptField(b.email).trim().toLowerCase() === emailInput;
+}
+
+function isOrganizerEmail(db, emailLower) {
+  if (!emailLower) return false;
+  if (ADMIN_CREDENTIAL_HASH && emailLower === ADMIN_IDENTIFIER) return true;
+  return (db.organizerAccounts || []).some(
+    a => a && a.active !== false && decryptField(a.email).trim().toLowerCase() === emailLower
+  );
+}
+
+function verifyOrganizerCredentials(db, emailLower, secret) {
+  if (!emailLower || !secret) return null;
+  if (emailLower === ADMIN_IDENTIFIER && verifySecret(secret, ADMIN_CREDENTIAL_HASH)) {
+    return { identifier: ADMIN_IDENTIFIER, name: 'Festival Organizer', role: 'admin' };
+  }
+  const acc = (db.organizerAccounts || []).find(
+    a => a && a.active !== false && decryptField(a.email).trim().toLowerCase() === emailLower && verifySecret(secret, a.passwordHash)
+  );
+  if (acc) {
+    return { identifier: decryptField(acc.email).trim().toLowerCase(), name: decryptField(acc.name) || 'Festival Organizer', role: 'admin' };
+  }
+  return null;
+}
+
+function resolveExhibitorEmailLogin(db, { emailInput, refInput, pin, lockKey, deviceId }) {
+  const emailIdx = computeBlindIndex(emailInput);
+  const emailMatches = (db.bookings || []).filter(b => bookingMatchesEmail(b, emailInput, emailIdx));
+  if (!emailMatches.length) {
+    return { status: 404, body: { success: false, error: 'Invalid email, reference, or PIN/password.' } };
+  }
+
+  let found = null;
+  if (refInput) {
+    found = emailMatches.find(b => {
+      const bId = String(b.id || '').trim().toUpperCase();
+      const bCtrl = decryptField(b.controlNumber).trim().toUpperCase();
+      return (bId && bId === refInput) || (bCtrl && bCtrl === refInput);
+    });
+    if (!found) {
+      return { status: 404, body: { success: false, error: 'Invalid email, reference, or PIN/password.' } };
+    }
+    const hasPin = Boolean(found.accessPinHash);
+    if (!pin) {
+      return {
+        status: 200,
+        body: {
+          success: true,
+          role: 'exhibitor',
+          unlocked: false,
+          booking: toSafeBookingReceipt(found, { unmasked: false, hasPin, stepUpRequired: hasPin })
+        }
+      };
+    }
+    if (!hasPin || !verifySecret(pin, found.accessPinHash)) {
+      const fail = recordFailure(pinLockoutStore, lockKey, 5, 15 * 60 * 1000);
+      return {
+        status: fail.lockedUntil ? 429 : 403,
+        body: {
+          success: false,
+          error: fail.lockedUntil
+            ? 'Too many invalid attempts. Locked for 15 minutes.'
+            : 'Invalid email, reference, or PIN/password.'
+        }
+      };
+    }
+  } else {
+    found = emailMatches.find(b => b.accessPinHash && verifySecret(pin, b.accessPinHash));
+    if (!found) {
+      const fail = recordFailure(pinLockoutStore, lockKey, 5, 15 * 60 * 1000);
+      return {
+        status: fail.lockedUntil ? 429 : 403,
+        body: {
+          success: false,
+          error: fail.lockedUntil
+            ? 'Too many invalid attempts. Locked for 15 minutes.'
+            : 'Invalid email, reference, or PIN/password.'
+        }
+      };
+    }
+  }
+
+  pinLockoutStore.delete(lockKey);
+  const manageToken = signPayload({
+    role: 'booking_owner',
+    bookingId: found.id,
+    deviceId
+  }, MANAGE_TOKEN_TTL_MS);
+
+  return {
+    status: 200,
+    body: {
+      success: true,
+      role: 'exhibitor',
+      unlocked: true,
+      booking: toSafeBookingReceipt(found, { unmasked: true, hasPin: true, stepUpRequired: false, manageToken })
+    }
+  };
+}
+
+function toSafeBookingReceipt(b, { unmasked = false, hasPin = false, stepUpRequired = false, manageToken = null } = {}) {
+  const plainCtrl = decryptField(b.controlNumber);
+  const plainContact = decryptField(b.contactPerson);
+  const plainPhone = decryptField(b.phone);
+  const plainEmail = decryptField(b.email);
+  return {
+    id: b.id,
+    controlNumber: unmasked ? (plainCtrl || '-') : (plainCtrl ? `***${String(plainCtrl).slice(-4)}` : '-'),
+    businessName: b.businessName,
+    tagline: b.tagline,
+    contactPerson: unmasked ? plainContact : (plainContact ? `${String(plainContact).slice(0, 2)}***` : '-'),
+    phone: unmasked ? plainPhone : maskPhone(plainPhone),
+    email: unmasked ? plainEmail : maskEmail(plainEmail),
+    sector: b.sector,
+    packageId: b.packageId,
+    packageName: b.packageName,
+    boothCode: b.boothCode,
+    cities: Array.isArray(b.cities) ? b.cities : [],
+    totalAmount: Number(b.totalAmount) || 0,
+    paymentMethod: b.paymentMethod,
+    status: b.status,
+    paymentExpiresAt: b.paymentExpiresAt || null,
+    createdAt: b.createdAt || null,
+    hasAccessPin: hasPin,
+    unmasked,
+    stepUpRequired,
+    manageToken
+  };
+}
+
+function toSafeAdminBooking(b) {
+  const { accessPinHash, emailIdx, phoneIdx, ownerDeviceHash, clientRequestId, ...rest } = b;
+  return {
+    ...rest,
+    controlNumber: decryptField(b.controlNumber) || '-',
+    contactPerson: decryptField(b.contactPerson) || '-',
+    phone: decryptField(b.phone) || '-',
+    email: decryptField(b.email) || '-',
+    hasAccessPin: Boolean(accessPinHash)
+  };
+}
+
+function toSafeAdminSponsor(s) {
+  return {
+    ...s,
+    contactName: decryptField(s.contactName) || '-',
+    phone: decryptField(s.phone) || '-',
+    email: decryptField(s.email) || '-'
+  };
+}
+
+const server = http.createServer(async (req, res) => {
+  res._tbfReq = req;
+  const rawUrlPath = String(req.url || '/').split('?')[0];
+  let decodedRawPath = rawUrlPath;
+  try {
+    decodedRawPath = decodeURIComponent(rawUrlPath);
+  } catch (e) {
+    res.writeHead(400, { ...buildSecurityHeaders(req, { isHtml: false }), 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end('Bad Request');
+  }
+  if (decodedRawPath.includes('\0') || /(^|[\\/])\.\.?([\\/]|$)/.test(decodedRawPath)) {
+    res.writeHead(403, { ...buildSecurityHeaders(req, { isHtml: false }), 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end('Forbidden');
+  }
+
+  let url;
+  try {
+    url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  } catch (e) {
+    return sendJSON(res, 400, { success: false, error: 'Malformed request URL' });
+  }
+  const pathname = url.pathname;
+  const ctx = getClientContext(req);
+  const isHttps = isHttpsRequest(req);
+  const deviceCookieList = ctx.isNewDeviceCookie
+    ? [buildCookieHeader('tbf_device_id', ctx.deviceId, { maxAge: 90 * 24 * 3600, httpOnly: true, secure: isHttps })]
+    : [];
+
+  if (req.method === 'OPTIONS') {
+    return sendJSON(res, 200, { ok: true }, {}, deviceCookieList);
+  }
+
+  if (!verifySameOriginMutation(req)) {
+    return sendJSON(res, 403, { success: false, error: 'Forbidden cross-origin mutation' }, {}, deviceCookieList);
+  }
+
+  if (pathname.startsWith('/api/')) {
+    const apiRate = checkRateLimit(`api:${ctx.deviceId}:${ctx.clientIp}`, 240, 60 * 1000);
+    if (!apiRate.allowed) {
+      return sendJSON(res, 429, {
+        success: false,
+        retryAfterSec: apiRate.retryAfterSec,
+        error: `Rate limit exceeded. Try again in ${apiRate.retryAfterSec}s.`
+      }, { 'Retry-After': String(apiRate.retryAfterSec) }, deviceCookieList);
+    }
+  }
+
+  // API: Sanitized Public Festival Data
+  if (pathname === '/api/data' && req.method === 'GET') {
+    const db = readDbClean();
+    return sendJSON(res, 200, {
+      ...sanitizePublicDb(db),
+      liveStats: getLiveStats(db)
+    }, {}, deviceCookieList);
+  }
+
+  // API: Auth - Check Admin Session
+  if (pathname === '/api/auth/session' && req.method === 'GET') {
+    const session = verifyAdminRequest(req);
+    return sendJSON(res, 200, {
+      authenticated: Boolean(session),
+      user: session ? { identifier: session.sub, role: 'admin' } : null
+    }, {}, deviceCookieList);
+  }
+
+  // API: Auth - Organizer Admin Login (Contextual Brute-Force Lockout + IP-Tolerant Cookie Binding)
+  if (pathname === '/api/auth/login' && req.method === 'POST') {
+    const rate = checkRateLimit(`auth-login:${ctx.deviceId}:${ctx.clientIp}`, 25, 15 * 60 * 1000);
+    if (!rate.allowed) {
+      return sendJSON(res, 429, { success: false, retryAfterSec: rate.retryAfterSec, error: `Too many requests. Try again in ${rate.retryAfterSec}s.` }, {}, deviceCookieList);
+    }
+    try {
+      const payload = await parseBody(req);
+      const identifier = String(payload.identifier || '').trim().toLowerCase();
+      const password = String(payload.password || '');
+
+      const lockKey = `admin:${ctx.deviceId}:${ctx.clientIp}`;
+      const lockState = getLockoutState(authLockoutStore, lockKey);
+      if (lockState.locked) {
+        return sendJSON(res, 429, {
+          success: false,
+          locked: true,
+          retryAfterSec: lockState.retryAfterSec,
+          error: `Too many failed login attempts. Try again in ${lockState.retryAfterSec}s.`
+        }, {}, deviceCookieList);
+      }
+
+      if (!identifier || !password) {
+        return sendJSON(res, 400, { success: false, error: 'Identifier and password are required' }, {}, deviceCookieList);
+      }
+
+      const db = readDbClean();
+      const orgUser = verifyOrganizerCredentials(db, identifier, password);
+      if (!orgUser) {
+        const failInfo = recordFailure(authLockoutStore, lockKey, 5, 10 * 60 * 1000);
+        await withDbTransaction(txDb => {
+          txDb.securityLog.unshift({
+            type: 'ADMIN_LOGIN_FAILED',
+            identifier,
+            deviceId: ctx.deviceId.slice(0, 8),
+            at: new Date().toISOString()
+          });
+        });
+        const remaining = Math.max(0, 5 - failInfo.failures);
+        return sendJSON(res, failInfo.lockedUntil ? 429 : 401, {
+          success: false,
+          remainingAttempts: remaining,
+          retryAfterSec: failInfo.lockedUntil ? 600 : 0,
+          error: failInfo.lockedUntil
+            ? 'Account temporarily locked for 10 minutes due to repeated failed attempts.'
+            : `Invalid credentials (${remaining} attempts remaining).`
+        }, {}, deviceCookieList);
+      }
+
+      authLockoutStore.delete(lockKey);
+      const sessionToken = signPayload({
+        role: 'admin',
+        sub: orgUser.identifier,
+        jti: crypto.randomBytes(12).toString('hex'),
+        deviceId: ctx.deviceId,
+        uaFamily: ctx.uaFamily
+      }, ADMIN_SESSION_TTL_MS);
+
+      const cookies = deviceCookieList.concat([
+        buildCookieHeader('tbf_admin_session', sessionToken, { maxAge: ADMIN_SESSION_TTL_MS / 1000, httpOnly: true, secure: isHttps })
+      ]);
+
+      return sendJSON(res, 200, {
+        success: true,
+        user: orgUser
+      }, {}, cookies);
+    } catch (err) {
+      return sendJSON(res, err.statusCode || 400, { success: false, error: err.statusCode === 413 ? err.message : 'Invalid login payload' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Auth - Logout (with server-side JTI revocation)
+  if (pathname === '/api/auth/logout' && req.method === 'POST') {
+    const existingCookies = parseCookies(req);
+    const activeToken = existingCookies.tbf_admin_session;
+    const parsedSession = verifySignedToken(activeToken);
+    if (parsedSession && parsedSession.jti) {
+      pruneMapStore(revokedAdminTokens, 5000);
+      revokedAdminTokens.set(parsedSession.jti, parsedSession.exp || (Date.now() + ADMIN_SESSION_TTL_MS));
+    }
+    const cookies = deviceCookieList.concat([
+      buildCookieHeader('tbf_admin_session', '', { maxAge: 0, httpOnly: true, secure: isHttps })
+    ]);
+    return sendJSON(res, 200, { success: true }, {}, cookies);
+  }
+
+  // API: Auth - Single Unified Login (Handles both pre-created Organizer Accounts & Exhibitor Email Bookings silently)
+  if (pathname === '/api/auth/unified-login' && req.method === 'POST') {
+    const rate = checkRateLimit(`unified-login:${ctx.deviceId}:${ctx.clientIp}`, 25, 15 * 60 * 1000);
+    if (!rate.allowed) {
+      return sendJSON(res, 429, { success: false, retryAfterSec: rate.retryAfterSec, error: `Too many attempts. Try again in ${rate.retryAfterSec}s.` }, {}, deviceCookieList);
+    }
+    try {
+      const payload = await parseBody(req);
+      const emailInput = String(payload.email || '').trim().toLowerCase();
+      const refInput = String(payload.ref || '').trim().toUpperCase();
+      const rawSecret = String(payload.secret ?? payload.pin ?? '');
+      const pinInput = rawSecret.trim();
+
+      if (!emailInput || !emailInput.includes('@') || (!refInput && !rawSecret)) {
+        return sendJSON(res, 400, {
+          success: false,
+          error: 'Email address and either your PIN/Password or Booking ID / Control Number are required.'
+        }, {}, deviceCookieList);
+      }
+
+      const db = readDbClean();
+      const adminLockKey = `admin:${ctx.deviceId}:${ctx.clientIp}`;
+      const pinLockKey = `email-login:${emailInput}:${ctx.deviceId}`;
+
+      // 1. Check if pre-created organizer account matches (only when secret is provided without conflicting ref)
+      if (rawSecret) {
+        const adminLock = getLockoutState(authLockoutStore, adminLockKey);
+        const orgUser = !adminLock.locked ? verifyOrganizerCredentials(db, emailInput, rawSecret) : null;
+        if (orgUser) {
+          authLockoutStore.delete(adminLockKey);
+          const sessionToken = signPayload({
+            role: 'admin',
+            sub: orgUser.identifier,
+            jti: crypto.randomBytes(12).toString('hex'),
+            deviceId: ctx.deviceId,
+            uaFamily: ctx.uaFamily
+          }, ADMIN_SESSION_TTL_MS);
+          const cookies = deviceCookieList.concat([
+            buildCookieHeader('tbf_admin_session', sessionToken, { maxAge: ADMIN_SESSION_TTL_MS / 1000, httpOnly: true, secure: isHttps })
+          ]);
+          return sendJSON(res, 200, {
+            success: true,
+            role: 'admin',
+            user: orgUser
+          }, {}, cookies);
+        }
+
+        // Record admin failure if this email belongs to an organizer account (without revealing its role!)
+        if (isOrganizerEmail(db, emailInput) && !refInput) {
+          if (adminLock.locked) {
+            return sendJSON(res, 429, {
+              success: false,
+              locked: true,
+              retryAfterSec: adminLock.retryAfterSec,
+              error: `Too many failed attempts. Try again in ${adminLock.retryAfterSec}s.`
+            }, {}, deviceCookieList);
+          }
+          const emailIdx = computeBlindIndex(emailInput);
+          const hasBooking = (db.bookings || []).some(b => bookingMatchesEmail(b, emailInput, emailIdx));
+          if (!hasBooking) {
+            const failInfo = recordFailure(authLockoutStore, adminLockKey, 5, 10 * 60 * 1000);
+            await withDbTransaction(txDb => {
+              txDb.securityLog.unshift({
+                type: 'UNIFIED_LOGIN_FAILED',
+                identifier: maskEmail(emailInput),
+                deviceId: ctx.deviceId.slice(0, 8),
+                at: new Date().toISOString()
+              });
+            });
+            return sendJSON(res, failInfo.lockedUntil ? 429 : 401, {
+              success: false,
+              error: failInfo.lockedUntil
+                ? 'Too many failed attempts. Try again in 600s.'
+                : 'Invalid email, reference, or PIN/password.'
+            }, {}, deviceCookieList);
+          }
+        }
+      }
+
+      // 2. Otherwise evaluate Exhibitor reservation access by Email (+ PIN and/or Ref)
+      const pinLock = getLockoutState(pinLockoutStore, pinLockKey);
+      if (pinLock.locked) {
+        return sendJSON(res, 429, {
+          success: false,
+          locked: true,
+          retryAfterSec: pinLock.retryAfterSec,
+          error: `Too many failed attempts. Try again in ${pinLock.retryAfterSec}s.`
+        }, {}, deviceCookieList);
+      }
+
+      const outcome = resolveExhibitorEmailLogin(db, {
+        emailInput,
+        refInput,
+        pin: pinInput,
+        lockKey: pinLockKey,
+        deviceId: ctx.deviceId
+      });
+      return sendJSON(res, outcome.status, outcome.body, {}, deviceCookieList);
+    } catch (err) {
+      return sendJSON(res, 400, { success: false, error: 'Invalid sign-in payload' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Admin Overview (Protected)
+  if (pathname === '/api/admin/overview' && req.method === 'GET') {
+    const session = verifyAdminRequest(req);
+    if (!session) {
+      return sendJSON(res, 401, { success: false, error: 'Admin authentication required' }, {}, deviceCookieList);
+    }
+    const db = readDbClean();
+    const safeBookings = (db.bookings || []).map(toSafeAdminBooking);
+    const safeSponsors = (db.sponsors || []).map(toSafeAdminSponsor);
+    const safeOrganizers = (db.organizerAccounts || []).map(a => ({
+      id: a.id,
+      email: decryptField(a.email),
+      name: decryptField(a.name),
+      active: a.active !== false,
+      createdAt: a.createdAt || null
+    }));
+    return sendJSON(res, 200, {
+      success: true,
+      bookings: safeBookings,
+      sponsors: safeSponsors,
+      organizers: safeOrganizers,
+      activeHolds: db.boothHolds,
+      newsletterCount: (db.newsletterSubscribers || []).length,
+      securityLog: db.securityLog.slice(0, 15),
+      liveStats: getLiveStats(db)
+    }, {}, deviceCookieList);
+  }
+
+  // API: Provision / Manage Organizer Account (ADMIN AUTH REQUIRED)
+  if (pathname === '/api/admin/organizers' && req.method === 'POST') {
+    const session = verifyAdminRequest(req);
+    if (!session) {
+      return sendJSON(res, 401, { success: false, error: 'Admin authentication required' }, {}, deviceCookieList);
+    }
+    try {
+      const payload = await parseBody(req);
+      const email = sanitizeTextInput(payload.email || '', 160).toLowerCase();
+      const name = sanitizeTextInput(payload.name || 'Festival Organizer', 120);
+      const password = String(payload.password || '');
+      if (!isValidEmail(email) || password.length < 10) {
+        return sendJSON(res, 400, { success: false, error: 'Valid email and password (minimum 10 characters) are required' }, {}, deviceCookieList);
+      }
+
+      const result = await withDbTransaction(db => {
+        const existingIdx = (db.organizerAccounts || []).findIndex(
+          a => decryptField(a.email).trim().toLowerCase() === email
+        );
+        const record = {
+          id: existingIdx >= 0 ? db.organizerAccounts[existingIdx].id : ('ORG-' + crypto.randomInt(1000, 9999)),
+          email: encryptField(email),
+          name: encryptField(name),
+          passwordHash: hashSecret(password),
+          active: true,
+          createdAt: existingIdx >= 0 ? db.organizerAccounts[existingIdx].createdAt : new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        if (existingIdx >= 0) db.organizerAccounts[existingIdx] = record;
+        else db.organizerAccounts.unshift(record);
+        return {
+          dirty: true,
+          value: { id: record.id, email, name, active: true }
+        };
+      });
+      return sendJSON(res, 201, { success: true, organizer: result }, {}, deviceCookieList);
+    } catch (err) {
+      return sendJSON(res, err.statusCode || 400, { success: false, error: err.statusCode === 413 ? err.message : 'Invalid organizer account payload' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Admin Update Booking Payment Status (Protected)
+  if (pathname === '/api/admin/bookings/status' && req.method === 'POST') {
+    const session = verifyAdminRequest(req);
+    if (!session) {
+      return sendJSON(res, 401, { success: false, error: 'Admin authentication required' }, {}, deviceCookieList);
+    }
+    try {
+      const payload = await parseBody(req);
+      const bookingId = String(payload.bookingId || '').trim();
+      const newStatus = String(payload.status || 'Confirmed').trim();
+      const allowed = ['Confirmed', 'Paid', 'Awaiting Payment', 'Cancelled'];
+      if (!bookingId || !allowed.includes(newStatus)) {
+        return sendJSON(res, 400, { success: false, error: 'Valid bookingId and status required' }, {}, deviceCookieList);
+      }
+      const updated = await withDbTransaction(db => {
+        const b = db.bookings.find(x => x.id === bookingId);
+        if (!b) return { dirty: false, value: null };
+        b.status = newStatus;
+        if (newStatus === 'Confirmed' || newStatus === 'Paid') {
+          b.paymentExpiresAt = null;
+        } else if (newStatus === 'Cancelled' && Array.isArray(b.cities)) {
+          b.cities.forEach(c => recalcRegionCodeIfUnused(db, c, b.boothCode));
+        }
+        return { dirty: true, value: b };
+      });
+      if (!updated) {
+        return sendJSON(res, 404, { success: false, error: 'Booking not found' }, {}, deviceCookieList);
+      }
+      return sendJSON(res, 200, { success: true, booking: toSafeAdminBooking(updated) }, {}, deviceCookieList);
+    } catch (err) {
+      return sendJSON(res, err.statusCode || 400, { success: false, error: err.statusCode === 413 ? err.message : 'Invalid status payload' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Cookie Visitor Ping & Regional Interest Tracker
+  if (pathname === '/api/visitor-ping' && req.method === 'POST') {
+    const rate = checkRateLimit(`vping:${ctx.deviceId}:${ctx.clientIp}`, 120, 10 * 60 * 1000);
+    if (!rate.allowed) {
+      return sendJSON(res, 429, { success: false, retryAfterSec: rate.retryAfterSec, error: 'Too many visitor pings' }, {}, deviceCookieList);
+    }
+    try {
+      const payload = await parseBody(req);
+      const rawVisitorId = String(payload.visitorId || '').trim();
+      const visitorId = /^[a-zA-Z0-9_-]{4,64}$/.test(rawVisitorId) ? rawVisitorId : ('v_' + Date.now());
+      const isNewCookie = Boolean(payload.isNewVisitor);
+      const regionId = String(payload.regionId || 'dar').trim().toLowerCase().slice(0, 32);
+
+      pruneMapStore(activeVisitorSessions, 5000);
+      activeVisitorSessions.set(visitorId, {
+        lastSeen: Date.now(),
+        region: regionId,
+        consent: String(payload.cookieConsent || 'accepted').slice(0, 24)
+      });
+
+      const out = await withDbTransaction(db => {
+        if (!db.analytics) {
+          db.analytics = {
+            totalCookieVisitors: 71997,
+            totalRegisteredAttendees: 18450,
+            totalBusinessesShowcased: 493,
+            totalPartnersAndInvestors: 149
+          };
+        }
+        if (isNewCookie) {
+          db.analytics.totalCookieVisitors += 1;
+          const reg = db.regions.find(r => r.id === regionId);
+          if (reg) reg.cookieVisitors = (reg.cookieVisitors || 0) + 1;
+        }
+        return {
+          dirty: isNewCookie,
+          value: { liveStats: getLiveStats(db), regions: db.regions }
+        };
+      });
+
+      const cookies = deviceCookieList.concat([
+        buildCookieHeader('tbf_visitor_id', visitorId, { maxAge: 31536000, httpOnly: false, secure: isHttps })
+      ]);
+      return sendJSON(res, 200, {
+        success: true,
+        visitorId,
+        liveStats: out.liveStats,
+        regions: out.regions
+      }, {}, cookies);
+    } catch (err) {
+      return sendJSON(res, err.statusCode || 400, { success: false, error: err.statusCode === 413 ? err.message : 'Invalid visitor ping' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Register Regional Attendee RSVP
+  if (pathname === '/api/attendee-rsvp' && req.method === 'POST') {
+    const rate = checkRateLimit(`rsvp:${ctx.deviceId}:${ctx.clientIp}`, 15, 15 * 60 * 1000);
+    if (!rate.allowed) {
+      return sendJSON(res, 429, { success: false, retryAfterSec: rate.retryAfterSec, error: `Too many requests. Wait ${rate.retryAfterSec}s.` }, {}, deviceCookieList);
+    }
+    try {
+      const payload = await parseBody(req);
+      const regionId = String(payload.regionId || 'dar').trim().toLowerCase().slice(0, 32);
+      const attendeesCount = Math.min(20, Math.max(1, Number(payload.count) || 1));
+
+      const out = await withDbTransaction(db => {
+        const region = db.regions.find(r => r.id === regionId);
+        if (region) {
+          region.registeredAttendees = (region.registeredAttendees || 0) + attendeesCount;
+          region.cookieVisitors = (region.cookieVisitors || 0) + 1;
+        }
+        if (db.analytics) {
+          db.analytics.totalRegisteredAttendees = (db.analytics.totalRegisteredAttendees || 18450) + attendeesCount;
+        }
+        return {
+          dirty: true,
+          value: { region, liveStats: getLiveStats(db), db: sanitizePublicDb(db) }
+        };
+      });
+
+      return sendJSON(res, 201, { success: true, ...out }, {}, deviceCookieList);
+    } catch (err) {
+      return sendJSON(res, err.statusCode || 400, { success: false, error: err.statusCode === 413 ? err.message : 'Invalid attendee RSVP' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Acquire or Refresh Temporary Booth Hold (10-min Anti-Race-Condition Lock)
+  if (pathname === '/api/bookings/hold' && req.method === 'POST') {
+    const rate = checkRateLimit(`hold:${ctx.deviceId}:${ctx.clientIp}`, 60, 10 * 60 * 1000);
+    if (!rate.allowed) {
+      return sendJSON(res, 429, {
+        success: false,
+        retryAfterSec: rate.retryAfterSec,
+        error: `Too many booth lock requests. Wait ${rate.retryAfterSec}s.`
+      }, {}, deviceCookieList);
+    }
+    try {
+      const payload = await parseBody(req);
+      const boothCode = String(payload.boothCode || '').trim().toUpperCase();
+      const cities = Array.isArray(payload.cities) ? payload.cities.filter(Boolean) : [];
+      const incomingHoldToken = payload.holdToken ? String(payload.holdToken) : null;
+
+      if (!boothCode || !cities.length) {
+        return sendJSON(res, 400, { success: false, error: 'boothCode and at least one city are required' }, {}, deviceCookieList);
+      }
+
+      const outcome = await withDbTransaction(db => {
+        const conflict = findBoothConflict(db, boothCode, cities, incomingHoldToken);
+        if (conflict) {
+          return { dirty: false, value: { conflict } };
+        }
+        // Remove previous holds owned by this exact incoming token so switching booths releases the old one
+        if (incomingHoldToken) {
+          db.boothHolds = db.boothHolds.filter(h => h.holdToken !== incomingHoldToken);
+        }
+        const holdToken = incomingHoldToken || crypto.randomBytes(16).toString('hex');
+        const holdRecord = {
+          holdId: 'HLD-' + crypto.randomBytes(3).toString('hex').toUpperCase(),
+          holdToken,
+          boothCode,
+          cities,
+          deviceId: ctx.deviceId,
+          createdAt: Date.now(),
+          expiresAt: Date.now() + HOLD_TTL_MS
+        };
+        db.boothHolds.push(holdRecord);
+        return {
+          dirty: true,
+          value: { hold: { holdId: holdRecord.holdId, holdToken, boothCode, cities, expiresAt: holdRecord.expiresAt }, db: sanitizePublicDb(db) }
+        };
+      });
+
+      if (outcome.conflict) {
+        return sendJSON(res, 409, {
+          success: false,
+          errorCode: outcome.conflict.type === 'HELD' ? 'BOOTH_HELD' : 'BOOTH_BOOKED',
+          error: outcome.conflict.type === 'HELD'
+            ? 'This booth slot is temporarily held by another exhibitor completing checkout.'
+            : 'This booth slot has already been booked in one of your selected cities.'
+        }, {}, deviceCookieList);
+      }
+
+      return sendJSON(res, 200, { success: true, ...outcome }, {}, deviceCookieList);
+    } catch (err) {
+      return sendJSON(res, 400, { success: false, error: 'Invalid booth hold payload' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Release Temporary Booth Hold
+  if (pathname === '/api/bookings/hold' && req.method === 'DELETE') {
+    try {
+      const payload = await parseBody(req);
+      const holdToken = String(payload.holdToken || '');
+      if (!holdToken) {
+        return sendJSON(res, 200, { success: true }, {}, deviceCookieList);
+      }
+      await withDbTransaction(db => {
+        const before = db.boothHolds.length;
+        db.boothHolds = db.boothHolds.filter(h => h.holdToken !== holdToken);
+        return { dirty: db.boothHolds.length !== before, value: true };
+      });
+      return sendJSON(res, 200, { success: true }, {}, deviceCookieList);
+    } catch (err) {
+      return sendJSON(res, 400, { success: false, error: 'Invalid release request' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Create Booking (Booking-First Final Checkout + Race Guard + Access PIN + Auto-Expiry)
+  if (pathname === '/api/bookings' && req.method === 'POST') {
+    const rate = checkRateLimit(`book:${ctx.deviceId}:${ctx.clientIp}`, 5, 15 * 60 * 1000);
+    if (!rate.allowed) {
+      return sendJSON(res, 429, {
+        success: false,
+        retryAfterSec: rate.retryAfterSec,
+        error: `Booking rate limit reached. Please wait ${rate.retryAfterSec}s before creating another reservation.`
+      }, {}, deviceCookieList);
+    }
+
+    try {
+      const payload = await parseBody(req);
+      const businessName = sanitizeTextInput(payload.businessName, 120);
+      const contactPerson = sanitizeTextInput(payload.contactPerson, 100);
+      const phone = sanitizeTextInput(payload.phone, 32);
+      const email = sanitizeTextInput(payload.email, 120).toLowerCase();
+      const boothCode = sanitizeTextInput(payload.boothCode, 20).toUpperCase();
+      const cities = Array.isArray(payload.cities)
+        ? payload.cities.map(c => sanitizeTextInput(c, 50)).filter(Boolean).slice(0, 35)
+        : [];
+      const holdToken = payload.holdToken ? sanitizeTextInput(payload.holdToken, 80) : null;
+
+      if (!businessName || !contactPerson || normalizePhoneTail(phone).length < 9 || !isValidEmail(email) || !/^[A-Z]{2,8}-\d{1,3}$/.test(boothCode) || !cities.length) {
+        return sendJSON(res, 400, {
+          success: false,
+          error: 'Business name, contact person, valid email, valid 9+ digit phone, boothCode, and at least one city are required.'
+        }, {}, deviceCookieList);
+      }
+
+      const refNum = 'TBF-BIZ-' + crypto.randomInt(1000, 9999);
+      const controlNum = '99104' + crypto.randomInt(1000000, 9999999);
+      const accessPin = String(crypto.randomInt(100000, 999999));
+      const clientRequestId = payload.clientRequestId ? String(payload.clientRequestId).trim().slice(0, 64) : '';
+
+      const outcome = await withDbTransaction(db => {
+        // Idempotent retry safety on slow/flaky mobile networks
+        if (clientRequestId) {
+          const existing = db.bookings.find(b => b.clientRequestId === clientRequestId);
+          if (existing) {
+            return {
+              dirty: false,
+              value: {
+                deduplicated: true,
+                booking: toSafeBookingReceipt(existing, { unmasked: true, hasPin: Boolean(existing.accessPinHash), stepUpRequired: false }),
+                liveStats: getLiveStats(db),
+                db: sanitizePublicDb(db)
+              }
+            };
+          }
+        }
+
+        const conflict = findBoothConflict(db, boothCode, cities, holdToken);
+        if (conflict) {
+          return { dirty: false, value: { conflict } };
+        }
+
+        if (holdToken) {
+          db.boothHolds = db.boothHolds.filter(h => h.holdToken !== holdToken);
+        }
+
+        const safeEmail = email.slice(0, 120);
+        const safePhone = phone.slice(0, 32);
+        const newBooking = {
+          id: refNum,
+          controlNumber: encryptField(controlNum),
+          accessPinHash: hashSecret(accessPin),
+          clientRequestId: clientRequestId || undefined,
+          ownerDeviceHash: crypto.createHash('sha256').update(ctx.deviceId).digest('hex').slice(0, 16),
+          businessName: businessName.slice(0, 120),
+          tagline: sanitizeTextInput(payload.tagline || 'Bidhaa na huduma bora kwa wateja na wawekezaji mikoani.', 240),
+          contactPerson: encryptField(contactPerson.slice(0, 100)),
+          phone: encryptField(safePhone),
+          email: encryptField(safeEmail),
+          emailIdx: computeBlindIndex(safeEmail.toLowerCase()),
+          phoneIdx: computeBlindIndex(normalizePhoneTail(safePhone)),
+          sector: sanitizeTextInput(payload.sector || 'Biashara & Huduma', 80),
+          packageId: sanitizeTextInput(payload.packageId || 'standard-booth', 48),
+          packageName: sanitizeTextInput(payload.packageName || 'Standard SME Booth (3m x 3m)', 80),
+          boothCode,
+          cities,
+          totalAmount: Math.max(0, Number(payload.totalAmount) || 350000),
+          paymentMethod: sanitizeTextInput(payload.paymentMethod || 'M-Pesa / Mobile Money', 64),
+          featured: true,
+          status: 'Awaiting Payment',
+          paymentExpiresAt: new Date(Date.now() + UNPAID_BOOKING_TTL_MS).toISOString(),
+          createdAt: new Date().toISOString()
+        };
+
+        db.bookings.unshift(newBooking);
+        db.regions.forEach(region => {
+          if (newBooking.cities.includes(region.name)) {
+            if (region.bookedBooths < region.totalBooths) region.bookedBooths += 1;
+            if (!Array.isArray(region.bookedCodes)) region.bookedCodes = [];
+            if (!region.bookedCodes.includes(newBooking.boothCode)) {
+              region.bookedCodes.push(newBooking.boothCode);
+            }
+          }
+        });
+
+        return {
+          dirty: true,
+          value: {
+            booking: toSafeBookingReceipt(newBooking, { unmasked: true, hasPin: true, stepUpRequired: false }),
+            accessPin,
+            liveStats: getLiveStats(db),
+            db: sanitizePublicDb(db)
+          }
+        };
+      });
+
+      if (outcome.conflict) {
+        return sendJSON(res, 409, {
+          success: false,
+          errorCode: outcome.conflict.type === 'HELD' ? 'BOOTH_HELD' : 'BOOTH_BOOKED',
+          error: outcome.conflict.type === 'HELD'
+            ? 'Sorry, another exhibitor is currently holding this booth slot. Please pick an available slot.'
+            : 'Sorry, this booth slot was just booked in one of your selected cities.'
+        }, {}, deviceCookieList);
+      }
+
+      return sendJSON(res, 201, {
+        success: true,
+        ...outcome
+      }, {}, deviceCookieList);
+    } catch (err) {
+      return sendJSON(res, err.statusCode || 400, { success: false, error: err.statusCode === 413 ? err.message : 'Invalid booking payload' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Exhibitor Email Login (Uses Email + Ref/Control # or 6-digit PIN)
+  if (pathname === '/api/bookings/email-login' && req.method === 'POST') {
+    const rate = checkRateLimit(`email-login-rl:${ctx.deviceId}:${ctx.clientIp}`, 30, 15 * 60 * 1000);
+    if (!rate.allowed) {
+      return sendJSON(res, 429, { success: false, retryAfterSec: rate.retryAfterSec, error: `Too many login attempts. Wait ${rate.retryAfterSec}s.` }, {}, deviceCookieList);
+    }
+    try {
+      const payload = await parseBody(req);
+      const emailInput = String(payload.email || '').trim().toLowerCase();
+      const refInput = String(payload.ref || '').trim().toUpperCase();
+      const pin = String(payload.pin || '').trim();
+
+      if (!emailInput || !emailInput.includes('@') || (!refInput && !pin)) {
+        return sendJSON(res, 400, {
+          success: false,
+          error: 'Email address and either a Booking ID / Control Number or 6-digit Security PIN are required.'
+        }, {}, deviceCookieList);
+      }
+
+      const lockKey = `email-login:${emailInput}:${ctx.deviceId}`;
+      const lockState = getLockoutState(pinLockoutStore, lockKey);
+      if (lockState.locked) {
+        return sendJSON(res, 429, {
+          success: false,
+          locked: true,
+          retryAfterSec: lockState.retryAfterSec,
+          error: `Too many invalid login attempts. Try again in ${lockState.retryAfterSec}s.`
+        }, {}, deviceCookieList);
+      }
+
+      const db = readDbClean();
+      const outcome = resolveExhibitorEmailLogin(db, {
+        emailInput,
+        refInput,
+        pin,
+        lockKey,
+        deviceId: ctx.deviceId
+      });
+      return sendJSON(res, outcome.status, outcome.body, {}, deviceCookieList);
+    } catch (err) {
+      return sendJSON(res, err.statusCode || 400, { success: false, error: err.statusCode === 413 ? err.message : 'Invalid exhibitor login payload' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Lookup Guest Booking (Contextual Auth: Masked by default unless Step-Up PIN provided)
+  if (pathname === '/api/bookings/lookup' && req.method === 'POST') {
+    const rate = checkRateLimit(`lookup-rl:${ctx.deviceId}:${ctx.clientIp}`, 30, 15 * 60 * 1000);
+    if (!rate.allowed) {
+      return sendJSON(res, 429, { success: false, retryAfterSec: rate.retryAfterSec, error: `Too many lookup attempts. Wait ${rate.retryAfterSec}s.` }, {}, deviceCookieList);
+    }
+    try {
+      const payload = await parseBody(req);
+      const refInput = String(payload.ref || '').trim().toUpperCase();
+      const phoneTail = normalizePhoneTail(payload.phone);
+      const emailInput = String(payload.email || '').trim().toLowerCase();
+      const pin = String(payload.pin || '').trim();
+
+      if (!refInput || (!phoneTail && !emailInput)) {
+        return sendJSON(res, 400, { success: false, error: 'Booking ID / Control Number and Phone or Email are required' }, {}, deviceCookieList);
+      }
+
+      const db = readDbClean();
+      const found = findBookingByRefAndContact(db, refInput, phoneTail, emailInput);
+      if (!found) {
+        return sendJSON(res, 404, { success: false, error: 'No matching booth reservation found for those details.' }, {}, deviceCookieList);
+      }
+
+      const hasPin = Boolean(found.accessPinHash);
+      if (!pin) {
+        return sendJSON(res, 200, {
+          success: true,
+          booking: toSafeBookingReceipt(found, { unmasked: false, hasPin, stepUpRequired: hasPin })
+        }, {}, deviceCookieList);
+      }
+
+      const lockKey = `pin:${found.id}:${ctx.deviceId}`;
+      const lockState = getLockoutState(pinLockoutStore, lockKey);
+      if (lockState.locked) {
+        return sendJSON(res, 429, {
+          success: false,
+          locked: true,
+          retryAfterSec: lockState.retryAfterSec,
+          error: `Too many invalid Access PIN attempts. Try again in ${lockState.retryAfterSec}s.`
+        }, {}, deviceCookieList);
+      }
+
+      if (!hasPin || !verifySecret(pin, found.accessPinHash)) {
+        const fail = recordFailure(pinLockoutStore, lockKey, 5, 15 * 60 * 1000);
+        return sendJSON(res, fail.lockedUntil ? 429 : 403, {
+          success: false,
+          error: fail.lockedUntil
+            ? 'Access PIN temporarily locked for 15 minutes after 5 failed attempts.'
+            : 'Invalid 6-digit Access PIN.'
+        }, {}, deviceCookieList);
+      }
+
+      pinLockoutStore.delete(lockKey);
+      const manageToken = signPayload({
+        role: 'booking_owner',
+        bookingId: found.id,
+        deviceId: ctx.deviceId
+      }, MANAGE_TOKEN_TTL_MS);
+
+      return sendJSON(res, 200, {
+        success: true,
+        booking: toSafeBookingReceipt(found, { unmasked: true, hasPin: true, stepUpRequired: false, manageToken })
+      }, {}, deviceCookieList);
+    } catch (err) {
+      return sendJSON(res, err.statusCode || 400, { success: false, error: err.statusCode === 413 ? err.message : 'Invalid booking lookup payload' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Self-Service Booking Manage (Step-Up PIN or Scoped Manage Token Required: unlock / switch_booth / cancel)
+  if (pathname === '/api/bookings/manage' && req.method === 'POST') {
+    const rate = checkRateLimit(`manage-rl:${ctx.deviceId}:${ctx.clientIp}`, 30, 15 * 60 * 1000);
+    if (!rate.allowed) {
+      return sendJSON(res, 429, { success: false, retryAfterSec: rate.retryAfterSec, error: `Too many management requests. Wait ${rate.retryAfterSec}s.` }, {}, deviceCookieList);
+    }
+    try {
+      const payload = await parseBody(req);
+      const refInput = String(payload.ref || '').trim().toUpperCase();
+      const phoneTail = normalizePhoneTail(payload.phone);
+      const emailInput = String(payload.email || '').trim().toLowerCase();
+      const pin = String(payload.pin || '').trim();
+      const manageToken = String(payload.manageToken || '').trim();
+      const action = String(payload.action || 'unlock').trim();
+
+      if (!refInput || (!phoneTail && !emailInput)) {
+        return sendJSON(res, 400, { success: false, error: 'Booking reference and phone or email are required' }, {}, deviceCookieList);
+      }
+
+      const dbInitial = readDbClean();
+      const target = findBookingByRefAndContact(dbInitial, refInput, phoneTail, emailInput);
+      if (!target) {
+        return sendJSON(res, 404, { success: false, error: 'Booking not found' }, {}, deviceCookieList);
+      }
+
+      const lockKey = `pin:${target.id}:${ctx.deviceId}`;
+      const lockState = getLockoutState(pinLockoutStore, lockKey);
+      if (lockState.locked) {
+        return sendJSON(res, 429, {
+          success: false,
+          locked: true,
+          retryAfterSec: lockState.retryAfterSec,
+          error: `Step-up verification temporarily locked for ${lockState.retryAfterSec}s.`
+        }, {}, deviceCookieList);
+      }
+
+      let authorized = false;
+      if (manageToken) {
+        const claims = verifySignedToken(manageToken);
+        if (claims && claims.role === 'booking_owner' && claims.bookingId === target.id && claims.deviceId === ctx.deviceId) {
+          authorized = true;
+        }
+      }
+      if (!authorized && pin && target.accessPinHash && verifySecret(pin, target.accessPinHash)) {
+        authorized = true;
+        pinLockoutStore.delete(lockKey);
+      }
+
+      if (!authorized) {
+        const fail = recordFailure(pinLockoutStore, lockKey, 5, 15 * 60 * 1000);
+        return sendJSON(res, fail.lockedUntil ? 429 : 403, {
+          success: false,
+          error: target.accessPinHash
+            ? (fail.lockedUntil ? 'Locked for 15 minutes after repeated invalid Access PINs.' : 'Valid 6-digit Access PIN required for this action.')
+            : 'Legacy seed booking cannot be modified self-service; contact organizer support.'
+        }, {}, deviceCookieList);
+      }
+
+      const issuedToken = signPayload({
+        role: 'booking_owner',
+        bookingId: target.id,
+        deviceId: ctx.deviceId
+      }, MANAGE_TOKEN_TTL_MS);
+
+      if (action === 'unlock') {
+        return sendJSON(res, 200, {
+          success: true,
+          booking: toSafeBookingReceipt(target, { unmasked: true, hasPin: Boolean(target.accessPinHash), stepUpRequired: false, manageToken: issuedToken })
+        }, {}, deviceCookieList);
+      }
+
+      if (action === 'switch_booth') {
+        const newCode = String(payload.newBoothCode || '').trim().toUpperCase();
+        if (!newCode) {
+          return sendJSON(res, 400, { success: false, error: 'newBoothCode is required' }, {}, deviceCookieList);
+        }
+        const result = await withDbTransaction(db => {
+          const b = db.bookings.find(x => x.id === target.id);
+          if (!b) return { dirty: false, value: { errorStatus: 404, error: 'Booking not found' } };
+          if (String(b.status).toLowerCase() === 'cancelled' || String(b.status).toLowerCase() === 'expired') {
+            return { dirty: false, value: { errorStatus: 400, error: 'Cannot switch booth on an inactive booking' } };
+          }
+          const conflict = findBoothConflict(db, newCode, b.cities || [], null, b.id);
+          if (conflict) {
+            return { dirty: false, value: { errorStatus: 409, error: `Booth ${newCode} is not available across all your selected cities.` } };
+          }
+          const oldCode = b.boothCode;
+          b.boothCode = newCode;
+          (b.cities || []).forEach(cityName => {
+            recalcRegionCodeIfUnused(db, cityName, oldCode);
+            const reg = db.regions.find(r => r.name === cityName);
+            if (reg) {
+              if (!Array.isArray(reg.bookedCodes)) reg.bookedCodes = [];
+              if (!reg.bookedCodes.includes(newCode)) {
+                reg.bookedCodes.push(newCode);
+                reg.bookedBooths = Math.min(reg.totalBooths || 999, (reg.bookedBooths || 0) + 1);
+              }
+            }
+          });
+          return {
+            dirty: true,
+            value: {
+              booking: toSafeBookingReceipt(b, { unmasked: true, hasPin: true, stepUpRequired: false, manageToken: issuedToken }),
+              db: sanitizePublicDb(db)
+            }
+          };
+        });
+        if (result.errorStatus) {
+          return sendJSON(res, result.errorStatus, { success: false, error: result.error }, {}, deviceCookieList);
+        }
+        return sendJSON(res, 200, { success: true, ...result }, {}, deviceCookieList);
+      }
+
+      if (action === 'cancel') {
+        const result = await withDbTransaction(db => {
+          const b = db.bookings.find(x => x.id === target.id);
+          if (!b) return { dirty: false, value: { errorStatus: 404, error: 'Booking not found' } };
+          if (String(b.status).toLowerCase() === 'paid') {
+            return { dirty: false, value: { errorStatus: 400, error: 'Paid bookings require organizer desk review to refund/cancel.' } };
+          }
+          b.status = 'Cancelled';
+          b.paymentExpiresAt = null;
+          (b.cities || []).forEach(cityName => recalcRegionCodeIfUnused(db, cityName, b.boothCode));
+          return {
+            dirty: true,
+            value: {
+              booking: toSafeBookingReceipt(b, { unmasked: true, hasPin: true, stepUpRequired: false, manageToken: issuedToken }),
+              db: sanitizePublicDb(db),
+              liveStats: getLiveStats(db)
+            }
+          };
+        });
+        if (result.errorStatus) {
+          return sendJSON(res, result.errorStatus, { success: false, error: result.error }, {}, deviceCookieList);
+        }
+        return sendJSON(res, 200, { success: true, ...result }, {}, deviceCookieList);
+      }
+
+      return sendJSON(res, 400, { success: false, error: 'Unsupported booking management action' }, {}, deviceCookieList);
+    } catch (err) {
+      return sendJSON(res, err.statusCode || 400, { success: false, error: err.statusCode === 413 ? err.message : 'Invalid management payload' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Create a new Sponsor / Partner Inquiry (Public Submit, Sanitized Response)
+  if (pathname === '/api/sponsors' && req.method === 'POST') {
+    const rate = checkRateLimit(`sp:${ctx.deviceId}:${ctx.clientIp}`, 10, 15 * 60 * 1000);
+    if (!rate.allowed) {
+      return sendJSON(res, 429, { success: false, retryAfterSec: rate.retryAfterSec, error: 'Too many requests' }, {}, deviceCookieList);
+    }
+    try {
+      const payload = await parseBody(req);
+      const organization = sanitizeTextInput(payload.organization, 140);
+      const contactName = sanitizeTextInput(payload.contactName, 100);
+      const phone = sanitizeTextInput(payload.phone, 32);
+      const email = sanitizeTextInput(payload.email, 120).toLowerCase();
+      if (!organization || !contactName || normalizePhoneTail(phone).length < 7 || !isValidEmail(email)) {
+        return sendJSON(res, 400, { success: false, error: 'Complete organization contact details are required' }, {}, deviceCookieList);
+      }
+
+      const out = await withDbTransaction(db => {
+        const newSponsor = {
+          id: 'SP-' + crypto.randomInt(100, 999),
+          organization,
+          contactName: encryptField(contactName),
+          phone: encryptField(phone),
+          email: encryptField(email),
+          tier: sanitizeTextInput(payload.tier || 'Sponsor', 48),
+          targetRegions: sanitizeTextInput(payload.targetRegions || 'National Tour (All Regions)', 140),
+          status: 'New Inquiry',
+          createdAt: new Date().toISOString()
+        };
+        db.sponsors.unshift(newSponsor);
+        return {
+          dirty: true,
+          value: {
+            sponsorId: newSponsor.id,
+            liveStats: getLiveStats(db)
+          }
+        };
+      });
+
+      return sendJSON(res, 201, { success: true, ...out }, {}, deviceCookieList);
+    } catch (err) {
+      return sendJSON(res, err.statusCode || 400, { success: false, error: err.statusCode === 413 ? err.message : 'Invalid sponsor payload' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Create/Update Events, News, or Advertisements (ADMIN AUTH REQUIRED)
+  if (pathname === '/api/announcements' && req.method === 'POST') {
+    const session = verifyAdminRequest(req);
+    if (!session) {
+      return sendJSON(res, 401, { success: false, error: 'Admin login required to publish announcements' }, {}, deviceCookieList);
+    }
+    try {
+      const payload = await parseBody(req);
+      const rawType = sanitizeTextInput(payload.type || 'EVENT', 24).toUpperCase();
+      const postType = ['EVENT', 'NEWS', 'ADVERTISEMENT', 'ADVISORY'].includes(rawType) ? rawType : 'EVENT';
+      const out = await withDbTransaction(db => {
+        const newAnn = {
+          id: 'UPD-' + crypto.randomInt(100, 999),
+          type: postType,
+          category: sanitizeTextInput(payload.category || `${postType} UPDATE`, 60),
+          region: sanitizeTextInput(payload.region || 'All Regions', 60),
+          title: sanitizeTextInput(payload.title || 'Taarifa Mpya ya Tanzania Biashara Festival', 180),
+          summary: sanitizeTextInput(payload.summary || '', 1500)
+        };
+        db.announcements.unshift(newAnn);
+
+        if (payload.regionId && payload.scheduleStatus) {
+          const reg = db.regions.find(r => r.id === payload.regionId);
+          if (reg) {
+            const sched = sanitizeTextInput(payload.scheduleStatus, 140);
+            reg.scheduleStatusSw = sched;
+            reg.scheduleStatusEn = sched;
+          }
+        }
+        return {
+          dirty: true,
+          value: { announcement: newAnn, db: sanitizePublicDb(db) }
+        };
+      });
+      return sendJSON(res, 201, { success: true, ...out }, {}, deviceCookieList);
+    } catch (err) {
+      return sendJSON(res, err.statusCode || 400, { success: false, error: err.statusCode === 413 ? err.message : 'Invalid announcement payload' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Admin Set Tour Destination & Venue Location (ADMIN AUTH REQUIRED)
+  if (pathname === '/api/admin/set-destination' && req.method === 'POST') {
+    const session = verifyAdminRequest(req);
+    if (!session) {
+      return sendJSON(res, 401, { success: false, error: 'Admin authentication required' }, {}, deviceCookieList);
+    }
+    try {
+      const payload = await parseBody(req);
+      const rawId = sanitizeTextInput(payload.regionId || 'mwanza', 40).toLowerCase();
+      const rawName = sanitizeTextInput(payload.regionName || '', 60);
+      const out = await withDbTransaction(db => {
+        let targetRegion = db.regions.find(r =>
+          r.id === rawId || (rawName && r.name.toLowerCase() === rawName.toLowerCase())
+        );
+        const regionName = rawName || (targetRegion ? targetRegion.name : 'Mwanza');
+        const regionId = targetRegion ? targetRegion.id : (rawId || regionName.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
+        const defaultVenue = sanitizeTextInput(payload.venue || targetRegion?.venueSw || `${regionName} Exhibition Grounds`, 140);
+        const defaultLocation = sanitizeTextInput(payload.venueLocation || targetRegion?.venueLocation || `${regionName} City Center`, 140);
+        const defaultDates = sanitizeTextInput(payload.eventDates || targetRegion?.eventDates || 'Tarehe 15 - 20 Julai 2026', 80);
+
+        if (!targetRegion) {
+          targetRegion = {
+            id: regionId,
+            name: regionName,
+            nameZh: regionName,
+            zoneSw: `Mkoa wa ${regionName}`,
+            zoneEn: `${regionName} Region`,
+            zoneZh: regionName,
+            scheduleStatusSw: 'Usajili wa Biashara & Mabanda Uko Wazi',
+            scheduleStatusEn: 'Vendor & Business Registration Open',
+            scheduleStatusZh: '商户与展位预订开放中',
+            venueSw: defaultVenue,
+            venueEn: defaultVenue,
+            venueLocation: defaultLocation,
+            eventDates: defaultDates,
+            totalBooths: 160,
+            bookedBooths: 0,
+            registeredAttendees: 0,
+            bookedCodes: []
+          };
+          db.regions.push(targetRegion);
+        } else {
+          if (payload.venue) {
+            targetRegion.venueSw = defaultVenue;
+            targetRegion.venueEn = defaultVenue;
+          }
+          if (payload.venueLocation) targetRegion.venueLocation = defaultLocation;
+          if (payload.eventDates) targetRegion.eventDates = defaultDates;
+        }
+
+        const destination = {
+          regionId,
+          regionName,
+          venue: defaultVenue,
+          venueLocation: defaultLocation,
+          eventDates: defaultDates,
+          notes: sanitizeTextInput(payload.notes || 'Viwanja rasmi vya maonyesho, minada ya wazi na makongamano ya biashara.', 300),
+          pinX: Number(payload.pinX) || (targetRegion?.mapCoords?.pinX || 260),
+          pinY: Number(payload.pinY) || (targetRegion?.mapCoords?.pinY || 180),
+          updatedAt: new Date().toISOString()
+        };
+        db.destination = destination;
+        return {
+          dirty: true,
+          value: { destination: db.destination, regions: db.regions }
+        };
+      });
+      return sendJSON(res, 200, { success: true, ...out }, {}, deviceCookieList);
+    } catch (err) {
+      return sendJSON(res, err.statusCode || 400, { success: false, error: err.statusCode === 413 ? err.message : 'Invalid destination payload' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Subscribe to Newsletter
+  if (pathname === '/api/newsletter/subscribe' && req.method === 'POST') {
+    const rate = checkRateLimit(`sub:${ctx.deviceId}:${ctx.clientIp}`, 15, 15 * 60 * 1000);
+    if (!rate.allowed) {
+      return sendJSON(res, 429, { success: false, retryAfterSec: rate.retryAfterSec, error: 'Too many requests' }, {}, deviceCookieList);
+    }
+    try {
+      const payload = await parseBody(req);
+      const email = sanitizeTextInput(payload.email, 120).toLowerCase();
+      if (!isValidEmail(email)) {
+        return sendJSON(res, 400, { success: false, error: 'Valid email address is required' }, {}, deviceCookieList);
+      }
+      const emailIdx = computeBlindIndex(email);
+
+      const totalSubscribers = await withDbTransaction(db => {
+        const existing = db.newsletterSubscribers.find(s =>
+          (s.emailIdx && s.emailIdx === emailIdx) || decryptField(s.email).toLowerCase() === email
+        );
+        if (!existing) {
+          db.newsletterSubscribers.unshift({
+            id: 'SUB-' + crypto.randomInt(1000, 9999),
+            email: encryptField(email),
+            emailIdx,
+            name: encryptField(sanitizeTextInput(payload.name || '', 80)),
+            region: sanitizeTextInput(payload.region || 'All Regions', 60),
+            subscribedAt: new Date().toISOString()
+          });
+        }
+        return { dirty: !existing, value: db.newsletterSubscribers.length };
+      });
+
+      return sendJSON(res, 200, {
+        success: true,
+        message: 'Successfully subscribed to TBF newsletter',
+        totalSubscribers
+      }, {}, deviceCookieList);
+    } catch (err) {
+      return sendJSON(res, err.statusCode || 500, { success: false, error: err.statusCode === 413 ? err.message : 'Failed to process subscription' }, {}, deviceCookieList);
+    }
+  }
+
+  // Serve Static Files (block path traversal, null bytes, and dotfiles/directories)
+  let decodedPath = pathname;
+  try {
+    decodedPath = decodeURIComponent(pathname);
+  } catch (e) {
+    res.writeHead(400, { ...buildSecurityHeaders(req, { isHtml: false }), 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end('Bad Request');
+  }
+  if (decodedPath.includes('\0') || /(^|[\\/])\./.test(decodedPath)) {
+    res.writeHead(403, { ...buildSecurityHeaders(req, { isHtml: false }), 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end('Forbidden');
+  }
+
+  const relativePath = decodedPath === '/' ? 'index.html' : decodedPath.replace(/^[/\\]+/, '');
+  const resolvedPublic = path.resolve(PUBLIC_DIR);
+  const resolvedTarget = path.resolve(resolvedPublic, relativePath);
+  if (resolvedTarget !== resolvedPublic && !resolvedTarget.startsWith(resolvedPublic + path.sep)) {
+    res.writeHead(403, { ...buildSecurityHeaders(req, { isHtml: false }), 'Content-Type': 'text/plain; charset=utf-8' });
+    return res.end('Forbidden');
+  }
+
+  fs.stat(resolvedTarget, (err, stats) => {
+    if (err || !stats.isFile()) {
+      res.writeHead(404, { ...buildSecurityHeaders(req, { isHtml: false }), 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end('404 Not Found');
+    }
+    const ext = path.extname(resolvedTarget).toLowerCase();
+    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+    const staticHeaders = {
+      ...buildSecurityHeaders(req, { isHtml: ext === '.html' }),
+      'Content-Type': contentType
+    };
+    if (ext === '.html' || ext === '.js' || ext === '.css') {
+      staticHeaders['Cache-Control'] = 'no-store, must-revalidate';
+    }
+    if (deviceCookieList.length) appendSetCookies(staticHeaders, deviceCookieList);
+    res.writeHead(200, staticHeaders);
+    fs.createReadStream(resolvedTarget).pipe(res);
+  });
+});
+
+function migrateDbPiiEncryptionOnce() {
+  try {
+    if (!fs.existsSync(DB_PATH)) return;
+    const db = readDB();
+    let changed = false;
+
+    db.bookings.forEach(b => {
+      if (b.controlNumber && !String(b.controlNumber).startsWith(ENC_PREFIX)) {
+        b.controlNumber = encryptField(b.controlNumber);
+        changed = true;
+      }
+      if (b.contactPerson && !String(b.contactPerson).startsWith(ENC_PREFIX)) {
+        b.contactPerson = encryptField(b.contactPerson);
+        changed = true;
+      }
+      if (b.phone) {
+        const plainPhone = decryptField(b.phone);
+        if (!String(b.phone).startsWith(ENC_PREFIX)) {
+          b.phone = encryptField(plainPhone);
+          changed = true;
+        }
+        const tailIdx = computeBlindIndex(normalizePhoneTail(plainPhone));
+        if (tailIdx && b.phoneIdx !== tailIdx) {
+          b.phoneIdx = tailIdx;
+          changed = true;
+        }
+      }
+      if (b.email) {
+        const plainEmail = decryptField(b.email).trim().toLowerCase();
+        if (!String(b.email).startsWith(ENC_PREFIX)) {
+          b.email = encryptField(plainEmail);
+          changed = true;
+        }
+        const eIdx = computeBlindIndex(plainEmail);
+        if (eIdx && b.emailIdx !== eIdx) {
+          b.emailIdx = eIdx;
+          changed = true;
+        }
+      }
+    });
+
+    db.sponsors.forEach(s => {
+      if (s.contactName && !String(s.contactName).startsWith(ENC_PREFIX)) {
+        s.contactName = encryptField(s.contactName);
+        changed = true;
+      }
+      if (s.phone && !String(s.phone).startsWith(ENC_PREFIX)) {
+        s.phone = encryptField(s.phone);
+        changed = true;
+      }
+      if (s.email && !String(s.email).startsWith(ENC_PREFIX)) {
+        s.email = encryptField(String(s.email).trim().toLowerCase());
+        changed = true;
+      }
+    });
+
+    db.newsletterSubscribers.forEach(sub => {
+      if (sub.email) {
+        const plainEmail = decryptField(sub.email).trim().toLowerCase();
+        if (!String(sub.email).startsWith(ENC_PREFIX)) {
+          sub.email = encryptField(plainEmail);
+          changed = true;
+        }
+        const eIdx = computeBlindIndex(plainEmail);
+        if (eIdx && sub.emailIdx !== eIdx) {
+          sub.emailIdx = eIdx;
+          changed = true;
+        }
+      }
+      if (sub.name && !String(sub.name).startsWith(ENC_PREFIX)) {
+        sub.name = encryptField(sub.name);
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      writeDBAtomic(db);
+    } else {
+      try { fs.chmodSync(DB_PATH, 0o600); } catch (e) {}
+    }
+  } catch (err) {
+    if (DEBUG_MODE) console.error('Startup DB encryption migration error:', err);
+  }
+}
+
+migrateDbPiiEncryptionOnce();
+
+server.listen(PORT, () => {
+  console.log(`Tanzania Biashara Festival platform running at http://localhost:${PORT}`);
+});

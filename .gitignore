@@ -1,0 +1,18 @@
+# Secrets & Environment
+.env
+.env.*
+!.env.example
+data/.auth_secret
+data/*.json
+data/*.tmp*
+
+# Dependencies & Caches
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+
+# Dev Scratch & OS Files
+scratch/
+.DS_Store
+Thumbs.db
