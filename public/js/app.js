@@ -1723,7 +1723,12 @@ function renderTestimonials() {
       badge = t.badgeZh;
     }
 
-    const cleanBadge = badge.replace('✓', '').trim();
+    const cleanBadge = escapeBookingHtml(badge.replace('✓', '').trim());
+    const safeQuote = escapeBookingHtml(quote || '');
+    const safeInitials = escapeBookingHtml(t.initials || '');
+    const safeName = escapeBookingHtml(t.name || '');
+    const safeRole = escapeBookingHtml(role || '');
+    const safeBg = /^#[a-zA-Z0-9]{3,6}$/.test(t.bg) ? t.bg : '#0b6b68';
 
     return `
       <div class="border-l-2 border-[#0b6b68]/30 hover:border-[#0b6b68] pl-4 py-1 flex flex-col justify-between transition-all duration-300 group select-none">
@@ -1734,25 +1739,25 @@ function renderTestimonials() {
               <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
             </svg>
             <span class="inline-flex items-center gap-1 text-[10px] font-bold text-[#0b6b68] uppercase tracking-wider">
-              <svg class="w-3 h-3 text-[#0b6b68] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+              <svg class="w-3.5 h-3.5 text-[#0b6b68] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
               <span>${cleanBadge}</span>
             </span>
           </div>
 
           <!-- Full, readable quote text without mid-word truncation -->
           <p class="text-xs text-slate-600 leading-relaxed mb-4 font-normal">
-            ${quote}
+            ${safeQuote}
           </p>
         </div>
 
         <!-- Compact modern author row -->
         <div class="pt-2 border-t border-slate-200/70 flex items-center gap-2.5 mt-auto">
-          <div class="w-7 h-7 rounded-full text-white flex items-center justify-center font-bold text-[10px] shrink-0" style="background-color: ${t.bg};">
-            ${t.initials}
+          <div class="w-7 h-7 rounded-full text-white flex items-center justify-center font-bold text-[10px] shrink-0" style="background-color: ${safeBg};">
+            ${safeInitials}
           </div>
           <div class="min-w-0">
-            <div class="text-[11px] font-extrabold text-slate-900 uppercase truncate group-hover:text-[#0b6b68] transition-colors">${t.name}</div>
-            <div class="text-[10px] text-slate-500 font-medium truncate">${role}</div>
+            <div class="text-[11px] font-extrabold text-slate-900 uppercase truncate group-hover:text-[#0b6b68] transition-colors">${safeName}</div>
+            <div class="text-[10px] text-slate-500 font-medium truncate">${safeRole}</div>
           </div>
         </div>
       </div>
@@ -2987,10 +2992,10 @@ function animateNumberCount(el, startVal, targetVal, duration = 3000) {
 
 function renderLiveStatsBanner(forceAnimate = false) {
   const s = appState.liveStats || {};
-  const targetVisitors = Number(s.totalCookieVisitors || 71997);
-  const targetAttendees = Number(s.totalRegisteredAttendees || 6997);
-  const targetInvestors = Number(s.totalPartnersAndInvestors || 150);
-  const targetBiz = Number(s.totalBusinessesShowcased || 499);
+  const targetVisitors = Number(s.totalCookieVisitors || 185);
+  const targetAttendees = Number(s.totalRegisteredAttendees || 240);
+  const targetInvestors = Number(s.totalPartnersAndInvestors || 2);
+  const targetBiz = Number(s.totalBusinessesShowcased || 10);
 
   const visitorsEl = document.getElementById('stat-cookie-visitors');
   const attendeesEl = document.getElementById('stat-regional-attendees');
@@ -2999,16 +3004,27 @@ function renderLiveStatsBanner(forceAnimate = false) {
 
   if (!statsCountAnimated || forceAnimate) {
     statsCountAnimated = true;
-    // Animate smoothly over exactly 3 seconds from starting values to target
-    animateNumberCount(visitorsEl, 1500, targetVisitors, 3000);
-    animateNumberCount(attendeesEl, 1500, targetAttendees, 3000);
-    animateNumberCount(investorsEl, 10, targetInvestors, 3000);
-    animateNumberCount(bizEl, 50, targetBiz, 3000);
+    animateNumberCount(visitorsEl, 0, targetVisitors, 1600);
+    animateNumberCount(attendeesEl, 0, targetAttendees, 1600);
+    animateNumberCount(investorsEl, 0, targetInvestors, 1600);
+    animateNumberCount(bizEl, 0, targetBiz, 1600);
   } else {
-    if (visitorsEl) visitorsEl.textContent = targetVisitors.toLocaleString('en-US') + '+';
-    if (attendeesEl) attendeesEl.textContent = targetAttendees.toLocaleString('en-US') + '+';
-    if (investorsEl) investorsEl.textContent = targetInvestors.toLocaleString('en-US') + '+';
-    if (bizEl) bizEl.textContent = targetBiz.toLocaleString('en-US') + '+';
+    if (visitorsEl) {
+      const prev = parseInt(visitorsEl.textContent.replace(/[^0-9]/g, ''), 10) || 0;
+      if (prev !== targetVisitors) animateNumberCount(visitorsEl, prev, targetVisitors, 800);
+    }
+    if (attendeesEl) {
+      const prev = parseInt(attendeesEl.textContent.replace(/[^0-9]/g, ''), 10) || 0;
+      if (prev !== targetAttendees) animateNumberCount(attendeesEl, prev, targetAttendees, 800);
+    }
+    if (investorsEl) {
+      const prev = parseInt(investorsEl.textContent.replace(/[^0-9]/g, ''), 10) || 0;
+      if (prev !== targetInvestors) animateNumberCount(investorsEl, prev, targetInvestors, 800);
+    }
+    if (bizEl) {
+      const prev = parseInt(bizEl.textContent.replace(/[^0-9]/g, ''), 10) || 0;
+      if (prev !== targetBiz) animateNumberCount(bizEl, prev, targetBiz, 800);
+    }
   }
 }
 
@@ -3940,7 +3956,7 @@ let regionalAutoSlideTimer = null;
 function swapCardMainPhoto(cardIdx, photoUrl, btnElem) {
   const mainImg = document.getElementById(`card-main-img-${cardIdx}`);
   if (mainImg) {
-    mainImg.src = photoUrl;
+    mainImg.src = sanitizeMediaSrc(photoUrl);
   }
   document.querySelectorAll(`.card-thumb-btn-${cardIdx}`).forEach(btn => {
     btn.className = `card-thumb-btn-${cardIdx} h-12 sm:h-14 rounded-lg overflow-hidden border-2 transition-all cursor-pointer border-transparent opacity-70 hover:opacity-100`;
@@ -4011,7 +4027,7 @@ function updateGalleryModalView() {
   const counterEl = document.getElementById('regional-gallery-counter');
   const thumbsContainer = document.getElementById('regional-gallery-thumbs');
 
-  if (mainImg) mainImg.src = photos[currentGalleryPhotoIdx] || '';
+  if (mainImg) mainImg.src = sanitizeMediaSrc(photos[currentGalleryPhotoIdx] || '');
   if (titleEl) titleEl.textContent = title;
   if (counterEl) {
     counterEl.textContent = lang === 'zh'
@@ -4025,7 +4041,7 @@ function updateGalleryModalView() {
         onclick="setGalleryModalPhoto(${idx})"
         class="w-16 h-16 sm:w-20 sm:h-20 overflow-hidden border-2 transition flex-shrink-0 cursor-pointer ${idx === currentGalleryPhotoIdx ? 'border-emerald-400 ring-2 ring-emerald-400 opacity-100' : 'border-white/20 opacity-60 hover:opacity-100'}"
       >
-        <img src="${ph}" alt="Thumb ${idx + 1}" class="w-full h-full object-cover" />
+        <img src="${escapeBookingHtml(sanitizeMediaSrc(ph))}" alt="Thumb ${idx + 1}" class="w-full h-full object-cover" />
       </button>
     `).join('');
   }
@@ -4221,26 +4237,38 @@ function renderHomeUpdatesPreview() {
       venue = reg.venueEn;
     }
 
+    const safeTitle = escapeBookingHtml(title || '');
+    const safeDesc = escapeBookingHtml(desc || '');
+    const safeAttendees = escapeBookingHtml(attendees || '');
+    const safeBooths = escapeBookingHtml(booths || '');
+    const safeVenue = escapeBookingHtml(venue || '');
+    const safeGalleryBtn = escapeBookingHtml(dict.cardBtnGallery || 'View Gallery');
+    const safeActionBtn = escapeBookingHtml(dict.cardBtnAction || 'Book Booth →');
+    const safeMainImg = escapeBookingHtml(sanitizeMediaSrc(reg.photos[0]));
+
     return `
       <div class="w-full sm:w-[calc((100%-24px)/2)] lg:w-[calc((100%-64px)/3)] shrink-0 flex flex-col group select-none">
         <!-- TOP BLOCK: PHOTOS ONLY (Completely outside form - modern frameless) -->
         <div class="mb-3">
           <div class="relative w-full h-60 sm:h-64 md:h-72 rounded-2xl overflow-hidden bg-slate-200 shadow-sm mb-2">
-            <img id="card-main-img-${idx}" src="${reg.photos[0]}" alt="${title}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+            <img id="card-main-img-${idx}" src="${safeMainImg}" alt="${safeTitle}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
           </div>
 
           <!-- 4-Thumbnail Gallery Strip (Frameless outside text form) -->
           <div class="grid grid-cols-4 gap-1.5">
-            ${reg.photos.map((ph, pIdx) => `
-              <button
-                type="button"
-                onclick="swapCardMainPhoto(${idx}, '${ph}', this)"
-                class="card-thumb-btn-${idx} h-12 sm:h-14 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${pIdx === 0 ? 'border-[#0b6b68] opacity-100 ring-1 ring-[#0b6b68]' : 'border-transparent opacity-70 hover:opacity-100'}"
-                aria-label="Thumbnail ${pIdx + 1}"
-              >
-                <img src="${ph}" alt="Thumbnail ${pIdx + 1}" class="w-full h-full object-cover" />
-              </button>
-            `).join('')}
+            ${reg.photos.map((ph, pIdx) => {
+              const safeThumbSrc = escapeBookingHtml(sanitizeMediaSrc(ph));
+              return `
+                <button
+                  type="button"
+                  onclick="swapCardMainPhoto(${idx}, '${safeThumbSrc}', this)"
+                  class="card-thumb-btn-${idx} h-12 sm:h-14 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${pIdx === 0 ? 'border-[#0b6b68] opacity-100 ring-1 ring-[#0b6b68]' : 'border-transparent opacity-70 hover:opacity-100'}"
+                  aria-label="Thumbnail ${pIdx + 1}"
+                >
+                  <img src="${safeThumbSrc}" alt="Thumbnail ${pIdx + 1}" class="w-full h-full object-cover" />
+                </button>
+              `;
+            }).join('')}
           </div>
         </div>
 
@@ -4249,28 +4277,28 @@ function renderHomeUpdatesPreview() {
           <div>
             <!-- Title First -->
             <h3 class="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight leading-snug mb-2 group-hover:text-[#0b6b68] transition-colors">
-              ${title}
+              ${safeTitle}
             </h3>
 
             <!-- Clean Metadata Specs (Monochrome SVG Icons) -->
             <div class="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[11px] font-semibold text-slate-500 mb-3 pb-3 border-b border-slate-100">
               <span class="inline-flex items-center gap-1.5">
                 <svg class="w-3.5 h-3.5 text-[#0b6b68] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"></path><circle cx="9" cy="7" r="4" stroke-width="1.8"></circle><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"></path></svg>
-                <span>${attendees}</span>
+                <span>${safeAttendees}</span>
               </span>
               <span class="inline-flex items-center gap-1.5">
                 <svg class="w-3.5 h-3.5 text-[#0b6b68] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 21h18M3 7v14M21 7v14M4 7l8-4 8 4M10 21V11h4v10"></path></svg>
-                <span>${booths}</span>
+                <span>${safeBooths}</span>
               </span>
               <span class="inline-flex items-center gap-1.5">
                 <svg class="w-3.5 h-3.5 text-[#0b6b68] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 21c-4.97-4.97-8-8.5-8-12a8 8 0 1116 0c0 3.5-3.03 7.03-8 12z"></path><circle cx="12" cy="9" r="2.5" stroke-width="1.8"></circle></svg>
-                <span>${venue}</span>
+                <span>${safeVenue}</span>
               </span>
             </div>
 
             <!-- Description -->
             <p class="text-xs sm:text-[13px] text-slate-600 font-normal leading-relaxed mb-4 line-clamp-2">
-              ${desc}
+              ${safeDesc}
             </p>
           </div>
 
@@ -4282,14 +4310,14 @@ function renderHomeUpdatesPreview() {
               class="flex-1 py-2.5 px-3 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-100 hover:border-slate-300 text-slate-800 font-bold text-[11px] uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <svg class="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke-width="1.8"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 15l-5-5L5 21"></path></svg>
-              <span>${dict.cardBtnGallery || 'View Gallery'}</span>
+              <span>${safeGalleryBtn}</span>
             </button>
             <button
               type="button"
               onclick="switchSection('booking')"
               class="flex-1 py-2.5 px-3 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-bold text-[11px] uppercase tracking-wider transition-all shadow-sm hover:shadow flex items-center justify-center gap-1 cursor-pointer"
             >
-              <span>${dict.cardBtnAction || 'Book Booth →'}</span>
+              <span>${safeActionBtn}</span>
             </button>
           </div>
         </div>

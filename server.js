@@ -222,8 +222,10 @@ function getClientContext(req) {
 }
 
 function buildCookieHeader(name, value, { maxAge = 0, httpOnly = true, secure = false } = {}) {
+  const safeName = String(name || '').replace(/[^a-zA-Z0-9_-]/g, '');
+  const cleanVal = encodeURIComponent(String(value || '').replace(/[\r\n]/g, ''));
   const attrs = [
-    `${name}=${encodeURIComponent(value)}`,
+    `${safeName}=${cleanVal}`,
     'Path=/',
     'SameSite=Lax',
     `Max-Age=${Math.max(0, Math.floor(maxAge))}`
@@ -422,13 +424,18 @@ function getLiveStats(db) {
     return st !== 'cancelled' && st !== 'expired';
   });
 
+  const totalRegisteredAttendees = (db.regions || []).reduce(
+    (sum, r) => sum + (Number(r.registeredAttendees) || 0),
+    0
+  );
+
   return {
     liveOnlineCount,
     regionLiveMap,
-    totalCookieVisitors: db.analytics?.totalCookieVisitors || 71997,
-    totalRegisteredAttendees: db.analytics?.totalRegisteredAttendees || 18450,
-    totalBusinessesShowcased: (db.analytics?.totalBusinessesShowcased || 493) + activeBookings.length,
-    totalPartnersAndInvestors: (db.analytics?.totalPartnersAndInvestors || 149) + (db.sponsors?.length || 0)
+    totalCookieVisitors: Math.max(1, Number(db.analytics?.totalCookieVisitors || 185)),
+    totalRegisteredAttendees: Math.max(totalRegisteredAttendees, Number(db.analytics?.totalRegisteredAttendees || 240)),
+    totalBusinessesShowcased: Math.max(activeBookings.length, 10),
+    totalPartnersAndInvestors: (db.sponsors || []).length + 1
   };
 }
 
@@ -597,6 +604,22 @@ function sendJSON(res, statusCode, payload, extraHeaders = {}, cookiesToSet = []
   res.end(JSON.stringify(payload));
 }
 
+function safeJsonParse(rawStr) {
+  if (!rawStr || !rawStr.trim()) return {};
+  const parsed = JSON.parse(rawStr, (key, value) => {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      return undefined;
+    }
+    return value;
+  });
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    const err = new Error('JSON payload must be a non-null object');
+    err.statusCode = 400;
+    throw err;
+  }
+  return parsed;
+}
+
 function parseBody(req, maxBytes = 131072) {
   return new Promise((resolve, reject) => {
     let body = '';
@@ -615,10 +638,10 @@ function parseBody(req, maxBytes = 131072) {
     req.on('end', () => {
       if (aborted) return;
       try {
-        resolve(body ? JSON.parse(body) : {});
+        resolve(safeJsonParse(body));
       } catch (e) {
-        const err = new Error('Invalid JSON payload');
-        err.statusCode = 400;
+        const err = new Error(e.message || 'Invalid JSON payload');
+        err.statusCode = e.statusCode || 400;
         reject(err);
       }
     });
@@ -819,13 +842,23 @@ const server = http.createServer(async (req, res) => {
   res._tbfReq = req;
   const rawUrlPath = String(req.url || '/').split('?')[0];
   let decodedRawPath = rawUrlPath;
-  try {
-    decodedRawPath = decodeURIComponent(rawUrlPath);
-  } catch (e) {
-    res.writeHead(400, { ...buildSecurityHeaders(req, { isHtml: false }), 'Content-Type': 'text/plain; charset=utf-8' });
-    return res.end('Bad Request');
+  for (let i = 0; i < 5; i++) {
+    try {
+      const next = decodeURIComponent(decodedRawPath);
+      if (next === decodedRawPath) break;
+      decodedRawPath = next;
+    } catch (e) {
+      res.writeHead(400, { ...buildSecurityHeaders(req, { isHtml: false }), 'Content-Type': 'text/plain; charset=utf-8' });
+      return res.end('Bad Request');
+    }
   }
-  if (decodedRawPath.includes('\0') || /(^|[\\/])\.\.?([\\/]|$)/.test(decodedRawPath)) {
+  if (
+    decodedRawPath.includes('\0') ||
+    decodedRawPath.includes(':') ||
+    decodedRawPath.includes('~') ||
+    /(^|[\\/])\.\.?([\\/]|$)/.test(decodedRawPath) ||
+    /(\/\.|\.\/|\\\.|\\)/.test(decodedRawPath)
+  ) {
     res.writeHead(403, { ...buildSecurityHeaders(req, { isHtml: false }), 'Content-Type': 'text/plain; charset=utf-8' });
     return res.end('Forbidden');
   }
@@ -1195,19 +1228,19 @@ const server = http.createServer(async (req, res) => {
       const out = await withDbTransaction(db => {
         if (!db.analytics) {
           db.analytics = {
-            totalCookieVisitors: 71997,
-            totalRegisteredAttendees: 18450,
-            totalBusinessesShowcased: 493,
-            totalPartnersAndInvestors: 149
+            totalCookieVisitors: 185,
+            totalRegisteredAttendees: 240,
+            totalBusinessesShowcased: 10,
+            totalPartnersAndInvestors: 2
           };
         }
-        if (isNewCookie) {
-          db.analytics.totalCookieVisitors += 1;
-          const reg = db.regions.find(r => r.id === regionId);
-          if (reg) reg.cookieVisitors = (reg.cookieVisitors || 0) + 1;
+        db.analytics.totalCookieVisitors = (Number(db.analytics.totalCookieVisitors) || 0) + 1;
+        const reg = (db.regions || []).find(r => r.id === regionId);
+        if (reg) {
+          reg.cookieVisitors = (Number(reg.cookieVisitors) || 0) + 1;
         }
         return {
-          dirty: isNewCookie,
+          dirty: true,
           value: { liveStats: getLiveStats(db), regions: db.regions }
         };
       });
@@ -1960,7 +1993,19 @@ const server = http.createServer(async (req, res) => {
     }
     if (deviceCookieList.length) appendSetCookies(staticHeaders, deviceCookieList);
     res.writeHead(200, staticHeaders);
-    fs.createReadStream(resolvedTarget).pipe(res);
+    const stream = fs.createReadStream(resolvedTarget);
+    stream.on('error', () => {
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Internal Server Error');
+      } else {
+        res.destroy();
+      }
+    });
+    req.on('close', () => {
+      stream.destroy();
+    });
+    stream.pipe(res);
   });
 });
 
@@ -2050,6 +2095,37 @@ function migrateDbPiiEncryptionOnce() {
 }
 
 migrateDbPiiEncryptionOnce();
+
+server.headersTimeout = 65000;
+server.requestTimeout = 30000;
+server.keepAliveTimeout = 60000;
+
+process.on('uncaughtException', (err) => {
+  console.error('[CRITICAL] Uncaught exception:', err?.message || err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[CRITICAL] Unhandled rejection:', reason?.message || reason);
+});
+
+const cleanupInterval = setInterval(() => {
+  const now = Date.now();
+  for (const [vid, info] of activeVisitorSessions.entries()) {
+    if (now - info.lastSeen > 10 * 60 * 1000) activeVisitorSessions.delete(vid);
+  }
+  for (const [key, record] of rateLimitStore.entries()) {
+    if (now > record.resetAt + 60000) rateLimitStore.delete(key);
+  }
+  for (const [key, item] of idempotencyStore.entries()) {
+    if (now > item.expiresAt) idempotencyStore.delete(key);
+  }
+  for (const [token, session] of sessionStore.entries()) {
+    if (now > session.expiresAt) sessionStore.delete(token);
+  }
+  for (const [tok, hold] of activeHoldTokens.entries()) {
+    if (now > hold.expiresAt) activeHoldTokens.delete(tok);
+  }
+}, 60000);
+if (cleanupInterval.unref) cleanupInterval.unref();
 
 server.listen(PORT, () => {
   console.log(`Tanzania Biashara Festival platform running at http://localhost:${PORT}`);
