@@ -2151,13 +2151,86 @@
     <p class="text-xs text-white/85 leading-relaxed font-normal" data-i18n="cookieText">
       Tunatumia cookies kuboresha huduma zetu na kukumbuka wewe ni nani pamoja na mapendeleo yako ya lugha na matumizi ya tovuti. Kwa kubonyeza &ldquo;Kubali Cookies Zote&rdquo;, unakubali matumizi ya cookies.
     </p>
-    <div class="flex items-center gap-2.5 pt-1">
-      <button onclick="acceptCookies()" class="flex-1 py-2.5 px-5 rounded-full bg-emerald-400 hover:bg-emerald-300 text-[#063a38] font-bold text-xs transition shadow-sm cursor-pointer" data-i18n="cookieAcceptBtn">
+    <div class="flex items-center gap-2 pt-1">
+      <button onclick="acceptCookies('all')" class="flex-1 py-2.5 px-3 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-[#063a38] font-bold text-xs transition shadow-sm cursor-pointer" data-i18n="cookieAcceptBtn">
         Kubali Cookies Zote
       </button>
-      <button onclick="acceptCookies('essential')" class="py-2.5 px-4 rounded-full bg-white/10 hover:bg-white/20 text-white font-medium text-xs transition cursor-pointer" data-i18n="cookieEssentialBtn">
+      <button onclick="acceptCookies('essential')" class="py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium text-xs transition cursor-pointer" data-i18n="cookieEssentialBtn">
         Muhimu Pekee
       </button>
+      <button type="button" onclick="openCookieSettingsModal()" class="py-2.5 px-3 rounded-xl border border-white/20 hover:bg-white/10 text-emerald-200 hover:text-white font-medium text-xs transition cursor-pointer" data-i18n="cookieManageBtn">
+        Mapendeleo
+      </button>
+    </div>
+  </div>
+
+  <!-- COOKIE PREFERENCES MODAL (MODERN POPUP DIALOG) -->
+  <div id="cookie-preferences-modal" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white text-slate-900 rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div>
+          <h3 class="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+            <svg class="w-5 h-5 text-[#0b6b68]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+            <span data-i18n="cookieModalTitle">Mipangilio ya Faragha &amp; Cookies</span>
+          </h3>
+          <p class="text-xs text-slate-500 mt-1" data-i18n="cookieModalSubtitle">Chagua aina ya cookies unazoruhusu kutumika kwenye kifaa chako.</p>
+        </div>
+        <button type="button" onclick="closeCookieSettingsModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition cursor-pointer">
+          ✕
+        </button>
+      </div>
+
+      <!-- Cookie Categories -->
+      <div class="space-y-4 max-h-[55vh] overflow-y-auto pr-1">
+        <!-- 1. Strictly Necessary -->
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <div class="font-bold text-sm text-slate-900" data-i18n="cookieCatEssentialTitle">Cookies Muhimu za Mfumo (Essential)</div>
+            <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-[#08524f] text-[11px] font-extrabold uppercase" data-i18n="cookieAlwaysActiveBadge">Daima Wazi</span>
+          </div>
+          <p class="text-xs text-slate-500 leading-relaxed" data-i18n="cookieCatEssentialDesc">
+            Zinahitajika kwa ajili ya usalama wa akaunti, kuzuia kuingiliana kwa mabanda wakati wa usajili (booth lock), na uthibitishaji. Haziwezi kuzimwa.
+          </p>
+        </div>
+
+        <!-- 2. Preferences / Functional -->
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <div class="font-bold text-sm text-slate-900" data-i18n="cookieCatPrefTitle">Mapendeleo ya Tovuti (Preferences)</div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="cookie-toggle-pref" class="sr-only peer" checked>
+              <div class="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0b6b68]"></div>
+            </label>
+          </div>
+          <p class="text-xs text-slate-500 leading-relaxed" data-i18n="cookieCatPrefDesc">
+            Huruhusu mfumo kukumbuka lugha uliyochagua (Kiswahili/English/Chinese) na mkoa unaotaka kuangalia kwenye ramani ya maonyesho.
+          </p>
+        </div>
+
+        <!-- 3. Analytics / Statistics -->
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <div class="font-bold text-sm text-slate-900" data-i18n="cookieCatAnalyticsTitle">Takwimu za Wageni (Analytics)</div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="cookie-toggle-analytics" class="sr-only peer" checked>
+              <div class="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0b6b68]"></div>
+            </label>
+          </div>
+          <p class="text-xs text-slate-500 leading-relaxed" data-i18n="cookieCatAnalyticsDesc">
+            Hutusaidia kurekodi idadi ya wageni wanaotembelea tovuti kiuhalisia na kuboresha utendaji bila kushiriki data yako na makampuni ya matangazo ya nje.
+          </p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-col sm:flex-row items-center gap-2.5 pt-2 border-t border-slate-100">
+        <button type="button" onclick="saveCustomCookiePreferences()" class="w-full sm:flex-1 py-3 px-4 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs transition cursor-pointer" data-i18n="cookieSavePreferencesBtn">
+          Hifadhi Mapendeleo
+        </button>
+        <button type="button" onclick="acceptCookies('all')" class="w-full sm:flex-1 py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition cursor-pointer" data-i18n="cookieAcceptAllBtn">
+          Kubali Zote
+        </button>
+      </div>
     </div>
   </div>
 
@@ -2274,13 +2347,17 @@
 
       <div class="max-w-7xl mx-auto pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white/75 font-light">
         <div data-i18n="footerCopyright">© Tanzania Biashara Festival (TBF). All rights reserved.</div>
-        <div data-i18n="footerPowered">Powered by TBF Digital Platform</div>
+        <div class="flex items-center gap-3">
+          <button type="button" onclick="openCookieSettingsModal()" class="hover:text-white hover:underline transition font-normal cursor-pointer" data-i18n="footerCookieSettings">Cookie Settings</button>
+          <span>•</span>
+          <div data-i18n="footerPowered">Powered by TBF Digital Platform</div>
+        </div>
       </div>
     </footer>
   </div>
 
   <script src="/js/qrcode.js"></script>
   <script src="/js/qrcode_UTF8.js"></script>
-  <script src="/js/app.js?v=76"></script>
+  <script src="/js/app.js?v=77"></script>
 </body>
 </html>

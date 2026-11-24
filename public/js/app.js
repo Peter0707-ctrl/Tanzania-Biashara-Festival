@@ -570,6 +570,19 @@ const I18N = {
     cookieText: 'Tunatumia cookies kuboresha huduma zetu na kukumbuka wewe ni nani pamoja na mapendeleo yako ya lugha na matumizi ya tovuti. Kwa kubonyeza "Kubali Cookies Zote", unakubali matumizi ya cookies.',
     cookieAcceptBtn: 'Kubali Cookies Zote',
     cookieEssentialBtn: 'Muhimu Pekee',
+    cookieManageBtn: 'Mapendeleo',
+    footerCookieSettings: 'Mipangilio ya Cookies',
+    cookieModalTitle: 'Mipangilio ya Faragha & Cookies',
+    cookieModalSubtitle: 'Chagua aina ya cookies unazoruhusu kutumika kwenye kifaa chako.',
+    cookieCatEssentialTitle: 'Cookies Muhimu za Mfumo (Essential)',
+    cookieAlwaysActiveBadge: 'Daima Wazi',
+    cookieCatEssentialDesc: 'Zinahitajika kwa ajili ya usalama wa akaunti, kuzuia kuingiliana kwa mabanda wakati wa usajili (booth lock), na uthibitishaji. Haziwezi kuzimwa.',
+    cookieCatPrefTitle: 'Mapendeleo ya Tovuti (Preferences)',
+    cookieCatPrefDesc: 'Huruhusu mfumo kukumbuka lugha uliyochagua (Kiswahili/English/Chinese) na mkoa unaotaka kuangalia kwenye ramani ya maonyesho.',
+    cookieCatAnalyticsTitle: 'Takwimu za Wageni (Analytics)',
+    cookieCatAnalyticsDesc: 'Hutusaidia kurekodi idadi ya wageni wanaotembelea tovuti kiuhalisia na kuboresha utendaji bila kushiriki data yako na makampuni ya matangazo ya nje.',
+    cookieSavePreferencesBtn: 'Hifadhi Mapendeleo',
+    cookieAcceptAllBtn: 'Kubali Zote',
 
     // Footer
     footerMotto: '"Kila biashara ina nafasi yake, kila mji una fursa yake."',
@@ -1000,6 +1013,19 @@ const I18N = {
     cookieText: 'We use cookies to improve our services and to remember who you are, including your language preferences and booking session. By clicking "Accept All Cookies", you consent to our use of cookies.',
     cookieAcceptBtn: 'Accept All Cookies',
     cookieEssentialBtn: 'Essential Only',
+    cookieManageBtn: 'Preferences',
+    footerCookieSettings: 'Cookie Settings',
+    cookieModalTitle: 'Privacy & Cookie Settings',
+    cookieModalSubtitle: 'Manage the cookie categories you allow during your visit.',
+    cookieCatEssentialTitle: 'Strictly Necessary Cookies',
+    cookieAlwaysActiveBadge: 'Always Active',
+    cookieCatEssentialDesc: 'Required for secure sessions, booth concurrency locking, and core platform operations. Cannot be disabled.',
+    cookieCatPrefTitle: 'Functional & Preference Cookies',
+    cookieCatPrefDesc: 'Allows the platform to remember your selected language and active regional tour location across sessions.',
+    cookieCatAnalyticsTitle: 'Privacy-First Analytics',
+    cookieCatAnalyticsDesc: 'Helps us anonymously measure real-time platform visits and regional interest without sharing data with third-party advertisers.',
+    cookieSavePreferencesBtn: 'Save Preferences',
+    cookieAcceptAllBtn: 'Accept All',
 
     // Footer
     footerMotto: '"Every business has a place, every city has an opportunity."',
@@ -1431,6 +1457,19 @@ const I18N = {
     cookieText: '我们使用 Cookie 以改进我们的服务并记住您的身份与偏好设置（包括语言选择与展位预订会话）。点击“接受全部 Cookie”即表示您同意我们使用 Cookie。',
     cookieAcceptBtn: '接受全部 Cookie',
     cookieEssentialBtn: '仅必要 Cookie',
+    cookieManageBtn: '偏好设置',
+    footerCookieSettings: 'Cookie 设置',
+    cookieModalTitle: '隐私与 Cookie 设置',
+    cookieModalSubtitle: '管理您在访问期间允许使用的 Cookie 类别。',
+    cookieCatEssentialTitle: '必要系统 Cookie',
+    cookieAlwaysActiveBadge: '始终启用',
+    cookieCatEssentialDesc: '用于账户安全会话、展位预订防冲突锁定及核心平台验证。不可禁用。',
+    cookieCatPrefTitle: '偏好与功能性 Cookie',
+    cookieCatPrefDesc: '使平台能够跨会话记住您选择的界面语言与关注的巡展地区。',
+    cookieCatAnalyticsTitle: '隐私保护数据统计',
+    cookieCatAnalyticsDesc: '帮助我们匿名统计实时访问量与各省份关注热度，绝不与任何第三方广告商共享数据。',
+    cookieSavePreferencesBtn: '保存偏好设置',
+    cookieAcceptAllBtn: '全部接受',
 
     // Footer
     footerMotto: '“每家企业皆有其位，每座城市皆有机遇。”',
@@ -1927,8 +1966,11 @@ async function initCookieTracking() {
     isNewVisitor = true;
   }
 
-  if (!window.__tbfCookieBannerDismissed) {
+  // Modern consent persistence: only show if user hasn't made a choice yet!
+  if (!consent && !window.__tbfCookieBannerDismissed) {
     document.getElementById('cookie-consent-banner')?.classList.remove('hidden');
+  } else {
+    document.getElementById('cookie-consent-banner')?.classList.add('hidden');
   }
 
   await pingVisitorServer(visitorId, isNewVisitor, appState.activeRegionId);
@@ -1962,8 +2004,42 @@ function acceptCookies(mode = 'all') {
   window.__tbfCookieBannerDismissed = true;
   setCookie('tbf_cookie_consent', mode, 365);
   document.getElementById('cookie-consent-banner')?.classList.add('hidden');
+  closeCookieSettingsModal();
   const vid = getCookie('tbf_visitor_id');
   pingVisitorServer(vid, false, appState.activeRegionId);
+}
+
+function openCookieSettingsModal() {
+  const modal = document.getElementById('cookie-preferences-modal');
+  if (!modal) return;
+  const consent = getCookie('tbf_cookie_consent') || 'all';
+  const prefToggle = document.getElementById('cookie-toggle-pref');
+  const analyticsToggle = document.getElementById('cookie-toggle-analytics');
+  if (prefToggle) prefToggle.checked = consent === 'all' || consent.includes('pref');
+  if (analyticsToggle) analyticsToggle.checked = consent === 'all' || consent.includes('analytics');
+  modal.classList.remove('hidden');
+}
+
+function closeCookieSettingsModal() {
+  document.getElementById('cookie-preferences-modal')?.classList.add('hidden');
+}
+
+function saveCustomCookiePreferences() {
+  const prefToggle = document.getElementById('cookie-toggle-pref');
+  const analyticsToggle = document.getElementById('cookie-toggle-analytics');
+  const allowsPref = prefToggle ? prefToggle.checked : true;
+  const allowsAnalytics = analyticsToggle ? analyticsToggle.checked : true;
+
+  let mode = 'essential';
+  if (allowsPref && allowsAnalytics) {
+    mode = 'all';
+  } else if (allowsPref) {
+    mode = 'pref';
+  } else if (allowsAnalytics) {
+    mode = 'analytics';
+  }
+
+  acceptCookies(mode);
 }
 
 // ==========================================
