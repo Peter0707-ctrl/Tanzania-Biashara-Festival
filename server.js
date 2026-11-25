@@ -530,7 +530,7 @@ function buildSecurityHeaders(req, { isHtml = false } = {}) {
       "style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: blob: https:",
-      "connect-src 'self'",
+      "connect-src 'self' https://nominatim.openstreetmap.org",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -545,7 +545,7 @@ function buildSecurityHeaders(req, { isHtml = false } = {}) {
 function getAllowedCorsOrigin(req) {
   if (!req) return '';
   const origin = String(req.headers.origin || '').trim();
-  const host = String(req.headers.host || '').trim().toLowerCase();
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').trim().toLowerCase();
   if (!origin || !host) return '';
   try {
     const parsed = new URL(origin);

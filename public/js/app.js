@@ -2979,6 +2979,7 @@ function localizeSectorLabel(rawSector, lang) {
 
 function getLocalizedDestinationInfo(dest, lang) {
   const fallback = {
+    regionId: 'mwanza',
     regionName: 'Mwanza',
     venue: 'Rock City / Furahisha Exhibition Grounds',
     venueLocation: 'Barabara ya Nyerere, Ilemela, Mwanza',
@@ -2987,30 +2988,35 @@ function getLocalizedDestinationInfo(dest, lang) {
   const d = dest || fallback;
   const regId = String(d.regionId || 'mwanza').toLowerCase();
   const locInfo = REGION_LOCALIZED_INFO[regId] || null;
-  const baseName = d.regionName || (locInfo ? locInfo.nameSw : 'Mwanza');
+  const geoInfo = REGION_GEO_COORDS[regId] || null;
+  const baseName = d.regionName || (locInfo ? locInfo.nameSw : (geoInfo ? geoInfo.name : 'Mwanza'));
+
   const defaultVenue = locInfo
     ? (lang === 'zh' ? locInfo.venueZh : (lang === 'en' ? locInfo.venueEn : locInfo.venueSw))
-    : (lang === 'zh' ? `${baseName} 国际会展中心` : (lang === 'en' ? `${baseName} Exhibition Grounds` : `Uwanja wa Maonyesho ${baseName}`));
+    : (geoInfo && geoInfo.venue ? geoInfo.venue : (lang === 'zh' ? `${baseName} 国际会展中心` : (lang === 'en' ? `${baseName} Exhibition Grounds` : `Viwanja vya Maonyesho — ${baseName}`)));
   const defaultLoc = locInfo
     ? (lang === 'zh' ? locInfo.locZh : (lang === 'en' ? locInfo.locEn : locInfo.locSw))
-    : `${baseName}, Tanzania`;
+    : (geoInfo && geoInfo.location ? geoInfo.location : `${baseName}, Tanzania`);
   const defaultDates = locInfo
     ? (lang === 'zh' ? locInfo.datesZh : (lang === 'en' ? locInfo.datesEn : locInfo.datesSw))
-    : translateEventDate(d.eventDates || '', lang);
+    : translateEventDate(d.eventDates || 'Tarehe Zitatangazwa', lang);
+
+  const customVenue = d.venue && (!locInfo || (d.venue !== locInfo.venueSw && d.venue !== locInfo.venueEn)) ? d.venue : '';
+  const customLoc = d.venueLocation && (!locInfo || (d.venueLocation !== locInfo.locSw && d.venueLocation !== locInfo.locEn)) ? d.venueLocation : '';
 
   return {
     regionDisplayName: lang === 'zh'
       ? (d.regionNameZh || (locInfo ? locInfo.nameZh : baseName))
       : (lang === 'en' ? (d.regionNameEn || (locInfo ? locInfo.nameEn : baseName)) : (d.regionNameSw || baseName)),
     venueDisplayName: lang === 'zh'
-      ? (d.venueZh || (d.venue && locInfo && d.venue !== locInfo.venueSw ? d.venue : defaultVenue))
+      ? (d.venueZh || customVenue || defaultVenue)
       : (lang === 'en'
-        ? (d.venueEn || (d.venue && locInfo && d.venue !== locInfo.venueSw ? d.venue : defaultVenue))
+        ? (d.venueEn || customVenue || defaultVenue)
         : (d.venueSw || d.venue || defaultVenue)),
     locDisplayName: lang === 'zh'
-      ? (d.venueLocationZh || (d.venueLocation && locInfo && d.venueLocation !== locInfo.locSw ? d.venueLocation : defaultLoc))
+      ? (d.venueLocationZh || customLoc || defaultLoc)
       : (lang === 'en'
-        ? (d.venueLocationEn || (d.venueLocation && locInfo && d.venueLocation !== locInfo.locSw ? d.venueLocation : defaultLoc))
+        ? (d.venueLocationEn || customLoc || defaultLoc)
         : (d.venueLocationSw || d.venueLocation || defaultLoc)),
     datesDisplayName: lang === 'zh'
       ? (d.eventDatesZh || (d.eventDates ? translateEventDate(d.eventDates, 'zh') : defaultDates))
@@ -3476,54 +3482,37 @@ const REGION_VENUE_PHOTOS = {
   ]
 };
 const REGION_GEO_COORDS = {
-  mwanza: {
-    lat: -2.5085,
-    lng: 32.9065,
-    zoom: 14,
-    name: 'Mwanza',
-    venue: 'Rock City / Furahisha Exhibition Grounds',
-    location: 'Barabara ya Nyerere, Ilemela, Mwanza'
-  },
-  dar: {
-    lat: -6.8180,
-    lng: 39.2780,
-    zoom: 14,
-    name: 'Dar es Salaam',
-    venue: 'Dar es Salaam Exhibition Grounds',
-    location: 'Mnazi Mmoja / Kivukoni, Dar es Salaam'
-  },
-  arusha: {
-    lat: -3.3725,
-    lng: 36.6870,
-    zoom: 14,
-    name: 'Arusha',
-    venue: 'Sheikh Amri Abeid Exhibition Grounds',
-    location: 'Katikati ya Jiji, Arusha'
-  },
-  dodoma: {
-    lat: -6.1730,
-    lng: 35.7480,
-    zoom: 14,
-    name: 'Dodoma',
-    venue: 'Dodoma Exhibition & Capital Grounds',
-    location: 'Kikuyu / Jamhuri, Dodoma'
-  },
-  mbeya: {
-    lat: -8.9050,
-    lng: 33.4530,
-    zoom: 14,
-    name: 'Mbeya',
-    venue: 'Sokoine Stadium & Highland Grounds',
-    location: 'Mafiati / Sisimba, Mbeya'
-  },
-  zanzibar: {
-    lat: -6.1640,
-    lng: 39.1910,
-    zoom: 14,
-    name: 'Zanzibar',
-    venue: 'Maisara Exhibition Grounds',
-    location: 'Stone Town / Maisara, Zanzibar'
-  }
+  mwanza: { lat: -2.5085, lng: 32.9065, zoom: 14, name: 'Mwanza', venue: 'Rock City / Furahisha Exhibition Grounds', location: 'Barabara ya Nyerere, Ilemela, Mwanza' },
+  dar: { lat: -6.8180, lng: 39.2780, zoom: 14, name: 'Dar es Salaam', venue: 'Dar es Salaam Exhibition Grounds (Mnazi Mmoja)', location: 'Mnazi Mmoja / Kivukoni, Dar es Salaam' },
+  arusha: { lat: -3.3725, lng: 36.6870, zoom: 14, name: 'Arusha', venue: 'Sheikh Amri Abeid Exhibition Grounds', location: 'Kaloleni / Katikati ya Jiji, Arusha' },
+  dodoma: { lat: -6.1730, lng: 35.7480, zoom: 14, name: 'Dodoma', venue: 'Dodoma Exhibition & Capital Grounds', location: 'Kikuyu / Jamhuri, Dodoma' },
+  mbeya: { lat: -8.9050, lng: 33.4530, zoom: 14, name: 'Mbeya', venue: 'Sokoine Stadium & Highland Grounds', location: 'Mafiati / Sisimba, Mbeya' },
+  zanzibar: { lat: -6.1640, lng: 39.1910, zoom: 14, name: 'Zanzibar', venue: 'Maisara Exhibition Grounds', location: 'Stone Town / Maisara, Zanzibar' },
+  geita: { lat: -2.8722, lng: 32.2305, zoom: 14, name: 'Geita', venue: 'EPZA Bombambili Exhibition Grounds', location: 'Barabara ya Mwanza, Geita Mjini' },
+  iringa: { lat: -7.7689, lng: 35.6910, zoom: 14, name: 'Iringa', venue: 'Samora Stadium & Exhibition Grounds', location: 'Katikati ya Mji, Iringa' },
+  kagera: { lat: -1.3315, lng: 31.8122, zoom: 14, name: 'Kagera', venue: 'Kaitaba & Gymkhana Exhibition Grounds', location: 'Bukoba Mjini, Kagera' },
+  katavi: { lat: -6.3396, lng: 31.0691, zoom: 14, name: 'Katavi', venue: 'Azimio & Mpanda Exhibition Grounds', location: 'Mpanda Mjini, Katavi' },
+  kigoma: { lat: -4.8769, lng: 29.6267, zoom: 14, name: 'Kigoma', venue: 'Lake Tanganyika Exhibition Grounds', location: 'Mwanga / Kigoma Mjini' },
+  kilimanjaro: { lat: -3.3500, lng: 37.3422, zoom: 14, name: 'Kilimanjaro', venue: 'Mashujaa & Ushirika Exhibition Grounds', location: 'Moshi Mjini, Kilimanjaro' },
+  lindi: { lat: -9.9971, lng: 39.7165, zoom: 14, name: 'Lindi', venue: 'Ilulu & Ngongo Exhibition Grounds', location: 'Lindi Mjini' },
+  manyara: { lat: -4.2152, lng: 35.7478, zoom: 14, name: 'Manyara', venue: 'Kwaraa Exhibition Grounds', location: 'Babati Mjini, Manyara' },
+  mara: { lat: -1.5034, lng: 33.7985, zoom: 14, name: 'Mara', venue: 'Karume & Mukendo Exhibition Grounds', location: 'Musoma Mjini, Mara' },
+  morogoro: { lat: -6.8278, lng: 37.6591, zoom: 14, name: 'Morogoro', venue: 'Jamhuri & Nane Nane Exhibition Grounds', location: 'Tungi / Katikati ya Mji, Morogoro' },
+  mtwara: { lat: -10.2736, lng: 40.1828, zoom: 14, name: 'Mtwara', venue: 'Nangwanda Sijaona Exhibition Grounds', location: 'Shangani / Mtwara Mjini' },
+  njombe: { lat: -9.3424, lng: 34.7731, zoom: 14, name: 'Njombe', venue: 'Sabasaba Exhibition Grounds', location: 'Njombe Mjini' },
+  pwani: { lat: -6.7745, lng: 38.9144, zoom: 14, name: 'Pwani', venue: 'Maili Moja & Mkuza Exhibition Grounds', location: 'Kibaha Mjini, Pwani' },
+  rukwa: { lat: -7.9658, lng: 31.6186, zoom: 14, name: 'Rukwa', venue: 'Nelson Mandela Exhibition Grounds', location: 'Sumbawanga Mjini, Rukwa' },
+  ruvuma: { lat: -10.6806, lng: 35.6531, zoom: 14, name: 'Ruvuma', venue: 'Majimaji Exhibition Grounds', location: 'Songea Mjini, Ruvuma' },
+  shinyanga: { lat: -3.6620, lng: 33.4231, zoom: 14, name: 'Shinyanga', venue: 'Kambarage Exhibition Grounds', location: 'Shinyanga Mjini' },
+  simiyu: { lat: -2.7967, lng: 33.9875, zoom: 14, name: 'Simiyu', venue: 'Nyakabindi & Bariadi Exhibition Grounds', location: 'Bariadi Mjini, Simiyu' },
+  singida: { lat: -4.8152, lng: 34.7436, zoom: 14, name: 'Singida', venue: 'Liti & Bombadia Exhibition Grounds', location: 'Singida Mjini' },
+  songwe: { lat: -9.1050, lng: 32.9300, zoom: 14, name: 'Songwe', venue: 'Vwawa & Tunduma Trade Grounds', location: 'Vwawa, Songwe' },
+  tabora: { lat: -5.0162, lng: 32.8033, zoom: 14, name: 'Tabora', venue: 'Ali Hassan Mwinyi & Ipuli Exhibition Grounds', location: 'Tabora Mjini' },
+  tanga: { lat: -5.0694, lng: 39.0989, zoom: 14, name: 'Tanga', venue: 'Tangamano & Mkwakwani Exhibition Grounds', location: 'Barabara ya Taifa, Tanga Mjini' },
+  'kaskazini-unguja': { lat: -5.9325, lng: 39.2800, zoom: 14, name: 'Kaskazini Unguja', venue: 'Mkokotoni & Nungwi Exhibition Grounds', location: 'Kaskazini Unguja, Zanzibar' },
+  'kusini-unguja': { lat: -6.2667, lng: 39.4167, zoom: 14, name: 'Kusini Unguja', venue: 'Tunguu & Paje Exhibition Grounds', location: 'Kusini Unguja, Zanzibar' },
+  'kaskazini-pemba': { lat: -5.0575, lng: 39.7753, zoom: 14, name: 'Kaskazini Pemba', venue: 'Gombani & Wete Exhibition Grounds', location: 'Wete, Pemba' },
+  'kusini-pemba': { lat: -5.2464, lng: 39.7667, zoom: 14, name: 'Kusini Pemba', venue: 'Chake Chake & Tibirinzi Grounds', location: 'Chake Chake, Pemba' }
 };
 
 let leafletMap = null;
@@ -3646,9 +3635,13 @@ function initRealVenueMap(regionId, venueName, venueLocation) {
   const container = document.getElementById('real-venue-map');
   if (!container) return;
 
-  const geo = REGION_GEO_COORDS[regionId] || REGION_GEO_COORDS.mwanza;
-  const lat = geo.lat;
-  const lng = geo.lng;
+  const dest = appState.destination || {};
+  const geo = REGION_GEO_COORDS[regionId] || REGION_GEO_COORDS[getRegionIdForName(dest.regionName)] || REGION_GEO_COORDS.mwanza;
+  const customLat = Number(dest.lat);
+  const customLng = Number(dest.lng);
+  const hasCustomCoords = Number.isFinite(customLat) && Number.isFinite(customLng) && Math.abs(customLat) > 0.1 && Math.abs(customLng) > 0.1;
+  const lat = hasCustomCoords ? customLat : geo.lat;
+  const lng = hasCustomCoords ? customLng : geo.lng;
   const lang = appState.lang || 'en';
 
   // Fallback to OpenStreetMap embed if Leaflet script isn't available
@@ -3690,14 +3683,33 @@ function initRealVenueMap(regionId, venueName, venueLocation) {
     }).addTo(leafletMap);
 
     const popupBadge = lang === 'zh' ? '官方展会主场馆' : (lang === 'en' ? 'Official Festival Venue' : 'Eneo Rasmi la Tamasha');
-    leafletMarker = L.marker([lat, lng]).addTo(leafletMap);
-    leafletMarker.bindPopup(`
+    const popupHtml = `
       <div style="font-family: inherit; font-size: 13px; line-height: 1.4; padding: 2px;">
         <div style="color: #0b6b68; font-weight: 800; font-size: 10px; text-transform: uppercase;">${escapeBookingHtml(popupBadge)}</div>
         <div style="font-weight: 800; font-size: 13px; color: #0f172a; margin-top: 2px;">${escapeBookingHtml(venueName || geo.venue)}</div>
         <div style="font-size: 11px; color: #64748b; margin-top: 2px;">${escapeBookingHtml(venueLocation || geo.location)}</div>
       </div>
-    `).openPopup();
+    `;
+    leafletMarker = L.marker([lat, lng]).addTo(leafletMap);
+    leafletMarker.bindPopup(popupHtml).openPopup();
+
+    // If Admin typed a custom location/venue without stored coordinates, geocode live in Tanzania
+    if (!hasCustomCoords && venueLocation && venueLocation !== geo.location) {
+      const q = encodeURIComponent(`${venueLocation}, ${geo.name || ''}, Tanzania`);
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=tz&q=${q}`)
+        .then(r => r.ok ? r.json() : [])
+        .then(rows => {
+          if (Array.isArray(rows) && rows.length > 0 && leafletMap && leafletMarker) {
+            const gLat = parseFloat(rows[0].lat);
+            const gLng = parseFloat(rows[0].lon);
+            if (Number.isFinite(gLat) && Number.isFinite(gLng)) {
+              leafletMap.setView([gLat, gLng], 15);
+              leafletMarker.setLatLng([gLat, gLng]).openPopup();
+            }
+          }
+        })
+        .catch(() => {});
+    }
 
     setTimeout(() => {
       if (leafletMap) leafletMap.invalidateSize();
@@ -3875,16 +3887,21 @@ function syncAdminDestDefaults() {
   const selectedOpt = select.options[select.selectedIndex];
   const optRegionName = selectedOpt ? (selectedOpt.getAttribute('data-region-name') || selectedOpt.textContent.split('—')[0].trim()) : '';
   const reg = appState.regions.find(r => r.id === regionId || String(r.name || '').toLowerCase() === optRegionName.toLowerCase());
-  const displayName = (reg && reg.name) ? reg.name : (optRegionName || regionId);
+  const geo = REGION_GEO_COORDS[regionId] || null;
+  const displayName = (reg && reg.name) ? reg.name : (geo && geo.name ? geo.name : (optRegionName || regionId));
 
   const venueInput = document.getElementById('admin-dest-venue-input');
   const locInput = document.getElementById('admin-dest-location-input');
   const datesInput = document.getElementById('admin-dest-dates-input');
 
   if (reg) {
-    if (venueInput) venueInput.value = reg.venueSw || `${displayName} Exhibition Grounds`;
-    if (locInput) locInput.value = reg.venueLocation || `${displayName} City Center`;
+    if (venueInput) venueInput.value = reg.venueSw || (geo ? geo.venue : `${displayName} Exhibition Grounds`);
+    if (locInput) locInput.value = reg.venueLocation || (geo ? geo.location : `${displayName} City Center`);
     if (datesInput) datesInput.value = reg.eventDates || 'Tarehe Zitatangazwa';
+  } else if (geo) {
+    if (venueInput) venueInput.value = geo.venue;
+    if (locInput) locInput.value = geo.location;
+    if (datesInput) datesInput.value = 'Tarehe Zitatangazwa';
   } else {
     if (venueInput) venueInput.value = `Viwanja Vikuu vya Maonyesho — ${displayName}`;
     if (locInput) locInput.value = `Katikati ya Mji wa ${displayName}`;

@@ -4,6 +4,11 @@
 
 DirectoryIndex index.html public/index.html
 
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^api/(.*)$ api.php?route=$1 [QSA,L]
+</IfModule>
+
 <IfModule mod_headers.c>
     Header unset X-Powered-By
     Header always unset X-Powered-By

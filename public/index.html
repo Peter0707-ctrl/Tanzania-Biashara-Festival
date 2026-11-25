@@ -106,9 +106,21 @@
     };
   </script>
   <style>
-    .hidden { display: none !important; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
     @media (max-width: 1023px) {
-      nav.lg\:flex { display: none !important; }
+      #desktop-main-nav { display: none !important; }
+      #mobile-top-actions { display: flex !important; }
+    }
+    @media (min-width: 1024px) {
+      #desktop-main-nav { display: flex !important; }
+      #mobile-top-actions { display: none !important; }
+      #mobile-drawer { display: none !important; }
     }
     @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,500;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
     
@@ -390,11 +402,11 @@
   <!-- ==========================================================
        CLEAN KILIMANJARO-MARATHON HEADER (100% PARALLEL SINGLE ROW)
        ========================================================== -->
-  <header class="no-print sticky top-0 z-50 bg-[#0b6b68] text-white shadow-md border-b border-[#08524f]">
-    <div class="w-full px-3 sm:px-6 lg:px-8 flex flex-nowrap items-center justify-between h-14 sm:h-16 lg:h-[68px]">
+  <header class="no-print sticky top-0 z-50 w-full bg-[#0b6b68] text-white shadow-md border-b border-[#08524f]">
+    <div class="w-full pl-3 pr-2 sm:pl-6 sm:pr-4 lg:pl-8 lg:pr-0 flex flex-nowrap items-stretch justify-between h-14 sm:h-16 lg:h-[68px]">
       
       <!-- Left: System Name / Brand Logo (PARALLEL IN SAME ROW) -->
-      <div onclick="switchSection('home')" class="flex items-center gap-2 sm:gap-3 min-w-0 cursor-pointer select-none">
+      <div onclick="switchSection('home')" class="flex items-center gap-2 sm:gap-3 min-w-0 pr-2 lg:pr-6 cursor-pointer select-none">
         <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-white text-[#0b6b68] flex items-center justify-center font-black text-sm sm:text-lg shadow shrink-0">
           TBF
         </div>
@@ -408,8 +420,8 @@
         </div>
       </div>
 
-      <!-- Right: Divided Navigation (Desktop: All Capital Letters; Mobile: Hidden in favor of Mobile Drawer) -->
-      <nav class="hidden lg:flex items-stretch flex-nowrap shrink-0 border-l border-white/20 overflow-visible">
+      <!-- Right: Divided Navigation (Desktop: Full-Height & Flush Right Edge; Mobile: Hidden in favor of Mobile Drawer) -->
+      <nav id="desktop-main-nav" class="hidden lg:flex items-stretch flex-nowrap shrink-0 border-l border-white/20 overflow-visible h-full">
         <button id="nav-home" onclick="switchSection('home')" class="px-2 sm:px-3 lg:px-3.5 h-full text-xs font-extrabold tracking-wider border-r border-white/20 bg-[#08524f] text-white hover:bg-[#063d3b] transition flex items-center whitespace-nowrap uppercase" data-i18n="navHome">
           HOME
         </button>
@@ -568,7 +580,7 @@
       </nav>
 
       <!-- Mobile Top-Right Actions (Language Pill & Hamburger Menu Button) -->
-      <div class="relative flex lg:hidden items-center gap-1.5 sm:gap-2 shrink-0 py-1.5">
+      <div id="mobile-top-actions" class="relative flex lg:hidden items-center gap-1.5 sm:gap-2 shrink-0 py-1.5">
         <!-- Language Selector Pill -->
         <button
           type="button"
@@ -720,7 +732,7 @@
     </section>
 
     <!-- 1B: 3 CLEAN ACTION BLOCKS (LIKE KILIMANJARO MARATHON: ENTER NOW / HIGHLIGHTS / SPONSORS) -->
-    <section class="max-w-7xl mx-auto px-4 sm:px-8 py-12">
+    <section class="max-w-7xl mx-auto px-4 sm:px-8 py-12 overflow-hidden">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div class="bg-white rounded-2xl border border-slate-200 p-6 text-center space-y-3 shadow-sm hover:border-[#0b6b68] transition">
           <h3 class="text-lg font-extrabold uppercase text-[#0b6b68]" data-i18n="card1Title">BOOK A BOOTH NOW!</h3>
