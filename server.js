@@ -34,6 +34,11 @@ const DB_PATH = path.join(DATA_DIR, 'db.json');
 const SECRET_PATH = path.join(DATA_DIR, '.auth_secret');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
+const dbAdapter = require('./data/db_adapter');
+dbAdapter.initialize().catch(err => {
+  if (DEBUG_MODE) console.warn('[DB] Adapter initialization warning:', err.message);
+});
+
 const HOLD_TTL_MS = 10 * 60 * 1000; // 10 minutes temporary booth reservation hold
 const UNPAID_BOOKING_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours auto-expiry for unpaid online reservations
 const ADMIN_SESSION_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours sliding session
