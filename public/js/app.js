@@ -1966,11 +1966,8 @@ async function initCookieTracking() {
     isNewVisitor = true;
   }
 
-  // Modern consent persistence: only show if user hasn't made a choice yet!
-  if (!consent && !window.__tbfCookieBannerDismissed) {
+  if (!window.__tbfCookieBannerDismissed) {
     document.getElementById('cookie-consent-banner')?.classList.remove('hidden');
-  } else {
-    document.getElementById('cookie-consent-banner')?.classList.add('hidden');
   }
 
   await pingVisitorServer(visitorId, isNewVisitor, appState.activeRegionId);
