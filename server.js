@@ -2116,16 +2116,16 @@ const cleanupInterval = setInterval(() => {
     if (now - info.lastSeen > 10 * 60 * 1000) activeVisitorSessions.delete(vid);
   }
   for (const [key, record] of rateLimitStore.entries()) {
-    if (now > record.resetAt + 60000) rateLimitStore.delete(key);
+    if (now > (record.resetAt || 0) + 60000) rateLimitStore.delete(key);
   }
-  for (const [key, item] of idempotencyStore.entries()) {
-    if (now > item.expiresAt) idempotencyStore.delete(key);
+  for (const [key, record] of authLockoutStore.entries()) {
+    if (record.lockedUntil && now > record.lockedUntil) authLockoutStore.delete(key);
   }
-  for (const [token, session] of sessionStore.entries()) {
-    if (now > session.expiresAt) sessionStore.delete(token);
+  for (const [key, record] of pinLockoutStore.entries()) {
+    if (record.lockedUntil && now > record.lockedUntil) pinLockoutStore.delete(key);
   }
-  for (const [tok, hold] of activeHoldTokens.entries()) {
-    if (now > hold.expiresAt) activeHoldTokens.delete(tok);
+  for (const [jti, exp] of revokedAdminTokens.entries()) {
+    if (now > exp) revokedAdminTokens.delete(jti);
   }
 }, 60000);
 if (cleanupInterval.unref) cleanupInterval.unref();
