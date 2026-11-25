@@ -143,13 +143,39 @@ function writeDbPhp($db) {
     }
 }
 
+function buildLiveStatsPhp($db) {
+    $bookingsCount = 0;
+    if (isset($db['bookings']) && is_array($db['bookings'])) {
+        foreach ($db['bookings'] as $b) {
+            $st = strtolower(trim($b['status'] ?? ''));
+            if ($st !== 'cancelled' && $st !== 'expired') $bookingsCount++;
+        }
+    }
+    $sponsorsCount = isset($db['sponsors']) && is_array($db['sponsors']) ? count($db['sponsors']) : 0;
+    $regAttendees = 0;
+    if (isset($db['regions']) && is_array($db['regions'])) {
+        foreach ($db['regions'] as $r) {
+            $regAttendees += (int)($r['registeredAttendees'] ?? 0);
+        }
+    }
+    $visitors = max(185, (int)($db['analytics']['totalCookieVisitors'] ?? ($db['analytics']['totalUniqueVisitors'] ?? 185)));
+    $attendees = max(240, $regAttendees, (int)($db['analytics']['totalRegisteredAttendees'] ?? 240));
+    $investors = max(2, $sponsorsCount, (int)($db['analytics']['totalPartnersAndInvestors'] ?? 2));
+    $biz = max(10, $bookingsCount, (int)($db['analytics']['totalBusinessesShowcased'] ?? 10));
+    return array(
+        'liveOnlineCount' => 1,
+        'totalCookieVisitors' => $visitors,
+        'totalRegisteredAttendees' => $attendees,
+        'totalPartnersAndInvestors' => $investors,
+        'totalBusinessesShowcased' => $biz
+    );
+}
+
 $db = readDbPhp();
 $payload = json_decode($rawBody, true);
 if (!is_array($payload)) $payload = array();
 
 if ($route === 'data' && $method === 'GET') {
-    $bookingsCount = isset($db['bookings']) && is_array($db['bookings']) ? count($db['bookings']) : 0;
-    $sponsorsCount = isset($db['sponsors']) && is_array($db['sponsors']) ? count($db['sponsors']) : 0;
     echo json_encode(array(
         'festivalName' => $db['festivalName'] ?? 'Tanzania Biashara Festival (TBF)',
         'motto' => $db['motto'] ?? 'Every business has a place, every city has an opportunity',
@@ -158,12 +184,39 @@ if ($route === 'data' && $method === 'GET') {
         'boothPackages' => $db['boothPackages'] ?? array(),
         'announcements' => $db['announcements'] ?? array(),
         'boothHolds' => $db['boothHolds'] ?? array(),
-        'liveStats' => array(
-            'cookieVisitors' => max(185, (int)($db['analytics']['totalUniqueVisitors'] ?? 185)),
-            'regionalAttendees' => 240,
-            'sponsorsAndInvestors' => max(2, $sponsorsCount + 2),
-            'businessesBooked' => max(10, $bookingsCount + 10)
-        )
+        'liveStats' => buildLiveStatsPhp($db)
+    ));
+    exit;
+}
+
+if ($route === 'visitor-ping' && $method === 'POST') {
+    if (!isset($db['analytics']) || !is_array($db['analytics'])) {
+        $db['analytics'] = array(
+            'totalCookieVisitors' => 185,
+            'totalRegisteredAttendees' => 240,
+            'totalBusinessesShowcased' => 10,
+            'totalPartnersAndInvestors' => 2
+        );
+    }
+    $currentVisitors = max(185, (int)($db['analytics']['totalCookieVisitors'] ?? 185));
+    $db['analytics']['totalCookieVisitors'] = $currentVisitors + 1;
+
+    $regionId = strtolower(trim($payload['regionId'] ?? 'mwanza'));
+    if (isset($db['regions']) && is_array($db['regions'])) {
+        foreach ($db['regions'] as &$r) {
+            if (strtolower($r['id'] ?? '') === $regionId) {
+                $r['cookieVisitors'] = ((int)($r['cookieVisitors'] ?? 0)) + 1;
+                break;
+            }
+        }
+        unset($r);
+    }
+    writeDbPhp($db);
+    echo json_encode(array(
+        'success' => true,
+        'visitorId' => $payload['visitorId'] ?? ('v_' . time()),
+        'liveStats' => buildLiveStatsPhp($db),
+        'regions' => $db['regions'] ?? array()
     ));
     exit;
 }
@@ -218,8 +271,12 @@ if ($route === 'admin/set-destination' && $method === 'POST') {
     exit;
 }
 
-if (($route === 'visitor-ping' || $route === 'attendee-rsvp' || $route === 'newsletter/subscribe') && $method === 'POST') {
-    echo json_encode(array('success' => true));
+if (($route === 'attendee-rsvp' || $route === 'newsletter/subscribe') && $method === 'POST') {
+    if ($route === 'attendee-rsvp') {
+        $db['analytics']['totalRegisteredAttendees'] = max(240, (int)($db['analytics']['totalRegisteredAttendees'] ?? 240)) + 1;
+        writeDbPhp($db);
+    }
+    echo json_encode(array('success' => true, 'liveStats' => buildLiveStatsPhp($db)));
     exit;
 }
 
