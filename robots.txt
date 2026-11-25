@@ -1,0 +1,9 @@
+# Tanzania Biashara Festival (TBF) - robots.txt
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /data/
+Disallow: /staging_deploy/
+Disallow: /*.json$
+
+Sitemap: https://biasharafestival.co.tz/sitemap.xml

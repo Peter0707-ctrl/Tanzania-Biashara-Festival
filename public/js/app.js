@@ -7,6 +7,100 @@ function debugLog(...args) {
   }
 }
 
+// ==============================================================================
+// AJIRA MARKET-STYLE MODERN FLOATING TOAST NOTIFICATION ENGINE
+// ==============================================================================
+function showToast(message, type = 'info', title = null, durationMs = 4500) {
+  if (!message) return;
+  let container = document.getElementById('tbf-toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'tbf-toast-container';
+    container.className = 'fixed top-5 right-5 z-[999999] flex flex-col gap-3 max-w-sm w-full pointer-events-none px-4 sm:px-0';
+    document.body.appendChild(container);
+  }
+
+  const toast = document.createElement('div');
+  toast.className = 'pointer-events-auto transform transition-all duration-300 translate-y-[-16px] opacity-0 shadow-2xl rounded-2xl border backdrop-blur-md p-4 flex flex-col gap-2 relative overflow-hidden';
+
+  const typeConfig = {
+    success: {
+      bg: 'bg-emerald-950/95 text-emerald-100 border-emerald-500/50',
+      iconBg: 'bg-emerald-500/20 text-emerald-400',
+      barBg: 'bg-emerald-400',
+      defaultTitle: appState && appState.lang === 'sw' ? 'Imefanikiwa' : (appState && appState.lang === 'zh' ? '成功' : 'Success'),
+      icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>'
+    },
+    error: {
+      bg: 'bg-rose-950/95 text-rose-100 border-rose-500/50',
+      iconBg: 'bg-rose-500/20 text-rose-400',
+      barBg: 'bg-rose-400',
+      defaultTitle: appState && appState.lang === 'sw' ? 'Hitilafu' : (appState && appState.lang === 'zh' ? '错误' : 'Notice'),
+      icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>'
+    },
+    warning: {
+      bg: 'bg-amber-950/95 text-amber-100 border-amber-500/50',
+      iconBg: 'bg-amber-500/20 text-amber-400',
+      barBg: 'bg-amber-400',
+      defaultTitle: appState && appState.lang === 'sw' ? 'Tahadhari' : (appState && appState.lang === 'zh' ? '提示' : 'Attention'),
+      icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>'
+    },
+    info: {
+      bg: 'bg-slate-900/95 text-slate-100 border-slate-700/70',
+      iconBg: 'bg-teal-500/20 text-teal-300',
+      barBg: 'bg-teal-400',
+      defaultTitle: appState && appState.lang === 'sw' ? 'Taarifa' : (appState && appState.lang === 'zh' ? '信息' : 'Information'),
+      icon: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
+    }
+  };
+
+  const cfg = typeConfig[type] || typeConfig.info;
+  const toastTitle = title || cfg.defaultTitle;
+
+  toast.className += ` ${cfg.bg}`;
+  toast.innerHTML = `
+    <div class="flex items-start gap-3">
+      <div class="shrink-0 rounded-xl p-1.5 ${cfg.iconBg}">
+        ${cfg.icon}
+      </div>
+      <div class="flex-1 min-w-0 pt-0.5">
+        <div class="font-bold text-xs uppercase tracking-wider opacity-90">${toastTitle}</div>
+        <div class="text-sm font-medium leading-snug mt-0.5 text-white/95 break-words">${message}</div>
+      </div>
+      <button type="button" class="shrink-0 p-1 text-white/60 hover:text-white transition rounded-lg" aria-label="Close">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+    </div>
+    <div class="absolute bottom-0 left-0 h-1 ${cfg.barBg} transition-all" style="width: 100%; transition: width ${durationMs}ms linear;"></div>
+  `;
+
+  const closeBtn = toast.querySelector('button');
+  const removeToast = () => {
+    toast.classList.remove('translate-y-0', 'opacity-100');
+    toast.classList.add('translate-y-[-16px]', 'opacity-0');
+    setTimeout(() => { if (toast.parentNode) toast.remove(); }, 300);
+  };
+
+  if (closeBtn) closeBtn.addEventListener('click', removeToast);
+  container.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.remove('translate-y-[-16px]', 'opacity-0');
+    toast.classList.add('translate-y-0', 'opacity-100');
+    const bar = toast.querySelector('.absolute.bottom-0');
+    if (bar) requestAnimationFrame(() => { bar.style.width = '0%'; });
+  });
+
+  const timer = setTimeout(removeToast, durationMs);
+  toast.addEventListener('mouseenter', () => clearTimeout(timer));
+}
+
+window.showToast = showToast;
+// Automatically intercept any legacy alert call and display an Ajira Market toast instead
+window.alert = function(msg) {
+  showToast(String(msg || ''), 'warning');
+};
+
 function sanitizeMediaSrc(src) {
   const s = String(src || '').trim();
   if (/^\/images\/[a-zA-Z0-9_.\-/]+$/.test(s)) return s;
@@ -2140,6 +2234,10 @@ function setLanguage(lang) {
   if (labelEl) {
     labelEl.textContent = lang.toUpperCase();
   }
+  const labelMobileEl = document.getElementById('lang-current-label-mobile');
+  if (labelMobileEl) {
+    labelMobileEl.textContent = lang.toUpperCase();
+  }
 
   if (checkSw) checkSw.classList.toggle('hidden', lang !== 'sw');
   if (checkEn) checkEn.classList.toggle('hidden', lang !== 'en');
@@ -2186,7 +2284,19 @@ function formatTZS(num) {
   return 'TZS ' + Number(num || 0).toLocaleString('en-US');
 }
 
+function toggleMobileMenu() {
+  const drawer = document.getElementById('mobile-drawer');
+  if (!drawer) return;
+  drawer.classList.toggle('hidden');
+}
+window.toggleMobileMenu = toggleMobileMenu;
+
 function switchSection(secId) {
+  const drawer = document.getElementById('mobile-drawer');
+  if (drawer && !drawer.classList.contains('hidden')) {
+    drawer.classList.add('hidden');
+  }
+
   let targetSec = secId;
   if (targetSec === 'admin' && !appState.isAdminAuthenticated) {
     targetSec = 'login';
@@ -2244,6 +2354,7 @@ function switchSection(secId) {
   }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+window.switchSection = switchSection;
 
 function handleContactSubmit() {
   const name = document.getElementById('contact-form-name')?.value.trim();
