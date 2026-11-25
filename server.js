@@ -504,6 +504,7 @@ function normalizePhoneTail(phone) {
 
 function buildSecurityHeaders(req, { isHtml = false } = {}) {
   const headers = {
+    'Server': 'TBF-Edge/1.0',
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
@@ -840,6 +841,8 @@ function toSafeAdminSponsor(s) {
 
 const server = http.createServer(async (req, res) => {
   res._tbfReq = req;
+  res.removeHeader('X-Powered-By');
+  res.setHeader('Server', 'TBF-Edge/1.0');
   const rawUrlPath = String(req.url || '/').split('?')[0];
   let decodedRawPath = rawUrlPath;
   for (let i = 0; i < 5; i++) {

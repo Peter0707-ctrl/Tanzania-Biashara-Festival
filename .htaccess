@@ -1,0 +1,54 @@
+# ==============================================================================
+# Tanzania Biashara Festival (TBF) - Production Hardening & Security Policy
+# ==============================================================================
+
+# 1. HIDE SERVER SIGNATURE & RUNTIME FINGERPRINTS
+ServerSignature Off
+<IfModule mod_headers.c>
+    # Strip runtime/language/framework headers
+    Header unset X-Powered-By
+    Header always unset X-Powered-By
+    Header unset X-Runtime
+    Header always unset X-Runtime
+    Header unset X-AspNet-Version
+    Header unset Server
+    Header always set Server "TBF-Shield/1.0"
+</IfModule>
+
+# 2. BLOCK SENSITIVE FILES, HIDDEN DIRECTORIES, CONFIGS & DATA
+<FilesMatch "^\.|\.(env|json|sql|log|md|sh|lock|git|secret|auth_secret)$">
+    Require all denied
+</FilesMatch>
+
+<DirectoryMatch "(^|/)(\.git|data|node_modules|scratch|staging_deploy)">
+    Require all denied
+</DirectoryMatch>
+
+# 3. PREVENT DIRECTORY BROWSING
+Options -Indexes -FollowSymLinks
+Options +SymLinksIfOwnerMatch
+
+# 4. HTTPS ENFORCEMENT & CANONICAL DOMAIN
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Force HTTPS
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# 5. SECURITY HEADERS FOR STATIC ASSETS
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "DENY"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+    Header set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" env=HTTPS
+</IfModule>
+
+# 6. GZIP COMPRESSION FOR PERFORMANCE & SCALABILITY
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json image/svg+xml
+</IfModule>
