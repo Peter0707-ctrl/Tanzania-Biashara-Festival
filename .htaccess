@@ -24,11 +24,12 @@ ServerSignature Off
     Require all denied
 </DirectoryMatch>
 
-# 3. PREVENT DIRECTORY BROWSING
+# 3. PREVENT DIRECTORY BROWSING & SET DIRECTORY INDEX
 Options -Indexes -FollowSymLinks
 Options +SymLinksIfOwnerMatch
+DirectoryIndex public/index.html index.html
 
-# 4. HTTPS ENFORCEMENT & CANONICAL DOMAIN
+# 4. HTTPS ENFORCEMENT, PASSENGER & REWRITE RULES
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
@@ -37,6 +38,13 @@ Options +SymLinksIfOwnerMatch
     RewriteCond %{HTTPS} !=on
     RewriteCond %{HTTP:X-Forwarded-Proto} !https
     RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Route requests to public/ if not intercepted by Passenger
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ public/$1 [L]
+    RewriteRule ^$ public/index.html [L]
 </IfModule>
 
 # 5. SECURITY HEADERS FOR STATIC ASSETS

@@ -1,0 +1,2443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tanzania Biashara Festival (TBF) — Every Business Has a Place, Every City Has an Opportunity</title>
+  
+  <!-- Favicon & Touch Icons -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="alternate icon" type="image/png" sizes="32x32" href="/favicon.png" />
+  <link rel="shortcut icon" href="/favicon.ico" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+  
+  <!-- Primary SEO Meta Tags -->
+  <meta name="description" content="Tanzania Biashara Festival (TBF) ni tamasha kubwa la kitaifa la biashara linalounganisha wazalishaji, wajasiriamali na wawekezaji nchi nzima. Every business has a place, every city has an opportunity." />
+  <meta name="keywords" content="Tanzania Biashara Festival, TBF, Maonyesho ya Biashara Tanzania, Dar es Salaam, Arusha, Mwanza, Dodoma, Zanzibar, Biashara, Wafanyabiashara, Uwekezaji" />
+  <meta name="author" content="Tanzania Biashara Festival" />
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+  <link rel="canonical" href="https://biasharafestival.co.tz/" />
+
+  <!-- Open Graph / Facebook / WhatsApp -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://biasharafestival.co.tz/" />
+  <meta property="og:title" content="Tanzania Biashara Festival (TBF) — Kitaifa" />
+  <meta property="og:description" content="Tamasha la kitaifa linalozunguka mikoa yote ya Tanzania kuunganisha wajasiriamali, makampuni na wawekezaji na masoko." />
+  <meta property="og:image" content="https://biasharafestival.co.tz/images/banner.png" />
+  <meta property="og:site_name" content="Tanzania Biashara Festival" />
+  <meta property="og:locale" content="sw_TZ" />
+  <meta property="og:locale:alternate" content="en_US" />
+  <meta property="og:locale:alternate" content="zh_CN" />
+
+  <!-- Twitter Cards -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="https://biasharafestival.co.tz/" />
+  <meta name="twitter:title" content="Tanzania Biashara Festival (TBF)" />
+  <meta name="twitter:description" content="Every business has a place, every city has an opportunity. Jiunge na tamasha la kitaifa la biashara sasa." />
+  <meta name="twitter:image" content="https://biasharafestival.co.tz/images/banner.png" />
+
+  <!-- JSON-LD Structured Data (Schema.org Event & Organization) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://biasharafestival.co.tz/#website",
+        "url": "https://biasharafestival.co.tz/",
+        "name": "Tanzania Biashara Festival",
+        "description": "Nationwide trade festival connecting exhibitors, businesses and investors across Tanzania.",
+        "inLanguage": ["sw", "en", "zh"]
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://biasharafestival.co.tz/#organization",
+        "name": "Tanzania Biashara Festival (TBF)",
+        "url": "https://biasharafestival.co.tz/",
+        "logo": "https://biasharafestival.co.tz/images/banner.png",
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "telephone": "+255767053250",
+          "contactType": "customer service",
+          "email": "info@biasharafestival.co.tz",
+          "areaServed": "TZ",
+          "availableLanguage": ["Swahili", "English", "Chinese"]
+        }
+      },
+      {
+        "@type": "EventSeries",
+        "@id": "https://biasharafestival.co.tz/#festival-series",
+        "name": "Tanzania Biashara Festival Nationwide Tour",
+        "description": "Tanzania's roving business and trade festival visiting Dar es Salaam, Arusha, Mwanza, Dodoma, and Zanzibar.",
+        "organizer": {
+          "@id": "https://biasharafestival.co.tz/#organization"
+        },
+        "location": {
+          "@type": "Place",
+          "name": "Nationwide Roving Tour across Tanzania",
+          "address": {
+            "@type": "PostalAddress",
+            "addressCountry": "TZ"
+          }
+        }
+      }
+    ]
+  }
+  </script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            tbf: {
+              green: '#0b6b68',
+              greenDark: '#08524f',
+              greenLight: '#e6f3f2',
+              offwhite: '#f4f7f6'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,500;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    
+    :root {
+      --font-display: 'Oswald', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-body: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background-color: #f4f7f6;
+      color: #0f172a;
+    }
+
+    /* Attractive Editorial & Geometric Footer Font Pairing */
+    .footer-modern {
+      font-family: 'Outfit', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      letter-spacing: 0.015em;
+    }
+    .footer-brand-title {
+      font-family: var(--font-display);
+      letter-spacing: 0.06em;
+    }
+    .footer-col-heading {
+      font-family: var(--font-display);
+      letter-spacing: 0.14em;
+    }
+    .footer-editorial-motto {
+      font-family: 'Playfair Display', Georgia, serif;
+      letter-spacing: 0.01em;
+    }
+
+    /* Bold Festival Display Typography (Headings & Large Numbers) */
+    h1, h2, h3, .font-display, .heading-display, .stat-number {
+      font-family: var(--font-display);
+      letter-spacing: 0.02em;
+      word-spacing: 0.08em;
+    }
+
+    /* Ample Word Spacing & Breathing Room on Hero Image */
+    #hero-slide-heading {
+      word-spacing: 0.16em !important;
+      letter-spacing: 0.03em !important;
+      line-height: 1.25 !important;
+    }
+
+    #hero-slide-sub {
+      word-spacing: 0.06em !important;
+      line-height: 1.65 !important;
+    }
+
+    /* Chinese Multi-language Fallback */
+    html[lang="zh"] h1, 
+    html[lang="zh"] h2, 
+    html[lang="zh"] h3, 
+    html[lang="zh"] .font-display,
+    html[lang="zh"] .heading-display,
+    html[lang="zh"] .footer-modern,
+    html[lang="zh"] .footer-brand-title,
+    html[lang="zh"] .footer-col-heading,
+    html[lang="zh"] .footer-editorial-motto {
+      font-family: 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', sans-serif !important;
+      letter-spacing: 0.02em !important;
+      word-spacing: normal !important;
+    }
+
+    .booth-cell {
+      transition: all 0.18s ease;
+    }
+    .booth-cell:hover:not(:disabled) {
+      transform: translateY(-2px);
+    }
+    .hero-slide-img {
+      transition: opacity 0.7s ease-in-out, transform 5s ease-out;
+    }
+    .card-photo-transition {
+      transition: opacity 0.5s ease-in-out, transform 0.4s ease;
+    }
+    /* 5 Distinct Non-Repeating Hero Text Animation Designs */
+    @keyframes heroZoomIn {
+      0% { opacity: 0; transform: scale(0.88); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .anim-hero-zoom {
+      animation: heroZoomIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes heroSlideLeft {
+      0% { opacity: 0; transform: translateX(-80px); }
+      100% { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes heroSlideRight {
+      0% { opacity: 0; transform: translateX(80px); }
+      100% { opacity: 1; transform: translateX(0); }
+    }
+    .anim-hero-split-left {
+      animation: heroSlideLeft 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .anim-hero-split-right {
+      animation: heroSlideRight 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes heroDropElastic {
+      0% { opacity: 0; transform: translateY(-70px); }
+      70% { transform: translateY(6px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .anim-hero-drop {
+      animation: heroDropElastic 0.85s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    @keyframes heroRiseUp {
+      0% { opacity: 0; transform: translateY(45px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .anim-hero-rise {
+      animation: heroRiseUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes heroBlurFocus {
+      0% { opacity: 0; filter: blur(14px); transform: scale(1.05); }
+      100% { opacity: 1; filter: blur(0px); transform: scale(1); }
+    }
+    .anim-hero-blur {
+      animation: heroBlurFocus 0.75s ease-out forwards;
+    }
+
+    @keyframes tbfPartnerFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+    .tbf-partner-float {
+      animation: tbfPartnerFloat 4.2s ease-in-out infinite;
+    }
+    .tbf-partner-float:hover {
+      animation-play-state: paused;
+    }
+
+    /* 3-Card Staggered Directional Entrance Animations (Left from Left, Center from Top, Right from Right) */
+    @keyframes cardSlideInLeft {
+      0% {
+        opacity: 0;
+        transform: translateX(-120px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes cardDropInTop {
+      0% {
+        opacity: 0;
+        transform: translateY(-90px);
+      }
+      70% {
+        transform: translateY(6px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes cardSlideInRight {
+      0% {
+        opacity: 0;
+        transform: translateX(120px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .card-anim-init-left {
+      opacity: 0;
+      transform: translateX(-120px);
+      will-change: transform, opacity;
+    }
+
+    .card-anim-init-center {
+      opacity: 0;
+      transform: translateY(-90px);
+      will-change: transform, opacity;
+    }
+
+    .card-anim-init-right {
+      opacity: 0;
+      transform: translateX(120px);
+      will-change: transform, opacity;
+    }
+
+    .card-anim-play-left {
+      animation: cardSlideInLeft 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    }
+
+    .card-anim-play-center {
+      animation: cardDropInTop 0.85s cubic-bezier(0.34, 1.56, 0.64, 1) forwards !important;
+    }
+
+    .card-anim-play-right {
+      animation: cardSlideInRight 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    }
+
+    /* Fallback default classes */
+    .anim-card-left {
+      animation: cardSlideInLeft 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .anim-card-center {
+      animation: cardDropInTop 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .anim-card-right {
+      animation: cardSlideInRight 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* Smooth Hover Dropdown on Desktop (Pointer devices) */
+    @media (hover: hover) and (pointer: fine) {
+      #news-dropdown-wrapper:hover #news-dropdown-menu {
+        display: block !important;
+      }
+      #lang-dropdown-wrapper:hover #lang-dropdown-menu {
+        display: block !important;
+      }
+    }
+
+    @keyframes tourDashAnim {
+      from { stroke-dashoffset: 0; }
+      to { stroke-dashoffset: -100; }
+    }
+    .tour-dashed-line {
+      stroke-dasharray: 6 5;
+      animation: tourDashAnim 20s linear infinite;
+    }
+    @keyframes mapRadarPulse {
+      0% { r: 6px; opacity: 0.9; }
+      100% { r: 26px; opacity: 0; }
+    }
+    .map-radar-ring {
+      animation: mapRadarPulse 2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+    }
+    /* Narrow TRA / EFD Thermal Receipt Paper */
+    .tra-receipt-wrap {
+      filter: drop-shadow(0 18px 36px rgba(15, 23, 42, 0.14));
+    }
+    .tra-edge-top,
+    .tra-edge-bottom {
+      height: 10px;
+      width: 100%;
+      background-repeat: repeat-x;
+      background-size: 16px 10px;
+    }
+    .tra-edge-top {
+      background-image: linear-gradient(135deg, transparent 50%, #ffffff 50%),
+                        linear-gradient(225deg, transparent 50%, #ffffff 50%);
+      background-position: 0 0, 8px 0;
+    }
+    .tra-edge-bottom {
+      background-image: linear-gradient(315deg, transparent 50%, #ffffff 50%),
+                        linear-gradient(45deg, transparent 50%, #ffffff 50%);
+      background-position: 0 0, 8px 0;
+    }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #ffffff !important; }
+      #sec-receipt { padding: 0 !important; margin: 0 auto !important; }
+      .tra-receipt-wrap { filter: none !important; }
+    }
+    /* Hide Leaflet & OpenStreetMap attribution control per user request */
+    .leaflet-control-attribution {
+      display: none !important;
+    }
+  </style>
+</head>
+<body class="bg-[#f4f7f6] text-slate-900 antialiased selection:bg-[#0b6b68]/20">
+
+  <!-- ==========================================================
+       CLEAN KILIMANJARO-MARATHON HEADER (100% PARALLEL SINGLE ROW)
+       ========================================================== -->
+  <header class="no-print sticky top-0 z-50 bg-[#0b6b68] text-white shadow-md border-b border-[#08524f]">
+    <div class="w-full px-4 sm:px-6 lg:px-8 flex flex-nowrap items-stretch justify-between h-16 sm:h-[68px]">
+      
+      <!-- Left: System Name / Brand Logo (PARALLEL IN SAME ROW) -->
+      <div onclick="switchSection('home')" class="flex items-center gap-3 shrink-0 pr-4 lg:pr-8 cursor-pointer select-none">
+        <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white text-[#0b6b68] flex items-center justify-center font-black text-base sm:text-lg shadow">
+          TBF
+        </div>
+        <div class="flex flex-col justify-center">
+          <div class="font-black text-sm sm:text-lg tracking-wide [word-spacing:0.06em] uppercase leading-none text-white whitespace-nowrap">
+            TANZANIA BIASHARA FESTIVAL
+          </div>
+          <div class="footer-editorial-motto italic text-[11px] sm:text-xs text-emerald-100/95 font-medium mt-0.5 hidden sm:block whitespace-nowrap" data-i18n="brandSubtitle">
+            Every business has a place, every city has an opportunity
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Divided Navigation (PARALLEL ON SAME BASELINE - ALL CAPITAL LETTERS) -->
+      <nav class="flex items-stretch flex-nowrap shrink-0 border-l border-white/20 overflow-visible">
+        <button id="nav-home" onclick="switchSection('home')" class="px-2 sm:px-3 lg:px-3.5 h-full text-xs font-extrabold tracking-wider border-r border-white/20 bg-[#08524f] text-white hover:bg-[#063d3b] transition flex items-center whitespace-nowrap uppercase" data-i18n="navHome">
+          HOME
+        </button>
+
+        <button id="nav-about" onclick="switchSection('about')" class="px-2 sm:px-3 lg:px-3.5 h-full text-xs font-extrabold tracking-wider border-r border-white/20 text-white hover:bg-[#08524f] transition flex items-center whitespace-nowrap uppercase" data-i18n="navAbout">
+          ABOUT US
+        </button>
+
+        <button id="nav-booking" onclick="switchSection('booking')" class="px-2 sm:px-3 lg:px-3.5 h-full text-xs font-extrabold tracking-wider border-r border-white/20 text-white hover:bg-[#08524f] transition flex items-center whitespace-nowrap uppercase" data-i18n="navBooking">
+          BOOKING
+        </button>
+
+        <!-- SPONSORS Dedicated Top-Level Button -->
+        <button id="nav-sponsors" onclick="switchSection('sponsors')" class="px-2 sm:px-3 lg:px-3.5 h-full text-xs font-extrabold tracking-wider border-r border-white/20 text-white hover:bg-[#08524f] transition flex items-center whitespace-nowrap uppercase" data-i18n="navSponsors">
+          SPONSORS
+        </button>
+
+        <!-- NEWS with Click / Hover Dropdown for its sub-parts -->
+        <div class="relative flex items-stretch h-full border-r border-white/20 select-none overflow-visible" id="news-dropdown-wrapper">
+          <button
+            id="nav-events"
+            type="button"
+            onclick="toggleNewsDropdown(event)"
+            class="px-2 sm:px-3 lg:px-3.5 h-full text-xs font-extrabold tracking-wider text-white hover:bg-[#08524f] transition flex items-center gap-1 whitespace-nowrap uppercase cursor-pointer"
+            aria-expanded="false"
+            aria-haspopup="true"
+          >
+            <span data-i18n="navNews">NEWS</span>
+            <span class="text-[9px] text-white/80 transition-transform duration-200" id="news-caret">▼</span>
+          </button>
+          
+          <!-- News Dropdown Sub-Parts (Ajira / Clean Style) -->
+          <div
+            id="news-dropdown-menu"
+            class="hidden absolute left-0 top-full mt-1.5 w-60 bg-white text-slate-800 shadow-2xl rounded-2xl border border-slate-200 z-[100] py-1.5 overflow-hidden"
+          >
+            <button
+              type="button"
+              onclick="selectNewsSub('ALL')"
+              class="w-full text-left px-4 py-2.5 text-xs sm:text-sm font-bold flex items-center justify-between hover:bg-slate-50 text-slate-800 border-b border-slate-100 transition cursor-pointer"
+            >
+              <span class="flex items-center gap-2.5">
+                <svg class="w-3.5 h-3.5 text-[#0b6b68]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+                <span data-i18n="navSubAllNews">ALL UPDATES</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onclick="selectNewsSub('GALLERY')"
+              class="w-full text-left px-4 py-2.5 text-xs sm:text-sm font-bold flex items-center justify-between hover:bg-slate-50 text-slate-800 border-b border-slate-100 transition cursor-pointer"
+            >
+              <span class="flex items-center gap-2.5">
+                <svg class="w-3.5 h-3.5 text-[#0b6b68]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                <span data-i18n="navSubGallery">PHOTO GALLERY</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onclick="selectNewsSub('EVENT')"
+              class="w-full text-left px-4 py-2.5 text-xs sm:text-sm font-bold flex items-center justify-between hover:bg-slate-50 text-slate-800 border-b border-slate-100 transition cursor-pointer"
+            >
+              <span class="flex items-center gap-2.5">
+                <svg class="w-3.5 h-3.5 text-[#0b6b68]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" stroke-width="2"></rect><path stroke-linecap="round" stroke-width="2" d="M16 2v4M8 2v4M3 10h18"></path></svg>
+                <span data-i18n="navSubEventsSchedule">EVENTS &amp; SCHEDULE</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onclick="selectNewsSub('ADVERTISEMENT')"
+              class="w-full text-left px-4 py-2.5 text-xs sm:text-sm font-bold flex items-center justify-between hover:bg-slate-50 text-slate-800 border-b border-slate-100 transition cursor-pointer"
+            >
+              <span class="flex items-center gap-2.5">
+                <svg class="w-3.5 h-3.5 text-[#0b6b68]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                <span data-i18n="navSubAds">ADVERTISEMENTS</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onclick="selectNewsSub('NEWS')"
+              class="w-full text-left px-4 py-2.5 text-xs sm:text-sm font-bold flex items-center justify-between hover:bg-slate-50 text-slate-800 transition cursor-pointer"
+            >
+              <span class="flex items-center gap-2.5">
+                <svg class="w-3.5 h-3.5 text-[#0b6b68]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
+                <span data-i18n="navSubOfficialNews">OFFICIAL NEWS</span>
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <button id="nav-contacts" onclick="switchSection('contacts')" class="px-2 sm:px-3 lg:px-3.5 h-full text-xs font-extrabold tracking-wider border-r border-white/20 text-white hover:bg-[#08524f] transition flex items-center whitespace-nowrap uppercase" data-i18n="navContacts">
+          CONTACTS
+        </button>
+
+        <button id="nav-login" onclick="switchSection('login')" class="px-2 sm:px-3 lg:px-3.5 h-full text-xs font-extrabold tracking-wider border-r border-white/20 text-white hover:bg-[#08524f] transition flex items-center whitespace-nowrap uppercase" data-i18n="navLogin">
+          LOGIN
+        </button>
+
+        <!-- Dedicated Language Dropdown Button: Sleek, compact pill like Ajira Market -->
+        <div class="relative flex items-stretch h-full border-r border-white/20 select-none overflow-visible" id="lang-dropdown-wrapper">
+          <button
+            id="lang-dropdown-btn"
+            type="button"
+            onclick="toggleLanguageDropdown(event)"
+            class="px-2 sm:px-2.5 h-full text-xs font-black tracking-wider text-white hover:bg-[#08524f] transition flex items-center gap-1.5 whitespace-nowrap uppercase cursor-pointer"
+            aria-expanded="false"
+            aria-haspopup="true"
+          >
+            <svg class="w-3.5 h-3.5 text-white/90 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="1.8"></circle><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3.6 9h16.8M3.6 15h16.8M12 3a14 14 0 000 18M12 3a14 14 0 010 18"></path></svg>
+            <span id="lang-current-label" class="font-black text-xs">EN</span>
+            <span class="text-[8px] text-white/80 transition-transform duration-200" id="lang-caret">▼</span>
+          </button>
+
+          <!-- Ajira Market Style Dropdown -->
+          <div
+            id="lang-dropdown-menu"
+            class="hidden absolute right-0 top-full mt-1.5 w-52 bg-white text-slate-800 shadow-2xl rounded-2xl border border-slate-200 z-[100] py-1.5 overflow-hidden"
+          >
+            <button
+              type="button"
+              onclick="selectLanguage('sw')"
+              id="lang-opt-sw"
+              class="w-full text-left px-4 py-2.5 text-xs sm:text-sm font-semibold flex items-center justify-between transition cursor-pointer hover:bg-slate-50 text-slate-800"
+            >
+              <span class="flex items-center gap-3">
+                <span class="font-extrabold text-xs text-slate-900 w-5">TZ</span>
+                <span data-i18n="langSwLabel">Kiswahili</span>
+              </span>
+              <span id="lang-check-sw" class="text-sky-600 font-extrabold text-xs hidden">✓</span>
+            </button>
+            <button
+              type="button"
+              onclick="selectLanguage('en')"
+              id="lang-opt-en"
+              class="w-full text-left px-4 py-2.5 text-xs sm:text-sm font-semibold flex items-center justify-between transition cursor-pointer bg-[#f0f7ff] text-slate-900 font-bold"
+            >
+              <span class="flex items-center gap-3">
+                <span class="font-extrabold text-xs text-slate-900 w-5">GB</span>
+                <span data-i18n="langEnLabel">English</span>
+              </span>
+              <span id="lang-check-en" class="text-sky-600 font-extrabold text-xs">✓</span>
+            </button>
+            <button
+              type="button"
+              onclick="selectLanguage('zh')"
+              id="lang-opt-zh"
+              class="w-full text-left px-4 py-2.5 text-xs sm:text-sm font-semibold flex items-center justify-between transition cursor-pointer hover:bg-slate-50 text-slate-800"
+            >
+              <span class="flex items-center gap-3">
+                <span class="font-extrabold text-xs text-slate-900 w-5">CN</span>
+                <span data-i18n="langZhLabel">中文 (Chinese)</span>
+              </span>
+              <span id="lang-check-zh" class="text-sky-600 font-extrabold text-xs hidden">✓</span>
+            </button>
+          </div>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ==========================================================
+       SECTION 1: HOME (CLEAN KILIMANJARO-MARATHON INSPIRED HOME)
+       ========================================================== -->
+  <div id="sec-home">
+
+    <!-- 1A: FULL-WIDTH AUTO-CHANGING HERO IMAGE SLIDER -->
+    <section class="relative w-full h-[460px] sm:h-[550px] overflow-hidden bg-slate-900 select-none">
+      <!-- Preloaded Background Slides for Instant Zero-Delay Fade -->
+      <div id="hero-slides-wrapper" class="absolute inset-0 z-0">
+        <img src="/images/sabasaba_event.jpg" alt="Slide 1" class="hero-bg-slide absolute inset-0 w-full h-full object-cover transition-opacity duration-700 opacity-100" />
+        <img src="/images/market_tents_aisle.jpg" alt="Slide 2" class="hero-bg-slide absolute inset-0 w-full h-full object-cover transition-opacity duration-700 opacity-0" />
+        <img src="/images/african_market_stalls.jpg" alt="Slide 3" class="hero-bg-slide absolute inset-0 w-full h-full object-cover transition-opacity duration-700 opacity-0" />
+        <img src="/images/expo5.jpg" alt="Slide 4" class="hero-bg-slide absolute inset-0 w-full h-full object-cover transition-opacity duration-700 opacity-0" />
+        <img src="/images/expo2.jpg" alt="Slide 5" class="hero-bg-slide absolute inset-0 w-full h-full object-cover transition-opacity duration-700 opacity-0" />
+      </div>
+
+      <!-- Light Dark Overlay so Photos Shine Through Clearly -->
+      <div class="absolute inset-0 z-10 bg-black/45"></div>
+
+      <!-- Left / Right Navigation Arrows -->
+      <button onclick="prevHeroSlide()" class="absolute left-3 sm:left-6 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-black/50 hover:bg-[#0b6b68] text-white font-extrabold text-lg flex items-center justify-center border border-white/30 transition" aria-label="Previous Slide">
+        &larr;
+      </button>
+      <button onclick="nextHeroSlide()" class="absolute right-3 sm:right-6 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-black/50 hover:bg-[#0b6b68] text-white font-extrabold text-lg flex items-center justify-center border border-white/30 transition" aria-label="Next Slide">
+        &rarr;
+      </button>
+
+      <!-- Centered Headline, Motto & Buttons (All Headings Centered with Wide Word Spacing) -->
+      <div class="relative z-20 h-full max-w-4xl mx-auto px-6 sm:px-12 flex flex-col items-center justify-center text-center text-white space-y-4">
+        <h1 id="hero-slide-heading" class="text-xl sm:text-3xl lg:text-4xl font-extrabold uppercase tracking-normal drop-shadow-xl text-center max-w-3xl mx-auto">
+          KARIBU TANZANIA BIASHARA FESTIVAL
+        </h1>
+
+        <p id="hero-slide-sub" class="text-xs sm:text-sm text-white/95 font-medium max-w-2xl drop-shadow-md text-center mx-auto">
+          Ungana nasi katika tamasha kubwa la kibiashara linalozunguka nchi nzima. Kila biashara ina nafasi yake, kila mji una fursa yake!
+        </p>
+
+        <!-- Centered Button Row (Single Focused CTA as requested) -->
+        <div class="pt-2 flex items-center justify-center mx-auto">
+          <button onclick="switchSection('booking')" class="px-8 py-3.5 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm uppercase tracking-wider shadow-xl border border-white/25 transition transform hover:scale-105" data-i18n="heroBtnBook">
+            + BOOK YOUR EXHIBITION BOOTH
+          </button>
+        </div>
+      </div>
+
+      <!-- Slide Dots at Bottom -->
+      <div class="absolute bottom-5 inset-x-0 z-30 flex items-center justify-center gap-2" id="hero-slide-dots"></div>
+    </section>
+
+    <!-- 1B: 3 CLEAN ACTION BLOCKS (LIKE KILIMANJARO MARATHON: ENTER NOW / HIGHLIGHTS / SPONSORS) -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-8 py-12">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 text-center space-y-3 shadow-sm hover:border-[#0b6b68] transition">
+          <h3 class="text-lg font-extrabold uppercase text-[#0b6b68]" data-i18n="card1Title">BOOK A BOOTH NOW!</h3>
+          <p class="text-xs sm:text-sm text-slate-600" data-i18n="card1Desc">
+            Hifadhi banda lako la maonyesho uje kuonyesha na kuuza bidhaa zako kwenye mzunguko wa mikoa.
+          </p>
+          <button onclick="switchSection('booking')" class="px-5 py-2.5 rounded-lg bg-[#0b6b68] text-white text-xs font-extrabold uppercase hover:bg-[#08524f] transition" data-i18n="card1Btn">
+            Book Now &rarr;
+          </button>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 text-center space-y-3 shadow-sm hover:border-[#0b6b68] transition">
+          <h3 class="text-lg font-extrabold uppercase text-[#0b6b68]" data-i18n="card2Title">OUR VISION &amp; MISSION</h3>
+          <p class="text-xs sm:text-sm text-slate-600" data-i18n="card2Desc">
+            Kuwa jukwaa kuu Tanzania linalounganisha watu, biashara, na wawekezaji katika kila mkoa.
+          </p>
+          <button onclick="switchSection('about')" class="inline-block px-5 py-2.5 rounded-lg bg-[#e6f3f2] text-[#0b6b68] text-xs font-extrabold uppercase hover:bg-[#0b6b68] hover:text-white transition" data-i18n="card2Btn">
+            Explore About Us &rarr;
+          </button>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 text-center space-y-3 shadow-sm hover:border-[#0b6b68] transition">
+          <h3 class="text-lg font-extrabold uppercase text-[#0b6b68]" data-i18n="card3Title">SPONSORS &amp; PARTNERS</h3>
+          <p class="text-xs sm:text-sm text-slate-600" data-i18n="card3Desc">
+            Shirikiana nasi kama mdhamini mkuu, benki, au taasisi kwenye makongamano ya mikoa.
+          </p>
+          <button onclick="switchSection('sponsors')" class="px-5 py-2.5 rounded-lg bg-[#0b6b68] text-white text-xs font-extrabold uppercase hover:bg-[#08524f] transition" data-i18n="card3Btn">
+            Partner With Us &rarr;
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1C. DESTINATION SPOTLIGHT & REAL INTERACTIVE VENUE MAP (FORM-LESS) -->
+    <section id="sec-regional-tour" class="max-w-7xl mx-auto px-4 sm:px-8 py-8 space-y-4">
+      <div class="text-center max-w-3xl mx-auto space-y-2 border-b border-slate-200 pb-5">
+        <h2 class="text-xl sm:text-2xl lg:text-3xl font-extrabold uppercase text-slate-900 leading-tight [word-spacing:0.08em]" id="dest-section-title" data-i18n="destSecTitle">
+          Eneo Rasmi la Tamasha &amp; Ramani Halisi
+        </h2>
+        <p class="text-xs sm:text-sm text-slate-600 max-w-2xl mx-auto leading-relaxed [word-spacing:0.04em]" id="dest-section-subtitle" data-i18n="destSecSub">
+          Tazama viwanja vya maonyesho na ramani halisi ya mkoa tunaoenda.
+        </p>
+        <div class="pt-1">
+          <button onclick="switchSection('booking')" class="px-6 py-2.5 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs uppercase tracking-wider shadow transition" data-i18n="destSecBtn">
+            + Hifadhi Banda Lako &rarr;
+          </button>
+        </div>
+      </div>
+
+      <!-- Real Map Spotlight Container (Clean, Minimal, Form-less) -->
+      <div id="region-spotlight-box" class="bg-white rounded-3xl border border-slate-200 p-5 sm:p-7 shadow-sm"></div>
+    </section>
+
+    <!-- 1D: ORGANIC TORN-PAPER / ZIGZAG TEAL-GREEN STATISTICS BANNER (DIRECTLY AFTER MAP) -->
+    <section class="my-8 relative">
+      <!-- Top Organic Torn Paper Edge (Exact Niajiri.africa Vector from Image 2) -->
+      <svg width="100%" height="54" viewBox="0 0 1728 60" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" class="w-full block -mb-1">
+        <path d="M-0.5 11.8288V39.3288V121.329H1727.5V11.8288H1712C1709.5 12.1622 1701.8 13.1288 1691 14.3288C1677.5 15.8288 1684 14.3288 1677 17.3288C1671.4 19.7288 1658.33 18.3288 1652.5 17.3288H1636H1632.5H1621L1604.5 14.3288H1578L1534.5 17.3288H1523C1522.67 14.6622 1520.2 10.3288 1513 14.3288C1505.8 18.3288 1495.67 13.6622 1491.5 10.8288H1481C1481 8.99549 1479.3 6.12883 1472.5 9.32883C1465.7 12.5288 1446 9.66217 1437 7.82884L1432 5.32883H1426.5L1423 7.82884H1413H1383C1373 7.82884 1371.83 9.82883 1372.5 10.8288C1358.5 13.9955 1326.7 18.4288 1311.5 10.8288C1292.5 1.32883 1243 5.32883 1235 1.82883C1227 -1.67117 1208.5 3.82883 1205 5.32883C1201.5 6.82883 1179 9.82883 1178 7.82884C1177 5.82885 1157.5 1.82883 1135.5 5.32883C1113.5 8.82883 1074 5.32883 1067.5 1.82883C1062.3 -0.971175 1056 0.662159 1053.5 1.82883C1048.3 0.228827 1042.67 2.49549 1040.5 3.82883C1034.5 8.22883 1026 9.66216 1022.5 9.82883H1003C1000.5 11.4955 994.5 13.8288 990.5 9.82883C986.5 5.82883 981.5 6.82884 979.5 7.82884H946.5C947.333 6.32884 947.2 3.72883 940 5.32883C931 7.32883 923.5 9.82883 925 7.82884C907.8 22.6289 886.833 13.9955 878.5 7.82884C871.167 4.4955 855.5 -0.171171 851.5 7.82884C846.5 17.8289 848 3.32883 834 14.8288C822.8 24.0288 806 13.9955 799 7.82884H789.5V5.32883H787L783 7.82884L746.5 9.82883C742.5 2.22883 737.833 6.66216 736 9.82883C708.5 4.82883 714.5 19.3288 697.5 9.82883C683.9 2.22883 673.167 0.328825 669.5 0.328825H660.5C660 1.32883 658.1 3.32883 654.5 3.32883C650.9 3.32883 629.333 6.32884 619 7.82884C617.333 7.82884 610.1 7.32884 594.5 5.32883C575 2.82882 559 5.32883 552 7.82884C545 10.3288 531.5 9.82883 516.5 3.32883C504.5 -1.87117 490.167 0.162163 484.5 1.82883H469.5L466.5 5.32883H438L434 7.82884H416.5L413.5 13.3288L402 14.3289C394 15.3289 375.3 16.5289 364.5 13.3288C353.7 10.1288 343 8.32884 339 7.82884C329.5 8.99551 309.1 10.6289 303.5 7.82884C297.9 5.02883 291.167 6.66217 288.5 7.82884H277.5L274 11.3289H258C248 5.32885 246.167 8.82885 246.5 11.3289C244.667 11.1622 239.7 10.9289 234.5 11.3289C228 11.8289 224 22.8289 215.5 17.3289C207 11.8289 205.5 18.8289 202.5 17.3289C200.1 16.1289 172.167 15.8289 158.5 15.8289L154 13.3288H147.5L143.5 14.3289H116C110 14.3289 113 20.3289 105 17.3289C98.6 14.9289 95.3333 17.3289 94.5 18.8289H76L75 17.3289H71V18.8289H65C63.6667 17.4955 60.4 15.6289 58 18.8289C55 22.8289 50 17.8289 49 17.3289C48 16.8289 45 13.3288 41 15.8289C37 18.3289 37.5 15.3289 33.5 13.3288C29.5 11.3288 21.5 17.3288 18 13.3288C15.2 10.1288 4.5 10.9955 -0.5 11.8288Z" fill="#0b6b68"></path>
+      </svg>
+
+      <!-- Center Solid Green Banner with Bold Stats -->
+      <div class="bg-[#0b6b68] text-white py-10 sm:py-14 px-4 sm:px-6">
+        <div class="max-w-6xl mx-auto">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-8 text-center">
+            <div>
+              <div id="stat-cookie-visitors" class="text-3xl sm:text-5xl font-extrabold tracking-normal stat-number">185+</div>
+              <div class="text-xs sm:text-sm text-emerald-100 font-semibold mt-2" data-i18n="statLabelVisitors">
+                Website Visitors
+              </div>
+            </div>
+            <div>
+              <div id="stat-regional-attendees" class="text-3xl sm:text-5xl font-extrabold tracking-normal stat-number">240+</div>
+              <div class="text-xs sm:text-sm text-emerald-100 font-semibold mt-2" data-i18n="statLabelAttendees">
+                Regional Attendees
+              </div>
+            </div>
+            <div>
+              <div id="stat-investors-count" class="text-3xl sm:text-5xl font-extrabold tracking-normal stat-number">2+</div>
+              <div class="text-xs sm:text-sm text-emerald-100 font-semibold mt-2" data-i18n="statLabelInvestors">
+                Sponsors &amp; Investors
+              </div>
+            </div>
+            <div>
+              <div id="stat-businesses-count" class="text-3xl sm:text-5xl font-extrabold tracking-normal stat-number">10+</div>
+              <div class="text-xs sm:text-sm text-emerald-100 font-semibold mt-2" data-i18n="statLabelBusinesses">
+                Exhibition Booths Secured
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Organic Torn Paper Edge (Exact Niajiri.africa Vector from Image 2) -->
+      <svg width="100%" height="54" viewBox="0 0 1728 122" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" class="w-full block -mt-1">
+        <path d="M-0.5 110.329V82.8289V0.828888H1727.5V110.329H1712C1709.5 109.996 1701.8 109.029 1691 107.829C1677.5 106.329 1684 107.829 1677 104.829C1671.4 102.429 1658.33 103.829 1652.5 104.829H1636H1632.5H1621L1604.5 107.829H1578L1534.5 104.829H1523C1522.67 107.496 1520.2 111.829 1513 107.829C1505.8 103.829 1495.67 108.496 1491.5 111.329H1481C1481 113.162 1479.3 116.029 1472.5 112.829C1465.7 109.629 1446 112.496 1437 114.329L1432 116.829H1426.5L1423 114.329H1413H1383C1373 114.329 1371.83 112.329 1372.5 111.329C1358.5 108.162 1326.7 103.729 1311.5 111.329C1292.5 120.829 1243 116.829 1235 120.329C1227 123.829 1208.5 118.329 1205 116.829C1201.5 115.329 1179 112.329 1178 114.329C1177 116.329 1157.5 120.329 1135.5 116.829C1113.5 113.329 1074 116.829 1067.5 120.329C1062.3 123.129 1056 121.496 1053.5 120.329C1048.3 121.929 1042.67 119.662 1040.5 118.329C1034.5 113.929 1026 112.496 1022.5 112.329H1003C1000.5 110.662 994.5 108.329 990.5 112.329C986.5 116.329 981.5 115.329 979.5 114.329H946.5C947.333 115.829 947.2 118.429 940 116.829C931 114.829 923.5 112.329 925 114.329C907.8 99.5289 886.833 108.162 878.5 114.329C871.167 117.662 855.5 122.329 851.5 114.329C846.5 104.329 848 118.829 834 107.329C822.8 98.1289 806 108.162 799 114.329H789.5V116.829H787L783 114.329L746.5 112.329C742.5 119.929 737.833 115.496 736 112.329C708.5 117.329 714.5 102.829 697.5 112.329C683.9 119.929 673.167 121.829 669.5 121.829H660.5C660 120.829 658.1 118.829 654.5 118.829C650.9 118.829 629.333 115.829 619 114.329C617.333 114.329 610.1 114.829 594.5 116.829C575 119.329 559 116.829 552 114.329C545 111.829 531.5 112.329 516.5 118.829C504.5 124.029 490.167 121.996 484.5 120.329H469.5L466.5 116.829H438L434 114.329H416.5L413.5 108.829L402 107.829C394 106.829 375.3 105.629 364.5 108.829C353.7 112.029 343 113.829 339 114.329C329.5 113.162 309.1 111.529 303.5 114.329C297.9 117.129 291.167 115.496 288.5 114.329H277.5L274 110.829H258C248 116.829 246.167 113.329 246.5 110.829C244.667 110.996 239.7 111.229 234.5 110.829C228 110.329 224 99.3289 215.5 104.829C207 110.329 205.5 103.329 202.5 104.829C200.1 106.029 172.167 106.329 158.5 106.329L154 108.829H147.5L143.5 107.829H116C110 107.829 113 101.829 105 104.829C98.6 107.229 95.3333 104.829 94.5 103.329H76L75 104.829H71V103.329H65C63.6667 104.662 60.4 106.529 58 103.329C55 99.3289 50 104.329 49 104.829C48 105.329 45 108.829 41 106.329C37 103.829 37.5 106.829 33.5 108.829C29.5 110.829 21.5 104.829 18 108.829C15.2 112.029 4.5 111.162 -0.5 110.329Z" fill="#0b6b68"></path>
+      </svg>
+    </section>
+
+    <!-- 1E. REGIONAL EXPO HUBS & OFFICIAL SHOWCASE PAVILIONS (AUTO-ANIMATED INFINITE CAROUSEL) -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-8 py-8 space-y-6 select-none" id="sec-regional-showcase">
+      <div class="text-center max-w-3xl mx-auto space-y-2 border-b border-slate-200 pb-5">
+        <h2 class="text-xl sm:text-2xl lg:text-3xl font-extrabold uppercase text-slate-900 leading-tight [word-spacing:0.08em] text-center" data-i18n="homeUpdatesHeading">
+          MAONYESHO YA MIKOA YOTE YA TANZANIA
+        </h2>
+        <p class="text-xs sm:text-sm text-slate-600 max-w-2xl mx-auto leading-relaxed [word-spacing:0.04em] text-center" data-i18n="homeUpdatesSubtitle">
+          Mzunguko wa kibiashara unaotembelea kila mkoa. Gundua fursa za biashara, mabanda ya kisasa na viwanja rasmi vya maonyesho nchini kote.
+        </p>
+      </div>
+
+      <!-- Carousel Viewport -->
+      <div class="relative w-full overflow-hidden" id="regional-slider-viewport">
+        <div
+          id="home-updates-grid"
+          class="flex transition-transform duration-700 ease-in-out gap-6 lg:gap-8"
+        ></div>
+      </div>
+
+      <!-- Slide Dots / Indicators -->
+      <div class="flex items-center justify-center gap-2 pt-2" id="regional-slider-dots"></div>
+    </section>
+
+    <!-- 1F: KILIMANJARO MARATHON INSPIRED NEWSLETTER SUBSCRIBE BANNER (USING BRAND TEAL/GREEN COLORS) -->
+    <section class="w-full bg-[#f1f5f9] border-y border-slate-200 py-12 sm:py-16 my-6">
+      <div class="max-w-4xl mx-auto px-4 sm:px-8 text-center space-y-5 sm:space-y-6">
+        <h2 class="text-xl sm:text-3xl lg:text-4xl font-extrabold uppercase tracking-normal text-slate-900 leading-tight [word-spacing:0.08em]">
+          <span data-i18n="newsletterHeading">SUBSCRIBE TO OUR NEWSLETTER TO GET LATEST NEWS FIRST</span><span class="text-[#0b6b68]">.</span>
+        </h2>
+
+        <div class="pt-2">
+          <button
+            type="button"
+            id="newsletter-main-btn"
+            onclick="openNewsletterModal()"
+            class="px-9 sm:px-12 py-3.5 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm uppercase tracking-wider shadow-lg hover:shadow-xl transition transform hover:scale-105 inline-flex items-center gap-2.5 cursor-pointer"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l9 6 9-6"></path>
+            </svg>
+            <span data-i18n="newsletterBtn">Subscribe</span>
+          </button>
+        </div>
+
+        <div class="pt-2 text-xs sm:text-sm text-slate-600 space-y-1">
+          <p data-i18n="newsletterQueries">Any queries please email organisers on</p>
+          <p>
+            <span class="font-bold text-slate-800" data-i18n="newsletterEmailLabel">Email:</span>
+            <a href="mailto:info@biasharafestival.co.tz" class="font-extrabold text-[#0b6b68] hover:underline">info@biasharafestival.co.tz</a>
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1G: TESTIMONIALS / WHAT OUR USERS SAY -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-8 py-10 space-y-8">
+      <div class="text-center max-w-3xl mx-auto space-y-2">
+        <h2 class="text-xl sm:text-2xl lg:text-3xl font-extrabold uppercase tracking-normal text-slate-900 leading-tight [word-spacing:0.08em]" data-i18n="usersSayHeading">
+          Maneno ya Wajasiriamali na Washiriki wa Tamasha
+        </h2>
+        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" data-i18n="usersSaySubtitle">
+          Gundua jinsi Tanzania Biashara Festival inavyosaidia biashara kufungua masoko mapya, kupata wawekezaji, na kuuza bidhaa moja kwa moja kwa maelfu ya wananchi kila mkoa.
+        </p>
+      </div>
+
+      <div id="home-testimonials-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8"></div>
+
+
+    </section>
+
+    </div>
+
+  <!-- ==========================================================
+       SECTION: ABOUT US (KUHUSU TANZANIA BIASHARA FESTIVAL)
+       ========================================================== -->
+  <section id="sec-about" class="hidden max-w-7xl mx-auto px-4 sm:px-8 py-12 space-y-16">
+    <!-- 1. Editorial Split Hero: Biashara Festival ni Nini? -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center pb-10 border-b border-slate-200/80">
+      <div class="lg:col-span-6 space-y-5">
+        <h2 class="text-3xl sm:text-4xl lg:text-[42px] font-extrabold text-slate-900 uppercase leading-[1.12] [word-spacing:0.06em]" data-i18n="aboutTitle">
+          Jukwaa Kuu la Biashara, Uwekezaji na Utangazaji Tanzania Nzima
+        </h2>
+        <p class="text-sm sm:text-[15px] text-slate-600 leading-relaxed" data-i18n="aboutDesc">
+          Tanzania Biashara Festival (TBF) ni tamasha kubwa la kitaifa la kibiashara, uwekezaji, na fursa za kiuchumi linalozunguka Tanzania nzima kulingana na ratiba ya mikoa tunayopanga. Lengo letu ni kuwapa wafanyabiashara jukwaa la kutangaza chapa zao na kuuza moja kwa moja kwa wananchi, huku wawekezaji wakipata miradi na kampuni halisi za kuwekeza ndani ya mikoa husika.
+        </p>
+
+        <!-- Key Snapshot Metrics -->
+        <div class="grid grid-cols-3 gap-4 pt-4 border-t border-slate-200/80">
+          <div>
+            <div class="text-xl sm:text-2xl font-extrabold text-[#0b6b68]" data-i18n="aboutHeroStat1Val">TZ Nzima</div>
+            <div class="text-[11px] sm:text-xs font-medium text-slate-500 mt-0.5" data-i18n="aboutHeroStat1">Mzunguko wa Mikoa Tunayopanga</div>
+          </div>
+          <div>
+            <div class="text-xl sm:text-2xl font-extrabold text-[#0b6b68]" data-i18n="aboutHeroStat2Val">B2B &amp; B2C</div>
+            <div class="text-[11px] sm:text-xs font-medium text-slate-500 mt-0.5" data-i18n="aboutHeroStat2">Wanunuzi, Chapa &amp; Wawekezaji</div>
+          </div>
+          <div>
+            <div class="text-xl sm:text-2xl font-extrabold text-[#0b6b68]" data-i18n="aboutHeroStat3Val">Mtandaoni &amp; Uwanjani</div>
+            <div class="text-[11px] sm:text-xs font-medium text-slate-500 mt-0.5" data-i18n="aboutHeroStat3">Uwanja wa Kisasa + Digital Hub</div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3 pt-2">
+          <button onclick="switchSection('booking')" class="px-6 py-3 rounded-xl bg-[#0b6b68] text-white font-bold text-xs sm:text-sm uppercase tracking-wider hover:bg-[#08524f] transition shadow-sm" data-i18n="aboutBookBtn">
+            Hifadhi Banda Sasa &rarr;
+          </button>
+          <button onclick="switchSection('contacts')" class="px-6 py-3 rounded-xl bg-white text-slate-800 border border-slate-300 font-bold text-xs sm:text-sm uppercase tracking-wider hover:border-[#0b6b68] hover:text-[#0b6b68] transition" data-i18n="aboutContactBtn">
+            Wasiliana Nasi &rarr;
+          </button>
+        </div>
+      </div>
+
+      <div class="lg:col-span-6">
+        <div class="relative rounded-2xl overflow-hidden shadow-lg aspect-[4/3] bg-slate-100">
+          <img src="/images/sabasaba_event.jpg" alt="Tanzania Biashara Festival Grounds" class="w-full h-full object-cover object-center" />
+          <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#042d2b]/95 via-[#042d2b]/70 to-transparent p-6 sm:p-7 text-white">
+            <p class="footer-editorial-motto italic text-base sm:text-lg text-white leading-snug" data-i18n="aboutMottoQuote">
+              "Every business has a place, every city has an opportunity."
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Core Identity: Motto, Vision & Mission (Each Card Paired With Its Own Photograph) -->
+    <div class="space-y-7">
+      <div class="text-center max-w-2xl mx-auto space-y-2">
+        <h3 class="text-2xl sm:text-3xl font-extrabold uppercase text-slate-900" data-i18n="aboutValuesTitle">
+          Misingi Yetu Mikuu &amp; Utambulisho
+        </h3>
+        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" data-i18n="aboutValuesSub">
+          Kila kielelezo cha Tanzania Biashara Festival kimejengwa kuhakikisha kila mfanyabiashara anatangazika, anauza, na anafikiwa na wawekezaji.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-7">
+        <!-- Card 1: Motto + Photo -->
+        <article class="rounded-2xl bg-white border border-slate-200/80 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
+          <div class="aspect-[16/10] w-full overflow-hidden bg-slate-100">
+            <img src="/images/african_market_stalls.jpg" alt="Tanzania Biashara Festival Motto" class="w-full h-full object-cover object-center hover:scale-105 transition-transform duration-500" />
+          </div>
+          <div class="p-6 space-y-2.5 flex-1">
+            <div class="flex items-center gap-2 text-[#0b6b68]">
+              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+              <h4 class="text-base font-extrabold uppercase text-slate-900" data-i18n="aboutMottoTitle">Motto Yetu</h4>
+            </div>
+            <p class="footer-editorial-motto italic text-[15px] text-[#0b6b68] leading-snug" data-i18n="aboutMottoQuote">
+              "Every business has a place, every city has an opportunity."
+            </p>
+            <p class="text-xs sm:text-[13px] text-slate-600 leading-relaxed" data-i18n="aboutMottoSub">
+              Kila biashara ina nafasi yake, kila mji nchini Tanzania una fursa yake ya kibiashara na uwekezaji.
+            </p>
+          </div>
+        </article>
+
+        <!-- Card 2: Vision + Photo -->
+        <article class="rounded-2xl bg-white border border-slate-200/80 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
+          <div class="aspect-[16/10] w-full overflow-hidden bg-slate-100">
+            <img src="/images/expo3.jpg" alt="Tanzania Biashara Festival Vision" class="w-full h-full object-cover object-center hover:scale-105 transition-transform duration-500" />
+          </div>
+          <div class="p-6 space-y-2.5 flex-1">
+            <div class="flex items-center gap-2 text-[#0b6b68]">
+              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              <h4 class="text-base font-extrabold uppercase text-slate-900" data-i18n="aboutVisionTitle">Dira Yetu (Vision)</h4>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" data-i18n="aboutVisionBody">
+              Kuwa jukwaa kuu na bora zaidi nchini Tanzania kwa kukuza biashara, chapa, ubunifu, na fursa za uwekezaji katika kila mkoa.
+            </p>
+          </div>
+        </article>
+
+        <!-- Card 3: Mission + Photo -->
+        <article class="rounded-2xl bg-white border border-slate-200/80 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
+          <div class="aspect-[16/10] w-full overflow-hidden bg-slate-100">
+            <img src="/images/biz1.jpg" alt="Tanzania Biashara Festival Mission" class="w-full h-full object-cover object-center hover:scale-105 transition-transform duration-500" />
+          </div>
+          <div class="p-6 space-y-2.5 flex-1">
+            <div class="flex items-center gap-2 text-[#0b6b68]">
+              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              <h4 class="text-base font-extrabold uppercase text-slate-900" data-i18n="aboutMissionTitle">Dhamira Yetu (Mission)</h4>
+            </div>
+            <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" data-i18n="aboutMissionBody">
+              Kutengeneza jukwaa jumuishi linalounganisha wafanyabiashara, wanunuzi, na wawekezaji kupitia fursa halisi za masoko zinazochochea ukuaji endelevu wa uchumi.
+            </p>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <!-- 3. Who We Empower: Businesses Promoting Brands, Investors & Community (Each With Photo) -->
+    <div class="space-y-12 pt-4">
+      <div class="text-center max-w-2xl mx-auto space-y-2">
+        <h3 class="text-2xl sm:text-3xl font-extrabold uppercase text-slate-900" data-i18n="aboutEcosystemTitle">
+          Kwa Wafanyabiashara, Wawekezaji &amp; Wananchi Wote
+        </h3>
+        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" data-i18n="aboutEcosystemDesc">
+          Iwe unataka kutangaza biashara yako ikue kitaifa au wewe ni mwekezaji unayetafuta fursa zenye tija, hivi ndivyo TBF inavyokufaa.
+        </p>
+      </div>
+
+      <!-- Story Block A: Photo Left, Businesses Promoting & Selling Right -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+        <div class="lg:col-span-6">
+          <div class="rounded-2xl overflow-hidden shadow-md aspect-[16/10] bg-slate-100">
+            <img src="/images/african_clothes_stalls.jpg" alt="Businesses Promoting Brands and Selling at TBF" class="w-full h-full object-cover object-center" />
+          </div>
+        </div>
+        <div class="lg:col-span-6 space-y-4">
+          <h4 class="text-xl sm:text-2xl font-extrabold uppercase text-slate-900" data-i18n="aboutExhibitTitle">
+            Tangaza Chapa Yako, Uza Moja kwa Moja &amp; Pata Mawakala
+          </h4>
+          <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" data-i18n="aboutExhibitBody">
+            Wafanyabiashara wadogo, wa kati, viwanda, na kampuni za huduma wanapata jukwaa lenye mvuto mkubwa wa umati uwanjani na mtandaoni kutangaza bidhaa mpya, kufanya maonyesho ya jukwaani, na kuongeza mauzo kwa kasi.
+          </p>
+          <ul class="space-y-2.5 pt-1 text-xs sm:text-[13px] text-slate-700 font-medium">
+            <li class="flex items-start gap-2.5">
+              <svg class="w-4 h-4 text-[#0b6b68] shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span data-i18n="aboutExhibitPt1">Matangazo ya chapa uwanjani na kuorodheshwa mbele kwenye tovuti ya TBF</span>
+            </li>
+            <li class="flex items-start gap-2.5">
+              <svg class="w-4 h-4 text-[#0b6b68] shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span data-i18n="aboutExhibitPt2">Uzinduzi wa bidhaa mpya (brand activations), minada ya hadhara &amp; mauzo ya jumla</span>
+            </li>
+            <li class="flex items-start gap-2.5">
+              <svg class="w-4 h-4 text-[#0b6b68] shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span data-i18n="aboutExhibitPt3">Kupata wasambazaji na mawakala wapya katika kila mkoa tutakaopanga kwenda</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Story Block B: Investors Copy Left, Photo Right -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+        <div class="lg:col-span-6 order-2 lg:order-1 space-y-4">
+          <h4 class="text-xl sm:text-2xl font-extrabold uppercase text-slate-900" data-i18n="aboutBuyerTitle">
+            Wekeza Kwenye Miradi Halisi, Viwanda &amp; Biashara Zinazokua
+          </h4>
+          <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" data-i18n="aboutBuyerBody">
+            TBF si soko la mauzo tu — ni kituo cha mitaji na ubia. Wawekezaji wa ndani na nje hukutana ana kwa ana na wamiliki wa biashara zinazoonyesha matokeo uwanjani, Startups bunifu, na miradi mikubwa inayohitaji nguvu ya mtaji ili kupanuka.
+          </p>
+          <ul class="space-y-2.5 pt-1 text-xs sm:text-[13px] text-slate-700 font-medium">
+            <li class="flex items-start gap-2.5">
+              <svg class="w-4 h-4 text-[#0b6b68] shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span data-i18n="aboutBuyerPt1">Investment Forums &amp; Deal Rooms kati ya wawekezaji na wamiliki wa miradi</span>
+            </li>
+            <li class="flex items-start gap-2.5">
+              <svg class="w-4 h-4 text-[#0b6b68] shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span data-i18n="aboutBuyerPt2">Business Innovation Pitch kwa startups na wabunifu wanaotafuta ufadhili au ubia</span>
+            </li>
+            <li class="flex items-start gap-2.5">
+              <svg class="w-4 h-4 text-[#0b6b68] shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span data-i18n="aboutBuyerPt3">Uchambuzi wa soko halisi na fursa za kipekee za kibiashara katika kila ukanda wa Tanzania</span>
+            </li>
+          </ul>
+        </div>
+        <div class="lg:col-span-6 order-1 lg:order-2">
+          <div class="rounded-2xl overflow-hidden shadow-md aspect-[16/10] bg-slate-100">
+            <img src="/images/expo4.jpg" alt="Investors and B2B Investment Forums at TBF" class="w-full h-full object-cover object-center" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Story Block C: Photo Left, Shoppers & Community Right -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+        <div class="lg:col-span-6">
+          <div class="rounded-2xl overflow-hidden shadow-md aspect-[16/10] bg-slate-100">
+            <img src="/images/biz5.jpg" alt="Shoppers, Youth Training and Fairground Deals" class="w-full h-full object-cover object-center" />
+          </div>
+        </div>
+        <div class="lg:col-span-6 space-y-4">
+          <h4 class="text-xl sm:text-2xl font-extrabold uppercase text-slate-900" data-i18n="aboutCrowdTitle">
+            Soko Huria la Bidhaa Bora, Ofa, Mafunzo &amp; Burudani
+          </h4>
+          <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" data-i18n="aboutCrowdBody">
+            Kwa wakazi wa mkoa unaopokea tamasha, TBF ni fursa ya kupata bidhaa halisi moja kwa moja kutoka kwa wazalishaji kwa bei nafuu, kuhudhuria minada ya wazi, kupata elimu ya ujasiriamali, na kufurahia vyakula na burudani.
+          </p>
+          <ul class="space-y-2.5 pt-1 text-xs sm:text-[13px] text-slate-700 font-medium">
+            <li class="flex items-start gap-2.5">
+              <svg class="w-4 h-4 text-[#0b6b68] shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span data-i18n="aboutCrowdPt1">Bidhaa halisi za viwandani, kilimo na teknolojia kwa bei ya ofa na minada</span>
+            </li>
+            <li class="flex items-start gap-2.5">
+              <svg class="w-4 h-4 text-[#0b6b68] shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span data-i18n="aboutCrowdPt2">Vipindi vya mafunzo ya ujasiriamali, masoko na usimamizi wa fedha uwanjani</span>
+            </li>
+            <li class="flex items-start gap-2.5">
+              <svg class="w-4 h-4 text-[#0b6b68] shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+              <span data-i18n="aboutCrowdPt3">Eneo maalum la vyakula, vinywaji (Food Court), utamaduni na burudani ya familia</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. How Tanzania Biashara Festival Operates Step by Step (4 Visual Pillars + Photos) -->
+    <div class="rounded-3xl bg-[#0b6b68] text-white p-7 sm:p-10 lg:p-12 space-y-8 shadow-sm">
+      <div class="max-w-3xl space-y-2">
+        <h3 class="text-2xl sm:text-3xl font-extrabold uppercase" data-i18n="aboutHowItWorksTitle">Jinsi Tanzania Biashara Festival Inavyofanya Kazi Mikoani</h3>
+        <p class="text-xs sm:text-sm text-white/90 leading-relaxed" data-i18n="aboutHowItWorksDesc">
+          Tamasha halijafungwa katika idadi ndogo ya mikoa — linaendeshwa kwa mfumo wa mzunguko wa kitaifa unaoweza kutembelea mkoa wowote Tanzania Bara na Visiwani kadri tunavyopanga ratiba ya soko. Kila mkoa tunaofika huandaliwa uwanja wa kisasa, mfumo wa kidijitali wa kutangaza biashara mapema, na programu za moja kwa moja uwanjani.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <!-- Step 01 + Photo -->
+        <div class="rounded-2xl bg-white/10 border border-white/15 overflow-hidden flex flex-col">
+          <div class="relative aspect-[16/10] w-full overflow-hidden">
+            <img src="/images/market_tents_aisle.jpg" alt="Regional Tour Planning and Booth Zones" class="w-full h-full object-cover object-center" />
+            <span class="absolute top-3 left-3 px-2.5 py-0.5 rounded-full bg-[#042d2b]/85 backdrop-blur-sm text-emerald-300 text-xs font-extrabold">01</span>
+          </div>
+          <div class="p-4 space-y-1.5 flex-1">
+            <h4 class="font-extrabold text-sm uppercase tracking-wide" data-i18n="aboutPillar1Title">01. Upangaji wa Mkoa &amp; Uwanja</h4>
+            <p class="text-xs text-white/85 leading-relaxed" data-i18n="aboutPillar1Desc">Sekretarieti hupanga mkoa unaofuata, kuweka uwanja wa maonyesho, mabanda ya kisasa, umeme, na usalama kamili.</p>
+          </div>
+        </div>
+
+        <!-- Step 02 + Photo -->
+        <div class="rounded-2xl bg-white/10 border border-white/15 overflow-hidden flex flex-col">
+          <div class="relative aspect-[16/10] w-full overflow-hidden">
+            <img src="/images/biz4.jpg" alt="Advance Online Business Promotion" class="w-full h-full object-cover object-center" />
+            <span class="absolute top-3 left-3 px-2.5 py-0.5 rounded-full bg-[#042d2b]/85 backdrop-blur-sm text-emerald-300 text-xs font-extrabold">02</span>
+          </div>
+          <div class="p-4 space-y-1.5 flex-1">
+            <h4 class="font-extrabold text-sm uppercase tracking-wide" data-i18n="aboutPillar2Title">02. Utangazaji wa Mapema (Online)</h4>
+            <p class="text-xs text-white/85 leading-relaxed" data-i18n="aboutPillar2Desc">Ukishahifadhi banda, biashara yako inaonekana mbele kwenye tovuti ya TBF kabla hata tamasha halijaanza uwanjani.</p>
+          </div>
+        </div>
+
+        <!-- Step 03 + Photo -->
+        <div class="rounded-2xl bg-white/10 border border-white/15 overflow-hidden flex flex-col">
+          <div class="relative aspect-[16/10] w-full overflow-hidden">
+            <img src="/images/african_crafts_stalls.jpg" alt="Direct Sales, Open Auctions and Brand Activations" class="w-full h-full object-cover object-center" />
+            <span class="absolute top-3 left-3 px-2.5 py-0.5 rounded-full bg-[#042d2b]/85 backdrop-blur-sm text-emerald-300 text-xs font-extrabold">03</span>
+          </div>
+          <div class="p-4 space-y-1.5 flex-1">
+            <h4 class="font-extrabold text-sm uppercase tracking-wide" data-i18n="aboutPillar3Title">03. Mauzo, Minada &amp; Promosheni</h4>
+            <p class="text-xs text-white/85 leading-relaxed" data-i18n="aboutPillar3Desc">Uwanjani kunafanyika mauzo ya rejareja na jumla, minada ya wazi ya bei nafuu, uzinduzi wa bidhaa, na burudani.</p>
+          </div>
+        </div>
+
+        <!-- Step 04 + Photo -->
+        <div class="rounded-2xl bg-white/10 border border-white/15 overflow-hidden flex flex-col">
+          <div class="relative aspect-[16/10] w-full overflow-hidden">
+            <img src="/images/expo1.jpg" alt="B2B Matchmaking, Investors and Regional Agents" class="w-full h-full object-cover object-center" />
+            <span class="absolute top-3 left-3 px-2.5 py-0.5 rounded-full bg-[#042d2b]/85 backdrop-blur-sm text-emerald-300 text-xs font-extrabold">04</span>
+          </div>
+          <div class="p-4 space-y-1.5 flex-1">
+            <h4 class="font-extrabold text-sm uppercase tracking-wide" data-i18n="aboutPillar4Title">04. B2B, Wawekezaji &amp; Mawakala</h4>
+            <p class="text-xs text-white/85 leading-relaxed" data-i18n="aboutPillar4Desc">Vikao vya wawekezaji, pitch za miradi mipya, na kuunganishwa na mawakala wa kusambaza bidhaa katika mikoa mingine.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-2 flex flex-wrap gap-4">
+        <button onclick="switchSection('booking')" class="px-6 py-3 rounded-xl bg-white text-[#0b6b68] font-extrabold text-xs sm:text-sm uppercase tracking-wide hover:bg-slate-100 transition shadow" data-i18n="aboutBookBtn">
+          Hifadhi Banda Sasa &rarr;
+        </button>
+        <button onclick="switchSection('contacts')" class="px-6 py-3 rounded-xl bg-[#08524f] text-white border border-white/30 font-extrabold text-xs sm:text-sm uppercase tracking-wide hover:bg-black/30 transition" data-i18n="aboutContactBtn">
+          Wasiliana Nasi &rarr;
+        </button>
+      </div>
+    </div>
+
+    <!-- 5. What Happens Inside TBF: Featured Sectors & Activities (Each With Its Photo) -->
+    <div class="space-y-7">
+      <div class="text-center max-w-2xl mx-auto space-y-2">
+        <h3 class="text-2xl sm:text-3xl font-extrabold uppercase text-slate-900" data-i18n="aboutSectorsTitle">
+          Sekta &amp; Shughuli Mbalimbali Zilizomo Kwenye TBF
+        </h3>
+        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" data-i18n="aboutSectorsDesc">
+          Tamasha linakusanya pamoja kila aina ya biashara halali, huduma za kisasa, ubunifu na fursa za kiuchumi ndani ya uwanja mmoja.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-7">
+        <article class="rounded-2xl bg-white border border-slate-200/80 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
+          <div class="aspect-[16/10] w-full overflow-hidden bg-slate-100">
+            <img src="/images/expo2.jpg" alt="Manufacturing and Agribusiness Showcase" class="w-full h-full object-cover object-center hover:scale-105 transition-transform duration-500" />
+          </div>
+          <div class="p-6 space-y-2 flex-1">
+            <h4 class="text-base font-extrabold uppercase text-slate-900" data-i18n="aboutSec1Title">Viwanda, Kilimo-Biashara &amp; Bidhaa za Kila Siku</h4>
+            <p class="text-xs sm:text-[13px] text-slate-600 leading-relaxed" data-i18n="aboutSec1Desc">Nafaka, usindikaji wa vyakula, vinywaji, mavazi, vifaa vya ujenzi, vipodozi na bidhaa za majumbani moja kwa moja kutoka kiwandani.</p>
+          </div>
+        </article>
+
+        <article class="rounded-2xl bg-white border border-slate-200/80 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
+          <div class="aspect-[16/10] w-full overflow-hidden bg-slate-100">
+            <img src="/images/slide4.jpg" alt="Technology, Fintech and Clean Energy" class="w-full h-full object-cover object-center hover:scale-105 transition-transform duration-500" />
+          </div>
+          <div class="p-6 space-y-2 flex-1">
+            <h4 class="text-base font-extrabold uppercase text-slate-900" data-i18n="aboutSec2Title">Teknolojia, Fintech &amp; Nishati Safi</h4>
+            <p class="text-xs sm:text-[13px] text-slate-600 leading-relaxed" data-i18n="aboutSec2Desc">Mifumo ya malipo ya kidijitali, programu za biashara, huduma za mtandao, umeme wa jua (solar), na ubunifu wa startups.</p>
+          </div>
+        </article>
+
+        <article class="rounded-2xl bg-white border border-slate-200/80 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col">
+          <div class="aspect-[16/10] w-full overflow-hidden bg-slate-100">
+            <img src="/images/slide2.jpg" alt="Arts, Tourism, Hospitality and Food Court" class="w-full h-full object-cover object-center hover:scale-105 transition-transform duration-500" />
+          </div>
+          <div class="p-6 space-y-2 flex-1">
+            <h4 class="text-base font-extrabold uppercase text-slate-900" data-i18n="aboutSec3Title">Sanaa, Utalii, Ukarimu &amp; Food Court</h4>
+            <p class="text-xs sm:text-[13px] text-slate-600 leading-relaxed" data-i18n="aboutSec3Desc">Bidhaa za ngozi na sanaa za Kitanzania, vifaa vya utalii, migahawa, kahawa, na shughuli za kiutamaduni zinazoleta uhai uwanjani.</p>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <!-- 6. Brand Sponsorship & Partnership CTA Card (Photo + Copy) -->
+    <div class="rounded-2xl bg-white border border-slate-200/80 overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-12">
+      <div class="md:col-span-5 min-h-[220px] bg-slate-100">
+        <img src="/images/biz2.jpg" alt="Brand Sponsorship and Strategic Partnerships at TBF" class="w-full h-full object-cover object-center" />
+      </div>
+      <div class="md:col-span-7 p-7 sm:p-9 flex flex-col justify-center space-y-3">
+        <h3 class="text-xl sm:text-2xl font-extrabold uppercase text-slate-900" data-i18n="aboutTrustTitle">
+          Kuwa Mdhamini (Sponsor) au Mshirika wa Tanzania Biashara Festival
+        </h3>
+        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" data-i18n="aboutTrustBody">
+          Makampuni makubwa, mabenki, mitandao ya simu, bima, na taasisi zinazotaka nguvu ya juu ya utangazaji Tanzania nzima zinaweza kudhamini mzunguko mzima au mkoa mahsusi kwa kupata haki za kipekee uwanjani na mtandaoni.
+        </p>
+        <div class="pt-1">
+          <button onclick="switchSection('sponsors')" class="inline-flex items-center gap-1.5 text-xs sm:text-sm font-bold text-[#0b6b68] hover:underline uppercase tracking-wide" data-i18n="aboutTrustBtn">
+            Tazama Vifurushi vya Udhamini &rarr;
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       SECTION 2: VENDOR BOOTH BOOKING & STEP-BY-STEP WIZARD
+       ========================================================== -->
+  <section id="sec-booking" class="hidden max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+    <div class="text-center max-w-3xl mx-auto space-y-1.5 border-b border-slate-200 pb-4">
+      <h2 class="text-2xl sm:text-3xl font-extrabold uppercase text-slate-900 leading-tight [word-spacing:0.08em]" data-i18n="bookingTitle">
+        Hifadhi Nafasi ya Banda Lako la Maonyesho
+      </h2>
+      <p class="text-xs sm:text-sm text-slate-600 max-w-2xl mx-auto leading-relaxed [word-spacing:0.04em]" data-i18n="bookingDesc">
+        Chagua banda lako kwanza, kisha jaza taarifa za biashara, na umalizie malipo hatua kwa hatua.
+      </p>
+    </div>
+
+    <!-- BOOKING-FIRST VS RETRIEVE BOOKING SWITCHER -->
+    <div class="max-w-2xl mx-auto">
+      <div class="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-slate-200/75 border border-slate-200">
+        <button type="button" id="booking-tab-btn-book" onclick="switchBookingGateMode('book')" class="py-2.5 px-4 rounded-xl bg-[#0b6b68] text-white font-extrabold text-xs sm:text-sm transition shadow-sm cursor-pointer" data-i18n="bookingTabBook">
+          Weka Booking Mpya
+        </button>
+        <button type="button" id="booking-tab-btn-retrieve" onclick="switchBookingGateMode('retrieve')" class="py-2.5 px-4 rounded-xl bg-transparent text-slate-700 hover:text-slate-900 font-bold text-xs sm:text-sm transition cursor-pointer" data-i18n="bookingTabRetrieve">
+          Kagua / Badili Booking (PIN)
+        </button>
+      </div>
+    </div>
+
+    <!-- PANEL A: RETRIEVE / STEP-UP MANAGE BOOKING (HIDDEN UNLESS TAB CLICKED) -->
+    <div id="booking-panel-retrieve" class="hidden max-w-3xl mx-auto rounded-3xl bg-white border border-slate-200 p-6 sm:p-8 space-y-6 shadow-sm">
+      <div class="space-y-1.5 border-b border-slate-100 pb-4">
+        <h3 class="text-lg sm:text-xl font-extrabold uppercase text-slate-900" data-i18n="bookingRetrieveTitle">
+          Angalia Booking Yako, Fungua Control Number &amp; Badili Banda
+        </h3>
+        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" data-i18n="bookingRetrieveDesc">
+          Enter your Booking ID or Control Number with your Phone Number for a summary, then enter your 6-digit Access PIN to unlock your full receipt or change your booth.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="retrieve-ref" class="block text-xs font-bold mb-1.5" data-i18n="bookingRetrieveRefLbl">Booking ID au Control Number *</label>
+          <input id="retrieve-ref" type="text" data-i18n-placeholder="retrieveRefPlaceholder" placeholder="Mfano: TBF-BIZ-101 au 99104..." class="w-full px-4 py-2.5 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]" />
+        </div>
+        <div>
+          <label for="retrieve-phone" class="block text-xs font-bold mb-1.5" data-i18n="bookingRetrievePhoneLbl">Namba ya Simu Iliyosajiliwa *</label>
+          <input id="retrieve-phone" type="tel" placeholder="+255 767 053 250" class="w-full px-4 py-2.5 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]" />
+        </div>
+      </div>
+
+      <button type="button" onclick="lookupGuestBooking()" class="w-full py-3.5 rounded-2xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-sm uppercase tracking-wider shadow-md transition cursor-pointer" data-i18n="bookingRetrieveBtn">
+        Tafuta Booking Yako &rarr;
+      </button>
+
+      <div id="retrieve-result-box" class="hidden"></div>
+    </div>
+
+    <!-- PANEL B: 3-STEP PROGRESSIVE WIZARD (1. MABANDA -> 2. TAARIFA -> 3. MALIPO) -->
+    <div id="booking-panel-book" class="space-y-5">
+
+      <!-- Clean 3-Step Horizontal Stepper Bar -->
+      <div class="max-w-3xl mx-auto rounded-2xl bg-white border border-slate-200 px-3 sm:px-6 py-3 shadow-sm">
+        <div class="flex items-center justify-between gap-2">
+          <button type="button" id="wizard-pill-1" onclick="goToBookingStep(1)" class="flex items-center gap-2 text-left transition cursor-pointer">
+            <span class="wizard-num w-7 h-7 rounded-full bg-[#0b6b68] text-white text-xs font-extrabold flex items-center justify-center shrink-0">1</span>
+            <span class="wizard-txt text-xs sm:text-sm font-extrabold text-slate-900" data-i18n="wizStep1">Chagua Banda</span>
+          </button>
+          <div class="flex-1 h-0.5 bg-slate-200 mx-1 sm:mx-3"></div>
+          <button type="button" id="wizard-pill-2" onclick="goToBookingStep(2)" class="flex items-center gap-2 text-left transition cursor-pointer">
+            <span class="wizard-num w-7 h-7 rounded-full bg-slate-200 text-slate-600 text-xs font-extrabold flex items-center justify-center shrink-0">2</span>
+            <span class="wizard-txt text-xs sm:text-sm font-bold text-slate-500" data-i18n="wizStep2">Taarifa Zako</span>
+          </button>
+          <div class="flex-1 h-0.5 bg-slate-200 mx-1 sm:mx-3"></div>
+          <button type="button" id="wizard-pill-3" onclick="goToBookingStep(3)" class="flex items-center gap-2 text-left transition cursor-pointer">
+            <span class="wizard-num w-7 h-7 rounded-full bg-slate-200 text-slate-600 text-xs font-extrabold flex items-center justify-center shrink-0">3</span>
+            <span class="wizard-txt text-xs sm:text-sm font-bold text-slate-500" data-i18n="wizStep3">Malipo</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Low-Internet / Offline Connectivity Status Banner -->
+      <div id="network-status-banner" class="hidden max-w-5xl mx-auto rounded-2xl bg-amber-50 border border-amber-300 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs font-bold text-amber-900"></div>
+
+      <!-- Shared Subtle Hold Status Strip (Appears automatically once a booth is held between Step 1 & 3) -->
+      <div id="booking-hold-banner" class="hidden max-w-5xl mx-auto rounded-2xl bg-amber-50 border border-amber-300 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs font-bold text-amber-900"></div>
+
+      <div id="booking-workspace" class="grid grid-cols-1 lg:grid-cols-12 gap-7 items-start">
+        <div class="lg:col-span-8">
+
+          <!-- ==========================================
+               HATUA YA 1: MABANDA KWANZA (MKOA & TAREHE + RAMANI YA MABANDA)
+               ========================================== -->
+          <div id="booking-wizard-step-1" class="rounded-3xl bg-white border border-slate-200 p-5 sm:p-6 space-y-5 shadow-sm">
+            <!-- Modern Event Destination & Date Header -->
+            <div id="booking-active-destination-bar" class="pb-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+              <div class="space-y-1">
+                <div class="text-[11px] font-bold uppercase tracking-[0.14em] text-[#0b6b68]" data-i18n="wizActiveCityLbl">Mkoa &amp; Tarehe ya Maonyesho</div>
+                <div class="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+                  <span id="booking-dest-city-label" class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">Mwanza</span>
+                  <span id="booking-dest-date-label" class="text-sm sm:text-base font-bold text-[#0b6b68]">• Tarehe 15 - 20 Julai 2026</span>
+                </div>
+              </div>
+              <div id="booking-dest-venue-label" class="text-xs text-slate-500 font-medium sm:text-right">
+                Rock City / Furahisha Exhibition Grounds
+              </div>
+            </div>
+
+            <!-- Interactive Booth Floor Map (Visible Front & Center; Price Revealed After Click!) -->
+            <div class="space-y-3 pt-1">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <h3 class="text-sm sm:text-base font-extrabold text-slate-900" data-i18n="bookingStep3Title">Ramani ya Mabanda — Bonyeza Banda Unalopenda</h3>
+                <div class="flex flex-wrap items-center gap-3 text-[11px] font-bold text-slate-600">
+                  <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-[#e6f3f2] border border-[#0b6b68] inline-block"></span> <span data-i18n="legendAvailable">Wazi</span></span>
+                  <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-[#0b6b68] inline-block"></span> <span data-i18n="legendSelected">Chaguo Lako</span></span>
+                  <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-amber-100 border border-amber-400 inline-block"></span> <span data-i18n="legendHeld">Limeshikwa</span></span>
+                  <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-slate-200 inline-block"></span> <span data-i18n="legendBooked">Imechukuliwa</span></span>
+                </div>
+              </div>
+
+              <div id="floorplan-grid" class="space-y-3"></div>
+            </div>
+
+            <div id="booking-step1-error" class="hidden p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold"></div>
+
+            <!-- Step 1 Bottom Action Bar -->
+            <div class="pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div id="step1-selection-hint" class="text-xs sm:text-sm font-semibold text-slate-600" data-i18n="wizStep1Prompt">
+                Bonyeza banda lolote lililo wazi hapa juu kuchagua.
+              </div>
+              <button id="btn-step1-next" type="button" onclick="goToBookingStep(2)" class="px-6 py-3 rounded-2xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm shadow-md transition cursor-pointer shrink-0" data-i18n="btnNextStep2">
+                Endelea: Jaza Taarifa &rarr;
+              </button>
+            </div>
+          </div>
+
+          <!-- ==========================================
+               HATUA YA 2: TAARIFA ZA BIASHARA TU (HIDDEN UNTIL BOOTH CHOSEN)
+               ========================================== -->
+          <div id="booking-wizard-step-2" class="hidden rounded-3xl bg-white border border-slate-200 p-6 sm:p-7 space-y-5 shadow-sm">
+            <div class="space-y-1 border-b border-slate-100 pb-3.5">
+              <h3 class="text-base sm:text-lg font-extrabold text-slate-900" data-i18n="bookingStep2WizardTitle">
+                Hatua ya 2: Jaza Taarifa za Biashara Yako
+              </h3>
+              <p class="text-xs sm:text-sm text-slate-500" data-i18n="bookingStep2WizardDesc">
+                Fill in your business details below, then proceed to payment.
+              </p>
+            </div>
+
+            <div id="booking-step2-error" class="hidden p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold"></div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label for="form-biz-name" class="block text-xs font-bold mb-1.5" data-i18n="lblBizName">Jina la Biashara / Kampuni *</label>
+                <input id="form-biz-name" type="text" data-i18n-placeholder="formBizNamePlaceholder" placeholder="Mfano: Azania Agro &amp; Spices Ltd" oninput="refreshBookingSummary()" class="w-full px-4 py-2.5 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]" />
+              </div>
+              <div>
+                <label for="form-contact-person" class="block text-xs font-bold mb-1.5" data-i18n="lblContactPerson">Jina la Mwakilishi (Contact Person) *</label>
+                <input id="form-contact-person" type="text" data-i18n-placeholder="formContactPlaceholder" placeholder="Mfano: Juma Bakari" class="w-full px-4 py-2.5 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]" />
+              </div>
+              <div>
+                <label for="form-phone" class="block text-xs font-bold mb-1.5" data-i18n="lblPhone">Simu ya Biashara (WhatsApp / Call) *</label>
+                <input id="form-phone" type="tel" placeholder="+255 7XX XXX XXX" class="w-full px-4 py-2.5 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]" />
+              </div>
+              <div>
+                <label for="form-sector" class="block text-xs font-bold mb-1.5" data-i18n="lblSector">Sekta ya Biashara (Sector) *</label>
+                <select id="form-sector" onchange="refreshBookingSummary()" class="w-full px-4 py-2.5 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]">
+                  <option value="Kilimo-Biashara &amp; Chakula (Agribusiness)" data-i18n="optSectorAgri">Kilimo-Biashara &amp; Chakula (Agribusiness)</option>
+                  <option value="Viwanda &amp; Bidhaa (Manufacturing &amp; FMCG)" data-i18n="optSectorMfg">Viwanda &amp; Bidhaa (Manufacturing &amp; FMCG)</option>
+                  <option value="Teknolojia, Ubunifu &amp; Startups" data-i18n="optSectorTech">Teknolojia, Ubunifu &amp; Startups</option>
+                  <option value="Madini, Ujenzi &amp; Nishati" data-i18n="optSectorMining">Madini, Ujenzi &amp; Nishati</option>
+                  <option value="Fedha, Bima &amp; Uwekezaji" data-i18n="optSectorFinance">Fedha, Bima &amp; Uwekezaji</option>
+                  <option value="Utalii, Vito, Sanaa &amp; Mavazi" data-i18n="optSectorTourism">Utalii, Vito, Sanaa &amp; Mavazi</option>
+                  <option value="Huduma za Chakula (Food Court)" data-i18n="optSectorFood">Huduma za Chakula (Food Court)</option>
+                </select>
+              </div>
+              <div class="sm:col-span-2">
+                <label for="form-tagline" class="block text-xs font-bold mb-1.5" data-i18n="lblTagline">Maelezo Mafupi ya Bidhaa / Huduma Zako (Tagline) *</label>
+                <input id="form-tagline" type="text" data-i18n-placeholder="formTaglinePlaceholder" placeholder="Mfano: Wazalishaji na wasambazaji wa viungo asilia, nafaka na mafuta." class="w-full px-4 py-2.5 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]" />
+              </div>
+              <div class="sm:col-span-2">
+                <label for="form-email" class="block text-xs font-bold mb-1.5" data-i18n="lblEmail">Email Address *</label>
+                <input id="form-email" type="email" required data-i18n-placeholder="formEmailPlaceholder" placeholder="email@company.co.tz" class="w-full px-4 py-2.5 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]" />
+              </div>
+            </div>
+
+            <!-- Step 2 Footer Buttons -->
+            <div class="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+              <button type="button" id="btn-step2-back" onclick="goToBookingStep(1)" class="px-5 py-3 rounded-2xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm transition cursor-pointer" data-i18n="btnBackStep1">
+                &larr; Rudi: Chagua Banda
+              </button>
+              <button type="button" id="btn-step2-next" onclick="goToBookingStep(3)" class="px-6 py-3 rounded-2xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm shadow-md transition cursor-pointer" data-i18n="btnNextStep3">
+                Endelea: Malipo &rarr;
+              </button>
+            </div>
+          </div>
+
+          <!-- ==========================================
+               HATUA YA 3: MALIPO & UTHIBITISHO TU
+               ========================================== -->
+          <div id="booking-wizard-step-3" class="hidden rounded-3xl bg-white border border-slate-200 p-6 sm:p-7 space-y-5 shadow-sm">
+            <div class="space-y-1 border-b border-slate-100 pb-3.5">
+              <h3 class="text-base sm:text-lg font-extrabold text-slate-900" data-i18n="bookingStep3WizardTitle">
+                Hatua ya 3: Malipo &amp; Pata Control Number
+              </h3>
+              <p class="text-xs sm:text-sm text-slate-500" data-i18n="bookingStep3WizardDesc">
+                Hakiki chaguo lako, chagua njia ya malipo, na uthibitishe kupokea Control Number na PIN yako ya usalama.
+              </p>
+            </div>
+
+            <!-- Clean Compact Review Recap -->
+            <div id="step3-recap-card" class="rounded-2xl bg-[#f4f7f6] border border-slate-200 p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs"></div>
+
+            <!-- Payment Method Cards -->
+            <div class="space-y-2.5">
+              <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-700" data-i18n="lblPayment">Njia ya Malipo *</label>
+              <input type="hidden" id="form-payment" value="M-Pesa / Mixx by Yas / Airtel Money" />
+              <div id="payment-cards-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <button type="button" data-pay="M-Pesa / Mixx by Yas / Airtel Money" onclick="selectPaymentMethod('M-Pesa / Mixx by Yas / Airtel Money', this)" class="p-4 rounded-2xl border-2 border-[#0b6b68] bg-[#e6f3f2] text-left space-y-1 transition cursor-pointer">
+                  <div class="text-xs font-extrabold text-[#0b6b68]" data-i18n="payCardMobileTitle">Mobile Money</div>
+                  <div class="text-xs font-semibold text-slate-800" data-i18n="optPayMobile">M-Pesa / Mixx by Yas / Airtel Money</div>
+                </button>
+                <button type="button" data-pay="CRDB / NMB Bank Control Number" onclick="selectPaymentMethod('CRDB / NMB Bank Control Number', this)" class="p-4 rounded-2xl border border-slate-200 bg-white hover:border-[#0b6b68] text-left space-y-1 transition cursor-pointer">
+                  <div class="text-xs font-extrabold text-slate-700" data-i18n="payCardBankTitle">Bank Transfer</div>
+                  <div class="text-xs font-semibold text-slate-700" data-i18n="optPayBank">CRDB / NMB Bank Control Number</div>
+                </button>
+                <button type="button" data-pay="Visa / Mastercard Online" onclick="selectPaymentMethod('Visa / Mastercard Online', this)" class="p-4 rounded-2xl border border-slate-200 bg-white hover:border-[#0b6b68] text-left space-y-1 transition cursor-pointer">
+                  <div class="text-xs font-extrabold text-slate-700" data-i18n="payCardOnlineTitle">Card Online</div>
+                  <div class="text-xs font-semibold text-slate-700" data-i18n="optPayCard">Visa / Mastercard Online</div>
+                </button>
+              </div>
+            </div>
+
+            <div id="booking-checkout-error" class="hidden p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold"></div>
+
+            <!-- Step 3 Footer Buttons -->
+            <div class="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+              <button type="button" id="btn-step3-back" onclick="goToBookingStep(2)" class="px-5 py-3 rounded-2xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm transition cursor-pointer" data-i18n="btnBackStep2">
+                &larr; Rudi: Taarifa Zako
+              </button>
+              <button id="btn-submit-booking" type="button" onclick="submitVendorBooking()" class="px-7 py-3.5 rounded-2xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm shadow-md transition cursor-pointer" data-i18n="sumSubmitBtn">
+                Thibitisha &amp; Pata Control Number
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right 4 Cols: Modern Digital Receipt Summary -->
+        <div class="lg:col-span-4 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto rounded-3xl">
+          <div class="rounded-3xl bg-white border border-slate-200/90 shadow-[0_18px_45px_rgba(11,107,104,0.10)] overflow-hidden">
+            <div class="h-1.5 w-full bg-gradient-to-r from-[#08524f] via-[#0b6b68] to-emerald-500"></div>
+
+            <!-- Top Receipt Header -->
+            <div class="px-5 pt-4 pb-3 flex items-start justify-between gap-3">
+              <div>
+                <span class="inline-block text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#0b6b68]" data-i18n="sumHeader">Muhtasari wa Usajili</span>
+                <h4 class="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight mt-0.5" data-i18n="sumTitle">Risiti ya Kidijitali</h4>
+              </div>
+              <span id="summary-booth-pill" class="px-3 py-1 rounded-full bg-[#e6f3f2] border border-[#0b6b68]/25 text-[#08524f] text-xs font-extrabold whitespace-nowrap shrink-0">
+                Chagua Banda
+              </span>
+            </div>
+
+            <!-- Crisp Exhibitor Stub Section -->
+            <div class="px-5 pb-4">
+              <div class="rounded-2xl bg-[#f4f7f6] border border-slate-200/80 p-3.5 space-y-2.5">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <div class="text-[10px] font-extrabold uppercase tracking-[0.14em] text-[#0b6b68]" data-i18n="sumOfficialPass">KIBALI RASMI CHA TBF</div>
+                    <div id="preview-biz-name" class="text-sm sm:text-base font-extrabold text-slate-900 mt-0.5 truncate">-</div>
+                    <div id="preview-sector" class="text-xs font-medium text-slate-500 truncate mt-0.5">-</div>
+                  </div>
+                  <div id="preview-qr-slot" class="w-16 h-16 rounded-xl bg-white border border-slate-200 p-1 shrink-0 flex items-center justify-center text-[#0b6b68] shadow-xs overflow-hidden" aria-label="QR Code">
+                    <span class="font-mono text-[10px] font-extrabold">[QR]</span>
+                  </div>
+                </div>
+
+                <div class="pt-2 border-t border-slate-200/80 space-y-1.5 text-xs">
+                  <div class="flex items-start justify-between gap-2">
+                    <span id="preview-pkg-name" class="font-bold text-slate-900 leading-snug break-words">--</span>
+                    <span id="preview-booth-code" class="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[#08524f] font-mono text-[11px] font-extrabold whitespace-nowrap shrink-0">BOOTH: --</span>
+                  </div>
+                  <div id="preview-cities" class="text-[11px] font-semibold text-slate-600 flex items-center gap-1.5">
+                    Mkoa: Mwanza
+                  </div>
+                </div>
+
+                <!-- Full Seat Specifications & Benefits (Compact 2-Column Editorial Grid) -->
+                <div id="receipt-seat-details-box" class="hidden pt-2.5 border-t border-dashed border-slate-300 space-y-2 text-[11px]">
+                  <div class="grid grid-cols-2 gap-1.5">
+                    <div class="p-2 rounded-xl bg-white border border-slate-200/80">
+                      <span class="block text-[9px] uppercase tracking-wider text-slate-400 font-bold" data-i18n="sumZoneLbl">Ukanda (Zone):</span>
+                      <span id="preview-seat-zone" class="font-bold text-slate-800 leading-snug block mt-0.5">--</span>
+                    </div>
+                    <div class="p-2 rounded-xl bg-white border border-slate-200/80">
+                      <span class="block text-[9px] uppercase tracking-wider text-slate-400 font-bold" data-i18n="sumSizeLbl">Ukubwa / Nafasi:</span>
+                      <span id="preview-seat-size" class="font-bold text-slate-800 leading-snug block mt-0.5">--</span>
+                    </div>
+                    <div class="p-2 rounded-xl bg-white border border-slate-200/80">
+                      <span class="block text-[9px] uppercase tracking-wider text-slate-400 font-bold" data-i18n="sumPassesLbl">Vibali vya QR:</span>
+                      <span id="preview-seat-badges" class="font-bold text-[#0b6b68] leading-snug block mt-0.5">--</span>
+                    </div>
+                    <div class="p-2 rounded-xl bg-white border border-slate-200/80">
+                      <span class="block text-[9px] uppercase tracking-wider text-slate-400 font-bold" data-i18n="sumSeatStatusLbl">Hali ya Siti:</span>
+                      <span id="preview-seat-status" class="font-extrabold text-amber-700 leading-snug block mt-0.5">--</span>
+                    </div>
+                  </div>
+                  <div class="p-2 rounded-xl bg-white border border-slate-200/80">
+                    <span class="block text-[9px] uppercase tracking-wider text-slate-400 font-bold" data-i18n="sumVenueDatesLbl">Uwanja &amp; Tarehe:</span>
+                    <span id="preview-seat-venue-date" class="font-semibold text-slate-700 leading-snug block mt-0.5">--</span>
+                  </div>
+                  <div class="pt-1.5 space-y-1">
+                    <div class="text-[10px] font-extrabold uppercase tracking-wider text-[#0b6b68]" data-i18n="sumPerksLbl">Huduma &amp; Vipengele Vilivyojumuishwa:</div>
+                    <ul id="preview-seat-perks" class="space-y-1 text-[11px] text-slate-700 leading-snug"></ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Perforated Paper Receipt Tear Divider -->
+            <div class="relative flex items-center">
+              <div class="w-4 h-4 -ml-2 rounded-full bg-[#f8faf9] border-r border-slate-200/90 shrink-0"></div>
+              <div class="w-full border-t-2 border-dashed border-slate-200"></div>
+              <div class="w-4 h-4 -mr-2 rounded-full bg-[#f8faf9] border-l border-slate-200/90 shrink-0"></div>
+            </div>
+
+            <!-- Receipt Line Items & Primary Action -->
+            <div class="px-5 pt-4 pb-5 space-y-4 bg-white">
+              <div id="booking-price-prompt" class="p-3.5 rounded-2xl bg-[#f8faf9] border border-slate-200 text-xs font-semibold text-slate-600 leading-relaxed" data-i18n="sumSelectPrompt">
+                Bonyeza banda lolote kwenye ramani kuona daraja la banda na gharama zake.
+              </div>
+
+              <div id="booking-pricing-rows" class="hidden space-y-2.5 text-xs sm:text-sm font-mono">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="font-sans text-slate-500 font-medium" data-i18n="sumUnitPrice">Bei ya Banda:</span>
+                  <span id="calc-unit-price" class="font-bold text-slate-800">--</span>
+                </div>
+                <div class="flex items-center justify-between gap-2">
+                  <span class="font-sans text-slate-500 font-medium" data-i18n="sumCityCount">Mkoa wa Maonyesho:</span>
+                  <span id="calc-city-count" class="font-sans font-bold text-slate-800">Mwanza</span>
+                </div>
+                <div id="calc-discount-row" class="hidden flex items-center justify-between gap-2 text-[#0b6b68] font-bold">
+                  <span class="font-sans" data-i18n="sumDiscount">Punguzo la Mzunguko (15%):</span>
+                  <span id="calc-discount-amount">- TZS 0</span>
+                </div>
+                <div class="pt-3 mt-1 border-t border-dashed border-slate-300 flex items-baseline justify-between gap-2 font-sans">
+                  <span class="font-extrabold text-sm text-slate-900" data-i18n="sumTotal">Jumla ya Kulipia:</span>
+                  <span id="calc-total-price" class="text-xl font-extrabold font-mono text-[#0b6b68] tracking-tight">--</span>
+                </div>
+              </div>
+
+              <button id="btn-summary-action" type="button" onclick="handleSummaryPrimaryAction()" class="w-full py-3.5 rounded-2xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-sm shadow-md transition cursor-pointer">
+                Endelea: Jaza Taarifa &rarr;
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       SECTION 3: PARTNERS & SPONSORS PORTAL
+       ========================================================== -->
+  <section id="sec-sponsors" class="hidden max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-10">
+    <div class="text-center max-w-3xl mx-auto space-y-2 border-b border-slate-200 pb-6">
+      <h2 class="text-2xl sm:text-4xl font-extrabold uppercase text-slate-900 leading-tight [word-spacing:0.08em]" data-i18n="spTitle">
+        Shirikiana Nasi: Partners &amp; Sponsors
+      </h2>
+      <p class="text-xs sm:text-sm text-slate-600 max-w-2xl mx-auto leading-relaxed [word-spacing:0.04em]" data-i18n="spDesc">
+        Weka chapa ya kampuni au taasisi yako mbele ya maelfu ya wafanyabiashara na wananchi kwenye mzunguko wa mikoa yote ya Tanzania. Wasiliana nasi moja kwa moja kupitia <strong>+255 767 053 250</strong>.
+      </p>
+      <div class="pt-2">
+        <a href="/proposal.html" target="_blank" class="inline-block px-6 py-2.5 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs uppercase tracking-wider shadow transition" data-i18n="spProposalBtn">
+          Fungua &amp; Chapisha Festival Overview (PDF) &rarr;
+        </a>
+      </div>
+    </div>
+
+    <!-- JUU: Frameless Official Sponsors & Partners Logo Showcase (Ajira Market Style — No Form / No Box) -->
+    <div id="sponsor-logos-showcase" class="text-center space-y-6 py-2">
+      <div class="space-y-1.5">
+        <h3 class="text-lg sm:text-xl font-extrabold uppercase text-slate-900 tracking-wide" data-i18n="spCurrentTitle">
+          Wadhamini &amp; Washirika Wetu Rasmi
+        </h3>
+        <p class="text-xs sm:text-sm text-slate-500 max-w-2xl mx-auto leading-relaxed" data-i18n="spCurrentDesc">
+          Makampuni na taasisi zinazoshirikiana nasi kufanikisha maonyesho na teknolojia nchini Tanzania. Bofya nembo kutembelea tovuti yao rasmi.
+        </p>
+      </div>
+
+      <div id="official-sponsors-logos" class="flex flex-wrap items-center justify-center gap-10 sm:gap-16 pt-2">
+        <a href="https://www.reliancesolutions.co.tz/" target="_blank" rel="noopener noreferrer" aria-label="Partner Website" class="tbf-partner-float inline-flex items-center justify-center p-2 transition-transform duration-300 hover:scale-105 cursor-pointer">
+          <img src="/images/partner_reliance.png" alt="Partner Logo" class="h-14 sm:h-16 md:h-20 w-auto max-w-[240px] sm:max-w-[300px] object-contain opacity-95 hover:opacity-100 transition-opacity" />
+        </a>
+      </div>
+    </div>
+
+    <!-- CHINI: Open, Form-less Sponsorship Request Section (Matching Modern Editorial Style — Zero Card Box) -->
+    <div id="sponsor-apply-section" class="border-t border-slate-200 pt-10 pb-6">
+      <div class="text-center max-w-2xl mx-auto space-y-3">
+        <h3 class="text-2xl sm:text-4xl font-extrabold uppercase text-slate-900 leading-tight" data-i18n="spFormTitle">
+          Omba Kuwa Mdhamini au Mshirika
+        </h3>
+        <p class="footer-editorial-motto text-base sm:text-lg text-slate-600 italic leading-relaxed" data-i18n="spFormDesc">
+          Weka taarifa za kampuni au taasisi yako hapa chini ili timu yetu iwasiliane nawe.
+        </p>
+      </div>
+
+      <form id="sponsor-apply-form" onsubmit="submitSponsorForm(event)" class="max-w-2xl mx-auto space-y-10 pt-8">
+        <div id="sp-error" class="hidden py-2.5 border-b-2 border-red-400 text-red-700 text-xs sm:text-sm font-bold text-center"></div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-10">
+          <div class="space-y-1.5">
+            <label for="sp-org" class="block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500" data-i18n="spOrgLabel">Jina la Kampuni / Taasisi *</label>
+            <input id="sp-org" type="text" required data-i18n-placeholder="spOrgPlaceholder" placeholder="Mfano: Reliance Solutions Ltd" class="w-full px-0 py-3 bg-transparent border-0 border-b-2 border-slate-300 focus:outline-none focus:border-[#0b6b68] rounded-none text-base text-slate-900 placeholder-slate-400 transition-colors" />
+          </div>
+          <div class="space-y-1.5">
+            <label for="sp-contact" class="block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500" data-i18n="spContactLabel">Jina la Afisa Mhusika *</label>
+            <input id="sp-contact" type="text" required data-i18n-placeholder="spContactPlaceholder" placeholder="Mfano: Neema Kweka" class="w-full px-0 py-3 bg-transparent border-0 border-b-2 border-slate-300 focus:outline-none focus:border-[#0b6b68] rounded-none text-base text-slate-900 placeholder-slate-400 transition-colors" />
+          </div>
+          <div class="space-y-1.5">
+            <label for="sp-phone" class="block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500" data-i18n="spPhoneLabel">Simu / WhatsApp *</label>
+            <input id="sp-phone" type="tel" required placeholder="+255 7XX XXX XXX" class="w-full px-0 py-3 bg-transparent border-0 border-b-2 border-slate-300 focus:outline-none focus:border-[#0b6b68] rounded-none text-base text-slate-900 placeholder-slate-400 transition-colors" />
+          </div>
+          <div class="space-y-1.5">
+            <label for="sp-email" class="block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500" data-i18n="spEmailLabel">Barua Pepe Rasmi *</label>
+            <input id="sp-email" type="email" required placeholder="partner@company.co.tz" class="w-full px-0 py-3 bg-transparent border-0 border-b-2 border-slate-300 focus:outline-none focus:border-[#0b6b68] rounded-none text-base text-slate-900 placeholder-slate-400 transition-colors" />
+          </div>
+        </div>
+
+        <!-- Borderless Clickable Role Pills (Sponsor vs Partner — Zero Package Tiers) -->
+        <div class="space-y-3">
+          <div class="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500" data-i18n="spTierLabel">Aina ya Ushirikiano</div>
+          <input type="hidden" id="sp-tier" value="Sponsor" />
+          <div id="sp-tier-pills" class="flex flex-wrap items-center gap-2.5">
+            <button type="button" onclick="selectSponsorTier('Sponsor', this)" data-tier="Sponsor" class="px-5 py-2 rounded-full text-xs font-semibold transition cursor-pointer bg-[#0b6b68] text-white shadow-sm" data-i18n="spRoleSponsor">Sponsor (Mdhamini)</button>
+            <button type="button" onclick="selectSponsorTier('Partner', this)" data-tier="Partner" class="px-5 py-2 rounded-full text-xs font-semibold transition cursor-pointer bg-slate-200/75 hover:bg-[#e6f3f2] text-slate-700 hover:text-[#0b6b68]" data-i18n="spRolePartner">Partner (Mshirika)</button>
+          </div>
+        </div>
+
+        <!-- Multi-Select Dropdown for All 31 Regions of Tanzania (With Select All at Top) -->
+        <div class="space-y-2">
+          <label class="block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500" data-i18n="spRegionLabel">Mikoa / Eneo la Udhamini</label>
+          <input type="hidden" id="sp-regions" value="All Regions (All 31 Regions of Tanzania)" />
+          <div id="sp-region-dropdown-wrap" class="relative">
+            <button type="button" id="sp-region-trigger" onclick="toggleSponsorRegionDropdown(event)" class="w-full px-0 py-3 bg-transparent border-0 border-b-2 border-slate-300 focus:outline-none focus:border-[#0b6b68] rounded-none text-left flex items-center justify-between gap-3 cursor-pointer transition-colors">
+              <span id="sp-region-display" class="text-base text-slate-900 font-medium truncate">Mikoa Yote ya Tanzania (31)</span>
+              <svg id="sp-region-chevron" class="w-5 h-5 text-slate-500 shrink-0 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+
+            <div id="sp-region-menu" class="hidden absolute z-40 left-0 right-0 mt-2 rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
+              <!-- Top Sticky Select All Row -->
+              <button type="button" id="sp-region-select-all-btn" onclick="toggleAllSponsorRegions(event)" class="w-full px-4 py-3 border-b border-slate-200 bg-[#f4f7f6] hover:bg-[#e6f3f2] flex items-center justify-between gap-3 text-left transition cursor-pointer">
+                <span class="flex items-center gap-2.5">
+                  <span id="sp-region-all-chk" class="w-5 h-5 rounded-md bg-[#0b6b68] text-white flex items-center justify-center text-xs font-extrabold shrink-0">✓</span>
+                  <span class="text-xs sm:text-sm font-extrabold text-[#08524f]" data-i18n="spRegionSelectAll">Chagua Mikoa Yote (Select All — 31)</span>
+                </span>
+                <span id="sp-region-count-badge" class="px-2 py-0.5 rounded-full bg-white border border-slate-200 text-[11px] font-extrabold text-[#0b6b68]">31 / 31</span>
+              </button>
+
+              <!-- Quick Search Box -->
+              <div class="px-3 py-2 border-b border-slate-100 bg-white">
+                <input id="sp-region-search" type="text" data-i18n-placeholder="spRegionSearchPlaceholder" oninput="filterSponsorRegionsList(this.value)" onclick="event.stopPropagation()" placeholder="Tafuta mkoa (mf. Dar es Salaam, Arusha...)" class="w-full px-3 py-1.5 rounded-xl bg-[#f4f7f6] border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0b6b68]" />
+              </div>
+
+              <!-- Scrollable List of All 31 Tanzania Regions -->
+              <div id="sp-region-list" class="max-h-60 overflow-y-auto p-2 grid grid-cols-1 sm:grid-cols-2 gap-1 bg-white"></div>
+
+              <!-- Bottom Close Bar -->
+              <div class="px-4 py-2.5 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-2 text-xs">
+                <span id="sp-region-footer-info" class="font-semibold text-slate-500">Mikoa 31 imechaguliwa</span>
+                <button type="button" onclick="closeSponsorRegionDropdown()" class="px-4 py-1.5 rounded-full bg-[#0b6b68] hover:bg-[#08524f] text-white font-bold text-xs transition cursor-pointer" data-i18n="spRegionDone">
+                  Tayari
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-4 text-center space-y-4">
+          <button type="submit" id="sp-submit-btn" class="px-10 py-4 rounded-full bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm uppercase tracking-[0.16em] shadow-lg hover:shadow-xl transition transform hover:scale-[1.02] inline-flex items-center gap-2.5 cursor-pointer">
+            <span data-i18n="spSubmitBtn">Tuma Maombi ya Ushirikiano</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
+          </button>
+          <p class="text-xs text-slate-500">
+            <span><span data-i18n="spPhoneShort">Simu / WhatsApp:</span> <strong class="text-[#0b6b68]">+255 767 053 250</strong></span>
+            <span class="mx-2">&bull;</span>
+            <span><span data-i18n="spEmailShort">Barua Pepe:</span> <a href="mailto:info@biasharafestival.co.tz" class="font-bold text-[#0b6b68] hover:underline">info@biasharafestival.co.tz</a></span>
+          </p>
+        </div>
+      </form>
+
+      <!-- Open Confirmation State (Zero Box/Frame) -->
+      <div id="sp-feedback" class="hidden max-w-xl mx-auto text-center py-8 space-y-5">
+        <div class="w-16 h-16 rounded-full bg-emerald-100 text-[#0b6b68] flex items-center justify-center mx-auto">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+        </div>
+        <h4 class="text-2xl sm:text-3xl font-extrabold uppercase text-slate-900" data-i18n="spSuccessHeading">Maombi Yamepokelewa!</h4>
+        <p class="text-sm sm:text-base text-slate-600 leading-relaxed" data-i18n="spSuccessMsg">
+          Asante! Maombi yako yamepokelewa. Timu yetu (+255 767 053 250) itawasiliana nawe.
+        </p>
+        <div class="pt-2">
+          <button type="button" onclick="resetSponsorApplication()" class="px-8 py-3 rounded-full bg-[#0b6b68] hover:bg-[#08524f] text-white font-bold text-xs uppercase tracking-widest transition cursor-pointer" data-i18n="spAnotherBtn">
+            Tuma Ombi Jingine
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       SECTION 4: DYNAMIC EVENTS, NEWS & ADVERTISEMENTS
+       ========================================================== -->
+  <section id="sec-events" class="hidden max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+    <div class="text-center max-w-3xl mx-auto space-y-2 border-b border-slate-200 pb-6">
+      <h2 class="text-2xl sm:text-4xl font-extrabold uppercase text-slate-900 leading-tight [word-spacing:0.08em]" data-i18n="evTitle">
+        Events, News &amp; Commercial Advertisements
+      </h2>
+      <p class="text-xs sm:text-sm text-slate-600 max-w-2xl mx-auto leading-relaxed [word-spacing:0.04em]" data-i18n="evDesc">
+        Kwa kuwa tarehe za kila mkoa zinapangwa kulingana na mzunguko, hapa ndipo tunapotangaza na ku-update <strong>Tarehe za Matukio (Events)</strong>, <strong>Habari Rasmi (News)</strong>, na <strong>Matangazo ya Biashara (Advertisements)</strong> muda wowote.
+      </p>
+      <div class="pt-2 flex flex-wrap justify-center gap-2">
+        <button data-upd-filter="ALL" onclick="filterUpdates('ALL')" class="upd-pill px-4 py-2 rounded-xl text-xs font-extrabold bg-[#0b6b68] text-white cursor-pointer" data-i18n="evFilterAll">All</button>
+        <button data-upd-filter="EVENT" onclick="filterUpdates('EVENT')" class="upd-pill px-4 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 cursor-pointer" data-i18n="evFilterEvents">Upcoming Events &amp; Schedule</button>
+        <button data-upd-filter="GALLERY" onclick="filterUpdates('GALLERY')" class="upd-pill px-4 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 cursor-pointer" data-i18n="evFilterGallery">Photo Gallery</button>
+        <button data-upd-filter="ADVERTISEMENT" onclick="filterUpdates('ADVERTISEMENT')" class="upd-pill px-4 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 cursor-pointer" data-i18n="evFilterAds">Advertisements</button>
+        <button data-upd-filter="NEWS" onclick="filterUpdates('NEWS')" class="upd-pill px-4 py-2 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 cursor-pointer" data-i18n="evFilterNews">Official News</button>
+      </div>
+    </div>
+
+    <!-- Upcoming Events & Daily Timetable (Ratiba) -->
+    <div id="news-schedule-section" class="space-y-4"></div>
+
+    <!-- Festival Photo Gallery -->
+    <div id="news-gallery-section" class="space-y-4"></div>
+
+    <!-- Announcements / Press / Commercial Ads -->
+    <div id="announcements-wrapper" class="space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h3 id="news-updates-heading" class="text-lg sm:text-xl font-extrabold uppercase text-slate-900 tracking-tight" data-i18n="evUpdatesSubheading">
+          Latest Updates &amp; Commercial Announcements
+        </h3>
+      </div>
+      <div id="announcements-list" class="grid grid-cols-1 md:grid-cols-2 gap-5"></div>
+    </div>
+
+    <!-- Essential Visitor & Exhibitor Information -->
+    <div id="news-essentials-section"></div>
+
+    <div id="events-admin-publisher" class="hidden rounded-3xl bg-white border border-slate-200 p-6 sm:p-8 space-y-4 shadow-sm">
+      <h3 class="text-lg font-extrabold text-[#0b6b68]" data-i18n="evPublishTitle">+ Chapisha Event Update, News au Tangazo la Biashara (Advertisement)</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-bold mb-1" data-i18n="evTypeLabel">Aina ya Chapisho (Type)</label>
+          <select id="ann-type" class="w-full px-3.5 py-2.5 rounded-xl bg-[#f4f7f6] border border-slate-300 text-xs sm:text-sm font-bold">
+            <option value="EVENT" data-i18n="evTypeOptEvent">EVENT (Tangazo la Tarehe / Ratiba ya Mkoa)</option>
+            <option value="ADVERTISEMENT" data-i18n="evTypeOptAd">ADVERTISEMENT (Tangazo la Biashara / Bidhaa)</option>
+            <option value="NEWS" data-i18n="evTypeOptNews">NEWS (Habari &amp; Taarifa kwa Umma)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold mb-1" data-i18n="evRegionLabel">Mkoa Unaohusika (Region)</label>
+          <select id="ann-region-id" class="w-full px-3.5 py-2.5 rounded-xl bg-[#f4f7f6] border border-slate-300 text-xs sm:text-sm">
+            <option value="" data-i18n="evRegionAll">Mikoa Yote (National Tour)</option>
+            <option value="dar">Dar es Salaam</option>
+            <option value="mwanza">Mwanza</option>
+            <option value="arusha">Arusha</option>
+            <option value="dodoma">Dodoma</option>
+            <option value="mbeya">Mbeya</option>
+            <option value="zanzibar">Zanzibar</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold mb-1" data-i18n="evStatusLabel">Update Tarehe/Status ya Mkoa (Hiari)</label>
+          <input id="ann-schedule-status" type="text" data-i18n-placeholder="annStatusPlaceholder" placeholder="Mfano: Tarehe Rasmi ni Wiki Ijayo / Usajili Wazi" class="w-full px-3.5 py-2.5 rounded-xl bg-[#f4f7f6] border border-slate-300 text-xs sm:text-sm" />
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <input id="ann-title" type="text" data-i18n-placeholder="annTitlePlaceholder" placeholder="Kichwa cha Event, Habari au Tangazo la Biashara *" class="w-full px-3.5 py-2.5 rounded-xl bg-[#f4f7f6] border border-slate-300 text-xs sm:text-sm" />
+        <input id="ann-summary" type="text" data-i18n-placeholder="annSummaryPlaceholder" placeholder="Maelezo kamili ya tangazo au tukio *" class="w-full px-3.5 py-2.5 rounded-xl bg-[#f4f7f6] border border-slate-300 text-xs sm:text-sm" />
+      </div>
+      <button onclick="postNewAnnouncement()" class="px-6 py-3 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm transition" data-i18n="evPublishBtn">
+        Chapisha Sasa (Publish Update / Ad)
+      </button>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       SECTION: CONTACTS (MAWASILIANO RASMI YA KONGAMANO)
+       ========================================================== -->
+  <section id="sec-contacts" class="hidden max-w-7xl mx-auto px-4 sm:px-8 py-10 space-y-10">
+    <!-- Header (Centered) -->
+    <div class="text-center max-w-3xl mx-auto border-b border-slate-200 pb-6 space-y-2">
+      <h2 class="text-2xl sm:text-4xl font-extrabold text-slate-900 uppercase leading-tight [word-spacing:0.08em]" data-i18n="ctTitle">
+        Wasiliana na Tanzania Biashara Festival
+      </h2>
+      <p class="text-xs sm:text-sm text-slate-600 max-w-2xl mx-auto leading-relaxed [word-spacing:0.04em]" data-i18n="ctDesc">
+        Kwa maswali ya kuhifadhi mabanda ya maonyesho, fursa za udhamini (sponsorship), ushirikiano au taarifa za mzunguko wa mikoa, wasiliana nasi moja kwa moja:
+      </p>
+    </div>
+
+    <!-- 3 Core Contact Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Phone Card -->
+      <div class="rounded-3xl bg-white border-2 border-[#0b6b68]/20 p-6 sm:p-8 space-y-4 shadow-sm hover:border-[#0b6b68] transition">
+        <div class="w-12 h-12 rounded-2xl bg-[#0b6b68] text-white flex items-center justify-center font-bold text-lg shadow">
+          <svg class="w-6 h-6 stroke-current" fill="none" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z"/></svg>
+        </div>
+        <div>
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-400" data-i18n="ctCard1Title">Piga Simu / WhatsApp</div>
+          <a href="tel:+255767053250" class="text-xl sm:text-2xl font-extrabold text-[#0b6b68] hover:underline block mt-1">
+            +255 767 053 250
+          </a>
+        </div>
+        <p class="text-xs text-slate-600 leading-relaxed" data-i18n="ctCard1Sub">
+          Inapatikana kwa maongezi ya simu na ujumbe wa WhatsApp kwa msaada wa haraka wa usajili wa mabanda.
+        </p>
+        <div class="pt-2">
+          <a href="https://wa.me/255767053250?text=Habari%20Tanzania%20Biashara%20Festival" target="_blank" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0b6b68] text-white text-xs font-extrabold hover:bg-[#08524f] transition" data-i18n="ctCard1Btn">
+            Chat WhatsApp Sasa &rarr;
+          </a>
+        </div>
+      </div>
+
+      <!-- Email Card -->
+      <div class="rounded-3xl bg-white border-2 border-[#0b6b68]/20 p-6 sm:p-8 space-y-4 shadow-sm hover:border-[#0b6b68] transition">
+        <div class="w-12 h-12 rounded-2xl bg-[#0b6b68] text-white flex items-center justify-center font-bold text-lg shadow">
+          <svg class="w-6 h-6 stroke-current" fill="none" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
+        </div>
+        <div>
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-400" data-i18n="ctCard2Title">Barua Pepe Rasmi (Email)</div>
+          <a href="mailto:info@biasharafestival.co.tz" class="text-lg sm:text-xl font-extrabold text-[#0b6b68] hover:underline block mt-1 break-all">
+            info@biasharafestival.co.tz
+          </a>
+        </div>
+        <p class="text-xs text-slate-600 leading-relaxed" data-i18n="ctCard2Sub">
+          Tuma barua pepe kwa mawasiliano rasmi ya kibiashara, ushirikiano wa kitaasisi, na maombi ya udhamini.
+        </p>
+        <div class="pt-2">
+          <a href="mailto:info@biasharafestival.co.tz" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#e6f3f2] text-[#0b6b68] text-xs font-extrabold hover:bg-[#0b6b68] hover:text-white transition" data-i18n="ctCard2Btn">
+            Tuma Email Sasa &rarr;
+          </a>
+        </div>
+      </div>
+
+      <!-- Location Card -->
+      <div class="rounded-3xl bg-white border-2 border-[#0b6b68]/20 p-6 sm:p-8 space-y-4 shadow-sm hover:border-[#0b6b68] transition">
+        <div class="w-12 h-12 rounded-2xl bg-[#0b6b68] text-white flex items-center justify-center font-bold text-lg shadow">
+          <svg class="w-6 h-6 stroke-current" fill="none" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/></svg>
+        </div>
+        <div>
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-400" data-i18n="ctCard3Title">Ofisi &amp; Mzunguko</div>
+          <div class="text-lg sm:text-xl font-extrabold text-slate-900 mt-1" data-i18n="ctCard3Value">
+            Mikoa Yote ya Tanzania
+          </div>
+        </div>
+        <p class="text-xs text-slate-600 leading-relaxed" data-i18n="ctCard3Sub">
+          Dar es Salaam • Mwanza • Arusha • Dodoma • Mbeya • Zanzibar (Viwanja Maalum vya Maonyesho).
+        </p>
+        <div class="pt-2 text-xs text-slate-500 font-semibold" data-i18n="ctCard3Hours">
+          Saa za Kazi: Jumatatu - Jumamosi (08:00 - 18:00)
+        </div>
+      </div>
+    </div>
+
+    <!-- Contact Form & Direct Inquiries -->
+    <div class="rounded-3xl bg-white border border-slate-200 p-6 sm:p-10 shadow-sm space-y-6">
+      <div class="max-w-xl space-y-1">
+        <span class="text-xs font-extrabold uppercase text-[#0b6b68]" data-i18n="ctFormBadge">FOMU YA MAWASILIANO</span>
+        <h3 class="text-xl sm:text-2xl font-extrabold text-slate-900 uppercase" data-i18n="ctFormTitle">Tuma Ujumbe au Swali Lako</h3>
+        <p class="text-xs sm:text-sm text-slate-600" data-i18n="ctFormDesc">Jaza fomu hii fupi na timu yetu itawasiliana nawe ndani ya muda mfupi.</p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-bold mb-1.5 text-slate-700" data-i18n="ctNameLabel">Jina Lako Kamili *</label>
+          <input id="contact-form-name" type="text" data-i18n-placeholder="ctNamePlaceholder" placeholder="Mfano: Juma Rashid" class="w-full px-4 py-3 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold mb-1.5 text-slate-700" data-i18n="ctPhoneLabel">Namba ya Simu *</label>
+          <input id="contact-form-phone" type="text" placeholder="+255 767 053 250" class="w-full px-4 py-3 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold mb-1.5 text-slate-700" data-i18n="ctEmailLabel">Barua Pepe (Email)</label>
+          <input id="contact-form-email" type="email" placeholder="juma@example.com" class="w-full px-4 py-3 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold mb-1.5 text-slate-700" data-i18n="ctTypeLabel">Aina ya Swali / Ushiriki *</label>
+          <select id="contact-form-type" class="w-full px-4 py-3 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]">
+            <option value="Kuhifadhi Banda (Booth Booking)" data-i18n="ctOptBooth">Kuhifadhi Banda (Booth Booking)</option>
+            <option value="Fursa za Udhamini (Sponsorship)" data-i18n="ctOptSponsor">Fursa za Udhamini (Sponsorship)</option>
+            <option value="Ratiba ya Mkoa (Festival Schedule)" data-i18n="ctOptSchedule">Ratiba ya Mkoa (Festival Schedule)</option>
+            <option value="Mengineyo (General Inquiry)" data-i18n="ctOptOther">Mengineyo (General Inquiry)</option>
+          </select>
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-bold mb-1.5 text-slate-700" data-i18n="ctMsgLabel">Ujumbe Wako *</label>
+          <textarea id="contact-form-msg" rows="4" placeholder="Andika maelezo ya swali au ombi lako hapa..." class="w-full px-4 py-3 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]" data-i18n-placeholder="ctMsgPlaceholder"></textarea>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-4">
+        <button onclick="handleContactSubmit()" class="px-8 py-3.5 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-sm uppercase tracking-wider shadow transition" data-i18n="ctSubmitBtn">
+          Tuma Ujumbe Sasa &rarr;
+        </button>
+        <div id="contact-form-feedback" class="hidden text-xs sm:text-sm font-bold text-[#0b6b68]" data-i18n="ctSuccessMsg">
+          Asante! Ujumbe wako umepokelewa. Tutawasiliana nawe kupitia simu / email uliyoweka.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       SECTION: DEDICATED NEWSLETTER PAGE (FORM-LESS EDITORIAL DESIGN)
+       ========================================================== -->
+  <section id="sec-newsletter" class="hidden max-w-4xl mx-auto px-4 sm:px-8 py-12 sm:py-16 space-y-10">
+    <!-- Minimal Back Navigation -->
+    <div>
+      <button type="button" onclick="switchSection('home')" class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-[#0b6b68] transition group cursor-pointer">
+        <svg class="w-4 h-4 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        <span data-i18n="newsletterBackBtn">Back to Home</span>
+      </button>
+    </div>
+
+    <!-- Centered Editorial Header (Zero Box/Card Wrapper) -->
+    <div class="text-center max-w-2xl mx-auto space-y-4">
+      <h2 class="text-2xl sm:text-4xl lg:text-5xl font-extrabold uppercase text-slate-900 leading-tight" data-i18n="newsletterModalTitle">
+        Subscribe to Official TBF Newsletter
+      </h2>
+      <p class="footer-editorial-motto text-base sm:text-lg text-slate-600 italic leading-relaxed" data-i18n="newsletterModalSubtitle">
+        Get regional tour schedules, business opportunities, and exhibition booth guides directly to your inbox.
+      </p>
+    </div>
+
+    <!-- Open, Form-less Editorial Inputs (No Rectangular Card or Boxed Inputs) -->
+    <form id="newsletter-form" onsubmit="handleNewsletterSubmit(event)" class="max-w-2xl mx-auto space-y-10 pt-2">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-10">
+        <div class="space-y-1.5">
+          <label for="newsletter-name" class="block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500" data-i18n="newsletterNameLabel">Full Name (Optional)</label>
+          <input type="text" id="newsletter-name" class="w-full px-0 py-3 bg-transparent border-0 border-b-2 border-slate-300 focus:outline-none focus:border-[#0b6b68] rounded-none text-base sm:text-lg text-slate-900 placeholder-slate-400 transition-colors" placeholder="Juma Said" />
+        </div>
+        <div class="space-y-1.5">
+          <label for="newsletter-email" class="block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500" data-i18n="newsletterEmailInputLabel">Email Address</label>
+          <input type="email" id="newsletter-email" required class="w-full px-0 py-3 bg-transparent border-0 border-b-2 border-slate-300 focus:outline-none focus:border-[#0b6b68] rounded-none text-base sm:text-lg text-slate-900 placeholder-slate-400 transition-colors" placeholder="juma@example.com" />
+        </div>
+      </div>
+
+      <!-- Borderless Clickable Region Pills (No Boxed Select) -->
+      <div class="space-y-3">
+        <div class="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500" data-i18n="newsletterRegionLabel">Region of Interest</div>
+        <input type="hidden" id="newsletter-region" value="All Regions" />
+        <div id="newsletter-region-pills" class="flex flex-wrap items-center gap-2.5">
+          <button type="button" onclick="selectNewsletterRegion('All Regions', this)" data-region="All Regions" class="px-4 py-2 rounded-full text-xs font-semibold transition cursor-pointer bg-[#0b6b68] text-white shadow-sm" data-i18n="newsletterRegionAll">
+            All Tour Regions (Nationwide)
+          </button>
+          <button type="button" onclick="selectNewsletterRegion('Dar es Salaam', this)" data-region="Dar es Salaam" class="px-4 py-2 rounded-full text-xs font-semibold transition cursor-pointer bg-slate-200/75 hover:bg-[#e6f3f2] text-slate-700 hover:text-[#0b6b68]">
+            Dar es Salaam
+          </button>
+          <button type="button" onclick="selectNewsletterRegion('Mwanza', this)" data-region="Mwanza" class="px-4 py-2 rounded-full text-xs font-semibold transition cursor-pointer bg-slate-200/75 hover:bg-[#e6f3f2] text-slate-700 hover:text-[#0b6b68]">
+            Mwanza
+          </button>
+          <button type="button" onclick="selectNewsletterRegion('Arusha', this)" data-region="Arusha" class="px-4 py-2 rounded-full text-xs font-semibold transition cursor-pointer bg-slate-200/75 hover:bg-[#e6f3f2] text-slate-700 hover:text-[#0b6b68]">
+            Arusha
+          </button>
+          <button type="button" onclick="selectNewsletterRegion('Dodoma', this)" data-region="Dodoma" class="px-4 py-2 rounded-full text-xs font-semibold transition cursor-pointer bg-slate-200/75 hover:bg-[#e6f3f2] text-slate-700 hover:text-[#0b6b68]">
+            Dodoma
+          </button>
+          <button type="button" onclick="selectNewsletterRegion('Mbeya', this)" data-region="Mbeya" class="px-4 py-2 rounded-full text-xs font-semibold transition cursor-pointer bg-slate-200/75 hover:bg-[#e6f3f2] text-slate-700 hover:text-[#0b6b68]">
+            Mbeya
+          </button>
+          <button type="button" onclick="selectNewsletterRegion('Zanzibar', this)" data-region="Zanzibar" class="px-4 py-2 rounded-full text-xs font-semibold transition cursor-pointer bg-slate-200/75 hover:bg-[#e6f3f2] text-slate-700 hover:text-[#0b6b68]">
+            Zanzibar
+          </button>
+        </div>
+      </div>
+
+      <div class="pt-4 text-center space-y-4">
+        <button type="submit" id="newsletter-submit-btn" class="px-10 py-4 rounded-full bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm uppercase tracking-[0.16em] shadow-lg hover:shadow-xl transition transform hover:scale-[1.02] inline-flex items-center gap-2.5 cursor-pointer">
+          <span data-i18n="newsletterSubmitBtn">Subscribe Now</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
+        </button>
+        <p class="text-xs text-slate-500">
+          <span data-i18n="newsletterQueries">Any queries please email organisers on</span>
+          <a href="mailto:info@biasharafestival.co.tz" class="font-bold text-[#0b6b68] hover:underline ml-1">info@biasharafestival.co.tz</a>
+        </p>
+      </div>
+    </form>
+
+    <!-- Open Confirmation State (Zero Box/Frame) -->
+    <div id="newsletter-success-box" class="hidden max-w-xl mx-auto text-center py-8 space-y-5">
+      <div class="w-16 h-16 rounded-full bg-emerald-100 text-[#0b6b68] flex items-center justify-center mx-auto">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>
+      </div>
+      <h3 class="text-2xl sm:text-3xl font-extrabold uppercase text-slate-900" data-i18n="newsletterSuccessHeading">Successfully Subscribed!</h3>
+      <p class="text-sm sm:text-base text-slate-600 leading-relaxed" data-i18n="newsletterSuccessMsg">
+        Thank you! You have successfully subscribed to the Tanzania Biashara Festival newsletter.
+      </p>
+      <div class="pt-2">
+        <button type="button" onclick="switchSection('home')" class="px-8 py-3 rounded-full bg-[#0b6b68] hover:bg-[#08524f] text-white font-bold text-xs uppercase tracking-widest transition cursor-pointer" data-i18n="newsletterBackBtn">
+          Back to Home
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       DEDICATED TRA-STYLE THERMAL RECEIPT & QR PASS PAGE
+       ========================================================== -->
+  <section id="sec-receipt" class="hidden min-h-[75vh] px-4 py-8 sm:py-10 space-y-6">
+    <!-- Top Bar (Not Printed) -->
+    <div class="no-print max-w-[376px] mx-auto flex items-center justify-between gap-2 text-xs">
+      <button type="button" onclick="switchSection('booking')" class="inline-flex items-center gap-1.5 font-bold text-slate-600 hover:text-[#0b6b68] transition cursor-pointer">
+        <span>&larr;</span>
+        <span data-i18n="receiptBackBookingBtn">Rudi Kwenye Mabanda</span>
+      </button>
+      <span id="modal-status-badge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-semibold">
+        <span id="modal-status-dot" class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+        <span id="modal-status-text" data-i18n="modalBookingConfirmed">Namba ya Malipo Imetolewa • Subiri Malipo</span>
+      </span>
+    </div>
+
+    <!-- Narrow TRA / EFD Thermal Paper Strip -->
+    <div class="tra-receipt-wrap w-full max-w-[368px] mx-auto">
+      <div class="tra-edge-top"></div>
+      <div class="bg-white px-5 py-4 text-slate-900 font-mono text-[11.5px] leading-[1.45]">
+        <div id="receipt-paper-body"></div>
+      </div>
+      <div class="tra-edge-bottom"></div>
+    </div>
+
+    <!-- Payment Verification / Download Actions (Only Shown Below Receipt, Not Printed) -->
+    <div class="no-print w-full max-w-[368px] mx-auto space-y-2.5">
+      <div id="modal-payment-check-msg" class="hidden rounded-xl p-3 text-xs font-semibold"></div>
+
+      <button id="btn-verify-modal-payment" type="button" onclick="verifyCurrentModalPayment()" class="w-full py-3 px-4 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm shadow-md transition inline-flex items-center justify-center gap-2 cursor-pointer">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+        <span id="btn-verify-modal-payment-lbl">Nimeshalipa — Hakiki &amp; Fungua Pass</span>
+      </button>
+
+      <button id="btn-copy-modal-control" type="button" onclick="copyModalControlNumber()" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs transition cursor-pointer">
+        Nakili Control Number
+      </button>
+
+      <button id="btn-download-modal-pass" type="button" onclick="downloadCurrentModalPass()" class="hidden w-full py-3 px-4 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm shadow-md transition inline-flex items-center justify-center gap-2 cursor-pointer">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"></path></svg>
+        <span data-i18n="modalDownloadBtn">Pakua QR Pass &amp; Risiti (PNG)</span>
+      </button>
+
+      <div class="grid grid-cols-2 gap-2">
+        <button id="btn-print-modal-pass" type="button" onclick="window.print()" class="hidden py-2.5 px-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs transition cursor-pointer" data-i18n="modalPrintBtn">
+          Chapisha
+        </button>
+        <button id="btn-receipt-home" type="button" onclick="switchSection('home');" class="col-span-2 py-2.5 px-3 rounded-xl bg-slate-200/80 hover:bg-slate-200 text-slate-800 font-bold text-xs transition cursor-pointer" data-i18n="modalHomeBtn">
+          Ona Biashara Yako Kwenye Ukurasa wa Mbele &rarr;
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       SECTION 5: UNIFIED SIGN IN & EXHIBITOR REGISTRATION
+       ========================================================== -->
+  <section id="sec-login" class="hidden max-w-lg mx-auto px-4 sm:px-6 py-10 sm:py-12">
+    <div class="rounded-3xl bg-white border-2 border-[#0b6b68]/20 p-6 sm:p-8 shadow-lg space-y-6">
+      <div class="text-center space-y-2">
+        <div class="w-12 h-12 rounded-2xl bg-[#0b6b68] text-white font-extrabold text-lg flex items-center justify-center mx-auto shadow">
+          TBF
+        </div>
+        <h2 class="text-2xl font-extrabold text-slate-900" data-i18n="loginHeading">
+          Sign In
+        </h2>
+        <p class="text-xs text-slate-600 max-w-sm mx-auto leading-relaxed" data-i18n="loginSubheading">
+          Sign in with your email address to access your reservation or portal.
+        </p>
+      </div>
+
+      <div class="space-y-5">
+        <form id="exhibitor-login-form" onsubmit="handleExhibitorLogin(event)" class="space-y-4">
+          <div id="exhibitor-login-error" class="hidden p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold"></div>
+          <div>
+            <label for="exhibitor-login-email" class="block text-xs font-bold mb-1.5 text-slate-700" data-i18n="exLoginEmailLabel">Email Address *</label>
+            <input id="exhibitor-login-email" type="email" required autocomplete="email" data-i18n-placeholder="exLoginEmailPlaceholder" placeholder="email@company.co.tz" class="w-full px-4 py-3 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]" />
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="exhibitor-login-pin" class="block text-xs font-bold mb-1.5 text-slate-700" data-i18n="exLoginPinLabel">PIN / Password</label>
+              <input id="exhibitor-login-pin" type="password" autocomplete="current-password" maxlength="128" data-i18n-placeholder="exLoginPinPlaceholder" placeholder="••••••••" class="w-full px-4 py-3 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm font-mono tracking-wider focus:outline-none focus:border-[#0b6b68]" />
+            </div>
+            <div>
+              <label for="exhibitor-login-ref" class="block text-xs font-bold mb-1.5 text-slate-700" data-i18n="exLoginRefLabel">Booking ID / Control #</label>
+              <input id="exhibitor-login-ref" type="text" data-i18n-placeholder="exLoginRefPlaceholder" placeholder="TBF-BIZ-... or 99104..." class="w-full px-4 py-3 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm font-mono focus:outline-none focus:border-[#0b6b68]" />
+            </div>
+          </div>
+
+          <button id="exhibitor-login-btn" type="submit" class="w-full py-3.5 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-sm shadow transition cursor-pointer" data-i18n="exLoginBtn">
+            Sign In &rarr;
+          </button>
+        </form>
+
+        <div id="exhibitor-login-result" class="hidden"></div>
+
+        <div class="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <span class="text-xs font-semibold text-slate-600" data-i18n="exRegisterTitle">New exhibitor? Reserve your booth today.</span>
+          <button id="btn-login-register-booth" type="button" onclick="startExhibitorRegistration()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#e6f3f2] hover:bg-[#0b6b68] text-[#0b6b68] hover:text-white font-extrabold text-xs transition cursor-pointer shrink-0" data-i18n="exRegisterBtn">
+            Register &rarr;
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==========================================================
+       SECTION 6: ORGANIZER ADMIN PORTAL
+       ========================================================== -->
+  <section id="sec-admin" class="hidden max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h2 class="text-2xl sm:text-3xl font-extrabold" data-i18n="adminTitle">
+          Mfumo wa Usimamizi (Admin &amp; Regional Attendance Statistics)
+        </h2>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="switchSection('events')" class="px-4 py-2 rounded-xl bg-[#e6f3f2] text-[#0b6b68] font-extrabold text-xs hover:bg-[#0b6b68] hover:text-white transition" data-i18n="adminAddNewsBtn">
+          + Weka Tangazo / News
+        </button>
+        <button type="button" onclick="handleAdminLogout()" class="px-4 py-2 rounded-xl bg-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-300 transition cursor-pointer" data-i18n="adminLogoutBtn">
+          Ondoka (Logout)
+        </button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="p-5 rounded-3xl bg-white border border-slate-200">
+        <div class="text-xs font-bold text-slate-500 uppercase" data-i18n="adminKpiBooked">Mabanda Yaliyohifadhiwa</div>
+        <div id="admin-kpi-bookings" class="text-2xl font-extrabold text-[#0b6b68] mt-1">6</div>
+      </div>
+      <div class="p-5 rounded-3xl bg-white border border-slate-200">
+        <div class="text-xs font-bold text-slate-500 uppercase" data-i18n="adminKpiRevenue">Mapato ya Mabanda (TZS)</div>
+        <div id="admin-kpi-revenue" class="text-2xl font-extrabold text-[#0b6b68] mt-1">TZS 6,715,000</div>
+      </div>
+      <div class="p-5 rounded-3xl bg-white border border-slate-200">
+        <div class="text-xs font-bold text-slate-500 uppercase" data-i18n="adminKpiVisitors">Total Website Visitors</div>
+        <div id="admin-kpi-visitors" class="text-2xl font-extrabold text-slate-900 mt-1">185</div>
+      </div>
+      <div class="p-5 rounded-3xl bg-white border border-slate-200">
+        <div class="text-xs font-bold text-slate-500 uppercase" data-i18n="adminKpiAttendees">Wahudhuriaji wa Mikoa</div>
+        <div id="admin-kpi-attendees" class="text-2xl font-extrabold text-slate-900 mt-1">240</div>
+      </div>
+    </div>
+
+    <!-- ADMIN TOUR DESTINATION & VENUE MANAGER (MKOA TUNAOENDA & LOCATION YA TAMASHA) -->
+    <div class="rounded-3xl bg-white border-2 border-[#0b6b68]/30 p-6 sm:p-8 space-y-6 shadow-sm">
+      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
+        <div>
+          <h3 class="text-xl font-extrabold text-slate-900" data-i18n="adminDestManagerTitle">
+            Panga Mkoa Unaofuata na Eneo Rasmi Litakaloonekana Kwenye Ramani
+          </h3>
+          <p class="text-xs text-slate-500" data-i18n="adminDestManagerDesc">
+            Chagua mkoa ambapo tamasha linaelekea, jina la uwanja/eneo rasmi, anwani na tarehe ili lionekane moja kwa moja kwenye homepage na ramani.
+          </p>
+        </div>
+        <div id="admin-dest-badge" class="px-3.5 py-1.5 rounded-xl bg-[#0b6b68] text-white text-xs font-extrabold shadow" data-i18n="adminDestCurrentBadge">
+          Sasa Tunaoenda: Mwanza (Rock City / Furahisha)
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-xs font-extrabold text-slate-700 uppercase mb-1" data-i18n="adminDestSelectLabel">Mkoa Tunaoenda (Destination City)</label>
+          <select id="admin-dest-region-select" onchange="syncAdminDestDefaults()" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-bold text-xs sm:text-sm bg-[#f8faf9] focus:outline-none focus:border-[#0b6b68]">
+            <option value="mwanza" selected>Mwanza (Lake Zone Commercial Hub)</option>
+            <option value="dar">Dar es Salaam (Coastal Commercial Hub)</option>
+            <option value="arusha">Arusha (Northern Tourism &amp; Agro Hub)</option>
+            <option value="dodoma">Dodoma (Capital City &amp; Central Hub)</option>
+            <option value="mbeya">Mbeya (Southern Highlands SADC Corridor)</option>
+            <option value="zanzibar">Zanzibar (Island Blue Economy Edition)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-extrabold text-slate-700 uppercase mb-1" data-i18n="adminDestVenueLabel">Jina la Uwanja / Venue Grounds</label>
+          <input id="admin-dest-venue-input" type="text" value="Rock City / Furahisha Exhibition Grounds" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-bold text-xs sm:text-sm focus:outline-none focus:border-[#0b6b68]" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-extrabold text-slate-700 uppercase mb-1" data-i18n="adminDestLocLabel">Anwani / Mahali Rasmi (Street/Location)</label>
+          <input id="admin-dest-location-input" type="text" value="Barabara ya Nyerere, Ilemela, Mwanza" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-bold text-xs sm:text-sm focus:outline-none focus:border-[#0b6b68]" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-extrabold text-slate-700 uppercase mb-1" data-i18n="adminDestDatesLabel">Tarehe za Tamasha (Event Dates)</label>
+          <input id="admin-dest-dates-input" type="text" value="Tarehe 15 - 20 Julai 2026" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-bold text-xs sm:text-sm focus:outline-none focus:border-[#0b6b68]" />
+        </div>
+
+        <div class="sm:col-span-2">
+          <label class="block text-xs font-extrabold text-slate-700 uppercase mb-1" data-i18n="adminDestNotesLabel">Maelezo ya Eneo / Maegesho / Landmark</label>
+          <input id="admin-dest-notes-input" type="text" value="Viwanja vikubwa vya wazi vya maonyesho na minada, karibu na Rock City Mall, nafasi ya maegesho 500+ na usalama masaa 24." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-bold text-xs sm:text-sm focus:outline-none focus:border-[#0b6b68]" />
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+        <button type="button" onclick="handleAdminSaveDestination()" class="px-6 py-3 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm uppercase tracking-wider shadow transition" data-i18n="adminDestSaveBtn">
+          Hifadhi Mkoa Tunaoenda &amp; Eneo Kwenye Ramani
+        </button>
+        <span id="admin-dest-toast" class="hidden text-xs font-bold text-emerald-700 bg-emerald-50 px-3.5 py-1.5 rounded-lg border border-emerald-200" data-i18n="adminDestSuccessMsg">
+          Mkoa na Eneo Vimesasishwa Kikamilifu Kwenye Ramani!
+        </span>
+      </div>
+    </div>
+
+    <div class="rounded-3xl bg-white border border-slate-200 p-6 space-y-4 overflow-x-auto">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h3 class="text-lg font-extrabold" data-i18n="adminBookingsTitle">Orodha ya Washiriki Waliohifadhi Mabanda (Booked Exhibition Booths)</h3>
+        <span id="admin-active-holds-pill" class="px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold">Holds Active: 0</span>
+      </div>
+      <table class="w-full text-left border-collapse text-xs sm:text-sm">
+        <thead>
+          <tr class="border-b border-slate-200 text-slate-500 uppercase text-xs">
+            <th class="py-2.5 pr-3" data-i18n="adminThId">ID &amp; Control #</th>
+            <th class="py-2.5 pr-3" data-i18n="adminThCompany">Mshiriki / Kampuni</th>
+            <th class="py-2.5 pr-3" data-i18n="adminThBooth">Banda</th>
+            <th class="py-2.5 pr-3" data-i18n="adminThRegions">Mikoa</th>
+            <th class="py-2.5 pr-3" data-i18n="adminThAmount">Kiasi</th>
+            <th class="py-2.5 pr-3" data-i18n="adminThStatus">Hali &amp; Udhibiti</th>
+          </tr>
+        </thead>
+        <tbody id="admin-bookings-tbody" class="divide-y divide-slate-200"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- REGIONAL PHOTO GALLERY MODAL (LUXURY IMAGE 2 STYLE) -->
+  <div id="regional-gallery-modal" class="fixed inset-0 z-50 hidden bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6" onclick="if(event.target === this) closeRegionalGalleryModal()">
+    <div class="relative max-w-4xl w-full bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-white/20 flex flex-col" onclick="event.stopPropagation()">
+      <!-- Modal Header -->
+      <div class="px-5 py-4 bg-slate-900/90 border-b border-white/10 flex items-center justify-between text-white">
+        <div>
+          <h3 id="regional-gallery-title" class="font-black text-sm sm:text-base uppercase tracking-wider text-emerald-400">
+            Mwanza • Picha za Eneo la Tamasha
+          </h3>
+          <p id="regional-gallery-counter" class="text-[11px] text-white/70">Picha 1 ya 4</p>
+        </div>
+        <button onclick="closeRegionalGalleryModal()" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 text-white font-black flex items-center justify-center transition" aria-label="Close">
+          ✕
+        </button>
+      </div>
+
+      <!-- Main Photo Display Area -->
+      <div class="relative w-full h-[280px] sm:h-[440px] bg-black flex items-center justify-center overflow-hidden select-none">
+        <img id="regional-gallery-main-img" src="" alt="Gallery Image" class="w-full h-full object-contain" />
+        
+        <!-- Prev / Next Controls -->
+        <button onclick="navRegionalGallery(-1)" class="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/60 hover:bg-[#0b6b68] text-white font-black text-lg flex items-center justify-center border border-white/30 transition shadow-lg" aria-label="Previous">
+          &#8592;
+        </button>
+        <button onclick="navRegionalGallery(1)" class="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/60 hover:bg-[#0b6b68] text-white font-black text-lg flex items-center justify-center border border-white/30 transition shadow-lg" aria-label="Next">
+          &#8594;
+        </button>
+      </div>
+
+      <!-- Thumbnails Strip -->
+      <div class="p-3 sm:p-4 bg-slate-950 border-t border-white/10 flex items-center justify-center gap-2 overflow-x-auto" id="regional-gallery-thumbs"></div>
+    </div>
+  </div>
+
+  <!-- VENUE PHOTO PREVIEW MODAL -->
+  <div id="venue-photo-modal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4" onclick="closeVenuePhotoModal()">
+    <div class="relative max-w-2xl w-full bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-white/20" onclick="event.stopPropagation()">
+      <button onclick="closeVenuePhotoModal()" class="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-black/60 text-white font-extrabold flex items-center justify-center hover:bg-black transition">✕</button>
+      <img id="venue-photo-img" src="" alt="Venue Preview" class="w-full h-80 sm:h-96 object-cover" />
+      <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
+        <div id="venue-photo-title" class="font-extrabold text-sm sm:text-base"></div>
+        <span class="text-xs text-emerald-400 font-bold">Tanzania Biashara Festival</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- COOKIE CONSENT BANNER (MODERN GLASS TOAST - ALWAYS FIXED AT BOTTOM ON VISIT) -->
+  <div id="cookie-consent-banner" class="footer-modern no-print fixed bottom-2.5 left-4 right-4 md:left-auto md:right-5 md:max-w-md z-50 hidden bg-[#063f3d]/95 backdrop-blur-md text-white border border-white/15 rounded-2xl p-5 shadow-[0_24px_50px_-12px_rgba(6,58,56,0.5)] space-y-3.5">
+    <div class="flex items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <span class="w-8 h-8 rounded-full bg-emerald-400/15 text-emerald-300 flex items-center justify-center shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+        </span>
+        <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-200" data-i18n="cookieTitle">
+          Tunathamini Faragha Yako
+        </div>
+      </div>
+      <span class="text-[10px] px-2.5 py-0.5 rounded-full bg-white/10 text-emerald-200 font-semibold uppercase tracking-wider shrink-0">Cookies</span>
+    </div>
+    <p class="text-xs text-white/85 leading-relaxed font-normal" data-i18n="cookieText">
+      Tunatumia cookies kuboresha huduma zetu na kukumbuka wewe ni nani pamoja na mapendeleo yako ya lugha na matumizi ya tovuti. Kwa kubonyeza &ldquo;Kubali Cookies Zote&rdquo;, unakubali matumizi ya cookies.
+    </p>
+    <div class="flex items-center gap-2 pt-1">
+      <button onclick="acceptCookies('all')" class="flex-1 py-2.5 px-3 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-[#063a38] font-bold text-xs transition shadow-sm cursor-pointer" data-i18n="cookieAcceptBtn">
+        Kubali Cookies Zote
+      </button>
+      <button onclick="acceptCookies('essential')" class="py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium text-xs transition cursor-pointer" data-i18n="cookieEssentialBtn">
+        Muhimu Pekee
+      </button>
+      <button type="button" onclick="openCookieSettingsModal()" class="py-2.5 px-3 rounded-xl border border-white/20 hover:bg-white/10 text-emerald-200 hover:text-white font-medium text-xs transition cursor-pointer" data-i18n="cookieManageBtn">
+        Mapendeleo
+      </button>
+    </div>
+  </div>
+
+  <!-- COOKIE PREFERENCES MODAL (MODERN POPUP DIALOG) -->
+  <div id="cookie-preferences-modal" class="fixed inset-0 z-50 hidden bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white text-slate-900 rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div>
+          <h3 class="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+            <svg class="w-5 h-5 text-[#0b6b68]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+            <span data-i18n="cookieModalTitle">Mipangilio ya Faragha &amp; Cookies</span>
+          </h3>
+          <p class="text-xs text-slate-500 mt-1" data-i18n="cookieModalSubtitle">Chagua aina ya cookies unazoruhusu kutumika kwenye kifaa chako.</p>
+        </div>
+        <button type="button" onclick="closeCookieSettingsModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition cursor-pointer">
+          ✕
+        </button>
+      </div>
+
+      <!-- Cookie Categories -->
+      <div class="space-y-4 max-h-[55vh] overflow-y-auto pr-1">
+        <!-- 1. Strictly Necessary -->
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <div class="font-bold text-sm text-slate-900" data-i18n="cookieCatEssentialTitle">Cookies Muhimu za Mfumo (Essential)</div>
+            <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-[#08524f] text-[11px] font-extrabold uppercase" data-i18n="cookieAlwaysActiveBadge">Daima Wazi</span>
+          </div>
+          <p class="text-xs text-slate-500 leading-relaxed" data-i18n="cookieCatEssentialDesc">
+            Zinahitajika kwa ajili ya usalama wa akaunti, kuzuia kuingiliana kwa mabanda wakati wa usajili (booth lock), na uthibitishaji. Haziwezi kuzimwa.
+          </p>
+        </div>
+
+        <!-- 2. Preferences / Functional -->
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <div class="font-bold text-sm text-slate-900" data-i18n="cookieCatPrefTitle">Mapendeleo ya Tovuti (Preferences)</div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="cookie-toggle-pref" class="sr-only peer" checked>
+              <div class="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0b6b68]"></div>
+            </label>
+          </div>
+          <p class="text-xs text-slate-500 leading-relaxed" data-i18n="cookieCatPrefDesc">
+            Huruhusu mfumo kukumbuka lugha uliyochagua (Kiswahili/English/Chinese) na mkoa unaotaka kuangalia kwenye ramani ya maonyesho.
+          </p>
+        </div>
+
+        <!-- 3. Analytics / Statistics -->
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <div class="font-bold text-sm text-slate-900" data-i18n="cookieCatAnalyticsTitle">Takwimu za Wageni (Analytics)</div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="cookie-toggle-analytics" class="sr-only peer" checked>
+              <div class="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0b6b68]"></div>
+            </label>
+          </div>
+          <p class="text-xs text-slate-500 leading-relaxed" data-i18n="cookieCatAnalyticsDesc">
+            Hutusaidia kurekodi idadi ya wageni wanaotembelea tovuti kiuhalisia na kuboresha utendaji bila kushiriki data yako na makampuni ya matangazo ya nje.
+          </p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-col sm:flex-row items-center gap-2.5 pt-2 border-t border-slate-100">
+        <button type="button" onclick="saveCustomCookiePreferences()" class="w-full sm:flex-1 py-3 px-4 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs transition cursor-pointer" data-i18n="cookieSavePreferencesBtn">
+          Hifadhi Mapendeleo
+        </button>
+        <button type="button" onclick="acceptCookies('all')" class="w-full sm:flex-1 py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition cursor-pointer" data-i18n="cookieAcceptAllBtn">
+          Kubali Zote
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================
+       ORGANIC TORN-PAPER FOOTER AT THE BOTTOM (EXACT NIAJIRI VECTOR)
+       ========================================================== -->
+  <div class="no-print mt-16">
+    <svg width="100%" height="54" viewBox="0 0 1728 60" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" class="w-full block -mb-1">
+      <path d="M-0.5 11.8288V39.3288V121.329H1727.5V11.8288H1712C1709.5 12.1622 1701.8 13.1288 1691 14.3288C1677.5 15.8288 1684 14.3288 1677 17.3288C1671.4 19.7288 1658.33 18.3288 1652.5 17.3288H1636H1632.5H1621L1604.5 14.3288H1578L1534.5 17.3288H1523C1522.67 14.6622 1520.2 10.3288 1513 14.3288C1505.8 18.3288 1495.67 13.6622 1491.5 10.8288H1481C1481 8.99549 1479.3 6.12883 1472.5 9.32883C1465.7 12.5288 1446 9.66217 1437 7.82884L1432 5.32883H1426.5L1423 7.82884H1413H1383C1373 7.82884 1371.83 9.82883 1372.5 10.8288C1358.5 13.9955 1326.7 18.4288 1311.5 10.8288C1292.5 1.32883 1243 5.32883 1235 1.82883C1227 -1.67117 1208.5 3.82883 1205 5.32883C1201.5 6.82883 1179 9.82883 1178 7.82884C1177 5.82885 1157.5 1.82883 1135.5 5.32883C1113.5 8.82883 1074 5.32883 1067.5 1.82883C1062.3 -0.971175 1056 0.662159 1053.5 1.82883C1048.3 0.228827 1042.67 2.49549 1040.5 3.82883C1034.5 8.22883 1026 9.66216 1022.5 9.82883H1003C1000.5 11.4955 994.5 13.8288 990.5 9.82883C986.5 5.82883 981.5 6.82884 979.5 7.82884H946.5C947.333 6.32884 947.2 3.72883 940 5.32883C931 7.32883 923.5 9.82883 925 7.82884C907.8 22.6289 886.833 13.9955 878.5 7.82884C871.167 4.4955 855.5 -0.171171 851.5 7.82884C846.5 17.8289 848 3.32883 834 14.8288C822.8 24.0288 806 13.9955 799 7.82884H789.5V5.32883H787L783 7.82884L746.5 9.82883C742.5 2.22883 737.833 6.66216 736 9.82883C708.5 4.82883 714.5 19.3288 697.5 9.82883C683.9 2.22883 673.167 0.328825 669.5 0.328825H660.5C660 1.32883 658.1 3.32883 654.5 3.32883C650.9 3.32883 629.333 6.32884 619 7.82884C617.333 7.82884 610.1 7.32884 594.5 5.32883C575 2.82882 559 5.32883 552 7.82884C545 10.3288 531.5 9.82883 516.5 3.32883C504.5 -1.87117 490.167 0.162163 484.5 1.82883H469.5L466.5 5.32883H438L434 7.82884H416.5L413.5 13.3288L402 14.3289C394 15.3289 375.3 16.5289 364.5 13.3288C353.7 10.1288 343 8.32884 339 7.82884C329.5 8.99551 309.1 10.6289 303.5 7.82884C297.9 5.02883 291.167 6.66217 288.5 7.82884H277.5L274 11.3289H258C248 5.32885 246.167 8.82885 246.5 11.3289C244.667 11.1622 239.7 10.9289 234.5 11.3289C228 11.8289 224 22.8289 215.5 17.3289C207 11.8289 205.5 18.8289 202.5 17.3289C200.1 16.1289 172.167 15.8289 158.5 15.8289L154 13.3288H147.5L143.5 14.3289H116C110 14.3289 113 20.3289 105 17.3289C98.6 14.9289 95.3333 17.3289 94.5 18.8289H76L75 17.3289H71V18.8289H65C63.6667 17.4955 60.4 15.6289 58 18.8289C55 22.8289 50 17.8289 49 17.3289C48 16.8289 45 13.3288 41 15.8289C37 18.3289 37.5 15.3289 33.5 13.3288C29.5 11.3288 21.5 17.3288 18 13.3288C15.2 10.1288 4.5 10.9955 -0.5 11.8288Z" fill="#0b6b68"></path>
+    </svg>
+
+    <footer class="footer-modern bg-[#0b6b68] text-white pt-10 pb-12 px-4 sm:px-6">
+      <div class="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-10 pb-10 border-b border-white/15">
+        <!-- Column 1: Brand Identity & Quick Action Icons -->
+        <div class="lg:col-span-4 space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-white text-[#0b6b68] flex items-center justify-center font-extrabold text-base shadow-sm">
+              TBF
+            </div>
+            <div>
+              <div class="footer-brand-title font-bold text-lg sm:text-xl uppercase leading-tight">Tanzania Biashara Festival</div>
+            </div>
+          </div>
+          <p class="footer-editorial-motto text-[15px] text-emerald-100/95 font-medium italic leading-relaxed" data-i18n="footerMotto">
+            "Every business has a place, every city has an opportunity."
+          </p>
+          <p class="text-[13px] text-white/80 leading-relaxed max-w-sm font-normal" data-i18n="footerDesc">
+            Tanzania's nationwide roving trade festival connecting exhibitors, businesses, and investors with buyers in every region.
+          </p>
+          <div class="flex items-center gap-2.5 pt-1">
+            <a href="tel:+255767053250" aria-label="Call TBF Official Line" class="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+            </a>
+            <a href="mailto:info@biasharafestival.co.tz" aria-label="Email TBF" class="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+            </a>
+            <button type="button" onclick="switchSection('home'); setTimeout(function(){ document.getElementById('regions-hub-list')?.scrollIntoView({behavior:'smooth'}); }, 150);" aria-label="Explore Regional Tour" class="w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Column 2: Quick Navigation -->
+        <div class="lg:col-span-3 space-y-3.5">
+          <div class="footer-col-heading font-semibold uppercase text-emerald-200 text-xs sm:text-[13px]" data-i18n="footerLinksTitle">Quick Navigation</div>
+          <ul class="space-y-2.5 text-[13.5px]">
+            <li>
+              <button type="button" onclick="switchSection('home')" class="text-white/85 hover:text-white hover:underline underline-offset-4 decoration-emerald-300/70 transition text-left font-normal">
+                <span data-i18n="footerLinkFeatured">Home &amp; Regional Tour</span>
+              </button>
+            </li>
+            <li>
+              <button type="button" onclick="switchSection('about')" class="text-white/85 hover:text-white hover:underline underline-offset-4 decoration-emerald-300/70 transition text-left font-normal">
+                <span data-i18n="footerLinkAbout">About TBF</span>
+              </button>
+            </li>
+            <li>
+              <button type="button" onclick="switchSection('booking')" class="text-white/85 hover:text-white hover:underline underline-offset-4 decoration-emerald-300/70 transition text-left font-normal">
+                <span data-i18n="footerLinkBooking">Book Exhibition Booth</span>
+              </button>
+            </li>
+            <li>
+              <a href="/proposal.html" target="_blank" class="font-medium text-emerald-200 hover:text-white hover:underline underline-offset-4 decoration-emerald-200/80 transition inline-block">
+                <span data-i18n="footerLinkProposal">Official Proposal (PDF)</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Column 3: Programs & Media -->
+        <div class="lg:col-span-2 space-y-3.5">
+          <div class="footer-col-heading font-semibold uppercase text-emerald-200 text-xs sm:text-[13px]" data-i18n="footerProgramsTitle">Programs &amp; Media</div>
+          <ul class="space-y-2.5 text-[13.5px]">
+            <li>
+              <button type="button" onclick="switchSection('sponsors')" class="text-white/85 hover:text-white hover:underline underline-offset-4 decoration-emerald-300/70 transition text-left font-normal">
+                <span data-i18n="footerLinkSponsors">Partners &amp; Sponsors</span>
+              </button>
+            </li>
+            <li>
+              <button type="button" onclick="selectNewsSub('EVENT')" class="text-white/85 hover:text-white hover:underline underline-offset-4 decoration-emerald-300/70 transition text-left font-normal">
+                <span data-i18n="footerLinkEvents">Events &amp; Schedule</span>
+              </button>
+            </li>
+            <li>
+              <button type="button" onclick="selectNewsSub('ADVERTISEMENT')" class="text-white/85 hover:text-white hover:underline underline-offset-4 decoration-emerald-300/70 transition text-left font-normal">
+                <span data-i18n="footerLinkAds">Advertisements</span>
+              </button>
+            </li>
+            <li>
+              <button type="button" onclick="selectNewsSub('NEWS')" class="text-white/85 hover:text-white hover:underline underline-offset-4 decoration-emerald-300/70 transition text-left font-normal">
+                <span data-i18n="footerLinkNews">Official News</span>
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Column 4: Official Contacts -->
+        <div class="lg:col-span-3 space-y-3.5">
+          <div class="footer-col-heading font-semibold uppercase text-emerald-200 text-xs sm:text-[13px]" data-i18n="footerContactTitle">Official Contacts</div>
+          <a href="tel:+255767053250" class="flex items-center gap-2.5 font-semibold text-sm sm:text-[15px] text-white hover:text-emerald-200 transition tracking-wide">
+            <svg class="w-4 h-4 text-emerald-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+            <span>+255 767 053 250</span>
+          </a>
+          <a href="mailto:info@biasharafestival.co.tz" class="flex items-center gap-2.5 text-[13.5px] text-white/85 hover:text-white transition">
+            <svg class="w-4 h-4 text-emerald-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+            <span>info@biasharafestival.co.tz</span>
+          </a>
+          <div class="flex items-start gap-2.5 text-[13.5px] text-white/85">
+            <svg class="w-4 h-4 text-emerald-200 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            <span data-i18n="footerTourText">Nationwide Roving Tour across Tanzania</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="max-w-7xl mx-auto pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white/75 font-light">
+        <div data-i18n="footerCopyright">© Tanzania Biashara Festival (TBF). All rights reserved.</div>
+        <div class="flex items-center gap-3">
+          <button type="button" onclick="openCookieSettingsModal()" class="hover:text-white hover:underline transition font-normal cursor-pointer" data-i18n="footerCookieSettings">Cookie Settings</button>
+          <span>•</span>
+          <div data-i18n="footerPowered">Powered by TBF Digital Platform</div>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="/js/qrcode.js"></script>
+  <script src="/js/qrcode_UTF8.js"></script>
+  <script src="/js/app.js?v=77"></script>
+</body>
+</html>
