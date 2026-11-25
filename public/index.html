@@ -106,12 +106,26 @@
     };
   </script>
   <style>
-    html, body {
+    html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      overflow-x: hidden;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    html::-webkit-scrollbar,
+    body::-webkit-scrollbar {
+      width: 0 !important;
+      height: 0 !important;
+      display: none !important;
+    }
+    body {
       margin: 0;
       padding: 0;
       width: 100%;
       max-width: 100%;
-      overflow-x: hidden;
+      overflow-x: clip;
     }
     @media (max-width: 1023px) {
       #desktop-main-nav { display: none !important; }
@@ -397,7 +411,7 @@
     }
   </style>
 </head>
-<body class="bg-[#f4f7f6] text-slate-900 antialiased selection:bg-[#0b6b68]/20 overflow-x-hidden w-full max-w-full">
+<body class="bg-[#f4f7f6] text-slate-900 antialiased selection:bg-[#0b6b68]/20 w-full max-w-full">
 
   <!-- ==========================================================
        CLEAN KILIMANJARO-MARATHON HEADER (100% PARALLEL SINGLE ROW)
