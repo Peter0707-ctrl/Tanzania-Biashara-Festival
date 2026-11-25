@@ -171,7 +171,7 @@ let appState = {
 
 const HERO_BUSINESS_SLIDES = [
   {
-    img: '/images/sabasaba_event.jpg',
+    img: '/images/african_crafts_stalls.jpg',
     badgeSw: 'JUKWAA KUU LA BIASHARA, UBUNIFU & UWEKEZAJI',
     badgeEn: "TANZANIA'S PREMIER PLATFORM FOR BUSINESS & INVESTMENT",
     badgeZh: '坦桑尼亚商业、创新与投资综合平台',
@@ -241,14 +241,14 @@ const NEWS_CARD_IMAGES = [
   '/images/expo5.jpg',
   '/images/market_tents_aisle.jpg',
   '/images/african_market_stalls.jpg',
-  '/images/sabasaba_event.jpg',
+  '/images/african_crafts_stalls.jpg',
   '/images/expo2.jpg',
   '/images/african_crafts_stalls.jpg'
 ];
 
 const NEWS_GALLERY_PHOTOS = [
   {
-    src: '/images/sabasaba_event.jpg',
+    src: '/images/african_crafts_stalls.jpg',
     cat: 'stalls',
     titleEn: 'Main Fairgrounds Pavilion & Visitor Walkways',
     titleSw: 'Mabanda Makuu ya Maonyesho na Njia za Wateja',
@@ -355,9 +355,9 @@ const FESTIVAL_DAILY_TIMETABLE = [
 
 const DEFAULT_BIZ_IMAGES = [
   ['/images/expo2.jpg', '/images/biz1.jpg', '/images/biz5.jpg'],
-  ['/images/biz2.jpg', '/images/sabasaba_event.jpg', '/images/market_tents_aisle.jpg'],
+  ['/images/biz2.jpg', '/images/african_crafts_stalls.jpg', '/images/market_tents_aisle.jpg'],
   ['/images/biz1.jpg', '/images/african_crafts_stalls.jpg', '/images/biz3.jpg'],
-  ['/images/biz4.jpg', '/images/expo5.jpg', '/images/sabasaba_event.jpg'],
+  ['/images/biz4.jpg', '/images/expo5.jpg', '/images/african_crafts_stalls.jpg'],
   ['/images/biz5.jpg', '/images/expo2.jpg', '/images/african_market_stalls.jpg'],
   ['/images/african_crafts_stalls.jpg', '/images/african_clothes_stalls.jpg', '/images/biz3.jpg']
 ];
@@ -3374,7 +3374,7 @@ const REGION_VENUE_PHOTOS = {
       titleZh: '展商展位与现场直销'
     },
     {
-      src: '/images/sabasaba_event.jpg',
+      src: '/images/african_crafts_stalls.jpg',
       titleSw: 'Kongamano & One-Stop Clinic',
       titleEn: 'Business Conference & One-Stop Clinic',
       titleZh: '商务峰会与一站式政企服务'
@@ -3382,7 +3382,7 @@ const REGION_VENUE_PHOTOS = {
   ],
   dar: [
     {
-      src: '/images/sabasaba_event.jpg',
+      src: '/images/african_crafts_stalls.jpg',
       titleSw: 'Viwanja vya Mnazi Mmoja',
       titleEn: 'Mnazi Mmoja Exhibition Grounds',
       titleZh: 'Mnazi Mmoja 展会主广场'
@@ -3428,7 +3428,7 @@ const REGION_VENUE_PHOTOS = {
       titleZh: '尼雷尔广场中心展区'
     },
     {
-      src: '/images/sabasaba_event.jpg',
+      src: '/images/african_crafts_stalls.jpg',
       titleSw: 'Jukwaa la Uwekezaji & Serikali',
       titleEn: 'National Investment & Gov Forum',
       titleZh: '国家投资与政府对接论坛'
@@ -3474,7 +3474,7 @@ const REGION_VENUE_PHOTOS = {
       titleZh: '香料与海岛旅游特色展厅'
     },
     {
-      src: '/images/sabasaba_event.jpg',
+      src: '/images/african_crafts_stalls.jpg',
       titleSw: 'Jukwaa la Uchumi wa Buluu',
       titleEn: 'Blue Economy Summit Forum',
       titleZh: '蓝色经济高端论坛'
@@ -4057,7 +4057,7 @@ const HOME_REGIONAL_SHOWCASE = [
     descEn: 'The country\'s financial and trade capital. Connect directly with institutional buyers and corporate sponsors.',
     descZh: '坦桑尼亚经济与外贸枢纽。直接对接大宗采购商、金融机构与企业赞助商。',
     photos: [
-      '/images/sabasaba_event.jpg',
+      '/images/african_crafts_stalls.jpg',
       '/images/slide4.jpg',
       '/images/african_clothes_stalls.jpg',
       '/images/expo3.jpg'
