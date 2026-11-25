@@ -1,31 +1,26 @@
 # ==============================================================================
-# Tanzania Biashara Festival (TBF) - Production Hardening & Security Policy
+# Tanzania Biashara Festival (TBF) - cPanel Production Configuration
 # ==============================================================================
 
-ServerSignature Off
+DirectoryIndex index.html public/index.html
+
 <IfModule mod_headers.c>
     Header unset X-Powered-By
     Header always unset X-Powered-By
-    Header unset X-Runtime
-    Header always unset X-Runtime
-    Header unset Server
-    Header always set Server "TBF-Shield/1.0"
+    Header set X-Content-Type-Options "nosniff"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Force fresh HTML and JS on mobile browsers and cPanel Nginx/proxy caches
+    <FilesMatch "\.(html|htm|js|css)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
 </IfModule>
 
 <FilesMatch "^\.|\.(env|json|sql|log|md|sh|lock|git|secret|auth_secret)$">
     Require all denied
 </FilesMatch>
-
-Options -Indexes -FollowSymLinks
-Options +SymLinksIfOwnerMatch
-
-<IfModule mod_headers.c>
-    Header set X-Content-Type-Options "nosniff"
-    Header set X-Frame-Options "DENY"
-    Header set Referrer-Policy "strict-origin-when-cross-origin"
-    Header set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
-    Header set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" env=HTTPS
-</IfModule>
 
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json image/svg+xml
