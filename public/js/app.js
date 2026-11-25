@@ -2157,11 +2157,24 @@ function toggleLanguageDropdown(e) {
   }
 }
 
+function toggleMobileLanguageMenu(e) {
+  if (e) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+  const menu = document.getElementById('lang-dropdown-mobile');
+  if (!menu) return;
+  menu.classList.toggle('hidden');
+}
+window.toggleMobileLanguageMenu = toggleMobileLanguageMenu;
+
 function selectLanguage(lang) {
   const menu = document.getElementById('lang-dropdown-menu');
+  const mobMenu = document.getElementById('lang-dropdown-mobile');
   const caret = document.getElementById('lang-caret');
   const btn = document.getElementById('lang-dropdown-btn');
   if (menu) menu.classList.add('hidden');
+  if (mobMenu) mobMenu.classList.add('hidden');
   if (caret) caret.style.transform = 'rotate(0deg)';
   if (btn) btn.setAttribute('aria-expanded', 'false');
   setLanguage(lang);
@@ -2177,6 +2190,11 @@ document.addEventListener('click', (e) => {
     menu.classList.add('hidden');
     if (caret) caret.style.transform = 'rotate(0deg)';
     if (btn) btn.setAttribute('aria-expanded', 'false');
+  }
+  const mobMenu = document.getElementById('lang-dropdown-mobile');
+  const mobBtn = document.getElementById('lang-mobile-btn');
+  if (mobMenu && !mobMenu.classList.contains('hidden') && mobBtn && !mobBtn.contains(e.target) && !mobMenu.contains(e.target)) {
+    mobMenu.classList.add('hidden');
   }
   const spWrap = document.getElementById('sp-region-dropdown-wrap');
   if (spWrap && !spWrap.contains(e.target) && typeof closeSponsorRegionDropdown === 'function') {
@@ -2242,6 +2260,13 @@ function setLanguage(lang) {
   if (checkSw) checkSw.classList.toggle('hidden', lang !== 'sw');
   if (checkEn) checkEn.classList.toggle('hidden', lang !== 'en');
   if (checkZh) checkZh.classList.toggle('hidden', lang !== 'zh');
+
+  const checkSwMob = document.getElementById('lang-check-sw-mob');
+  const checkEnMob = document.getElementById('lang-check-en-mob');
+  const checkZhMob = document.getElementById('lang-check-zh-mob');
+  if (checkSwMob) checkSwMob.classList.toggle('hidden', lang !== 'sw');
+  if (checkEnMob) checkEnMob.classList.toggle('hidden', lang !== 'en');
+  if (checkZhMob) checkZhMob.classList.toggle('hidden', lang !== 'zh');
 
   if (optSw) optSw.className = `w-full text-left px-4 py-2.5 text-xs sm:text-sm font-semibold flex items-center justify-between transition cursor-pointer ${lang === 'sw' ? 'bg-[#f0f7ff] text-slate-900 font-bold' : 'hover:bg-slate-50 text-slate-700'}`;
   if (optEn) optEn.className = `w-full text-left px-4 py-2.5 text-xs sm:text-sm font-semibold flex items-center justify-between transition cursor-pointer ${lang === 'en' ? 'bg-[#f0f7ff] text-slate-900 font-bold' : 'hover:bg-slate-50 text-slate-700'}`;
