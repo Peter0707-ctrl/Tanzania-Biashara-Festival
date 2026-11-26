@@ -57,16 +57,19 @@ function getEnvVar($key, $default = '') {
 }
 
 function getSelcomConfigPhp() {
-    $vendorId = trim(getEnvVar('SELCOM_VENDOR_ID', ''));
+    $vendorId = trim(getEnvVar('SELCOM_VENDOR_ID', getEnvVar('SELCOM_VENDOR', '')));
     $apiKey = trim(getEnvVar('SELCOM_API_KEY', ''));
     $apiSecret = trim(getEnvVar('SELCOM_API_SECRET', ''));
-    $baseUrl = rtrim(trim(getEnvVar('SELCOM_BASE_URL', 'https://apigw.selcommobile.com')), '/');
-    $webhookUrl = trim(getEnvVar('SELCOM_WEBHOOK_URL', 'https://biasharafestival.co.tz/api/webhooks/selcom'));
+    $rawBase = rtrim(trim(getEnvVar('SELCOM_BASE_URL', 'https://apigw.selcommobile.com')), '/');
+    $baseUrl = preg_replace('/\/v1$/i', '', $rawBase);
+    $publicUrl = rtrim(trim(getEnvVar('SELCOM_PUBLIC_URL', 'https://biasharafestival.co.tz')), '/');
+    $webhookUrl = trim(getEnvVar('SELCOM_WEBHOOK_URL', $publicUrl . '/api/webhooks/selcom'));
     return array(
         'vendorId' => $vendorId,
         'apiKey' => $apiKey,
         'apiSecret' => $apiSecret,
         'baseUrl' => $baseUrl,
+        'publicUrl' => $publicUrl,
         'webhookUrl' => $webhookUrl,
         'configured' => ($vendorId !== '' && $apiKey !== '' && $apiSecret !== '')
     );

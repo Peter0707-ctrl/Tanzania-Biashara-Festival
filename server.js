@@ -29,17 +29,22 @@ loadEnvFile(path.join(__dirname, '.env'), true);
 
 function getSelcomConfig() {
   loadEnvFile(path.join(__dirname, '.env'), true);
-  const vendorId = String(process.env.SELCOM_VENDOR_ID || '').trim();
+  const vendorId = String(process.env.SELCOM_VENDOR_ID || process.env.SELCOM_VENDOR || '').trim();
   const apiKey = String(process.env.SELCOM_API_KEY || '').trim();
   const apiSecret = String(process.env.SELCOM_API_SECRET || '').trim();
-  const baseUrl = String(process.env.SELCOM_BASE_URL || 'https://apigw.selcommobile.com').trim().replace(/\/+$/, '');
-  const webhookUrl = String(process.env.SELCOM_WEBHOOK_URL || 'https://biasharafestival.co.tz/api/webhooks/selcom').trim();
+  const rawBaseUrl = String(process.env.SELCOM_BASE_URL || 'https://apigw.selcommobile.com').trim().replace(/\/+$/, '');
+  const baseUrl = rawBaseUrl.replace(/\/v1$/i, '');
+  const publicUrl = String(process.env.SELCOM_PUBLIC_URL || 'https://biasharafestival.co.tz').trim().replace(/\/+$/, '');
+  const webhookUrl = String(process.env.SELCOM_WEBHOOK_URL || `${publicUrl}/api/webhooks/selcom`).trim();
+  const testAmount = Number(process.env.SELCOM_TEST_AMOUNT || 0);
   return {
     vendorId,
     apiKey,
     apiSecret,
     baseUrl,
+    publicUrl,
     webhookUrl,
+    testAmount,
     configured: Boolean(vendorId && apiKey && apiSecret)
   };
 }
