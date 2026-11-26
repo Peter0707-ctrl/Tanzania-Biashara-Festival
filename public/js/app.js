@@ -5949,11 +5949,11 @@ async function goToBookingStep(targetStep) {
 }
 
 const TZ_NETWORK_DEFS = {
-  mpesa: { id: 'mpesa', shortName: 'M-Pesa', payValue: 'M-Pesa (Vodacom)', dotBg: '#dc2626', pillClass: 'bg-red-50 text-red-700 border-red-200' },
-  yas: { id: 'yas', shortName: 'Mixx by Yas', payValue: 'Mixx by Yas (Tigo)', dotBg: '#00377b', pillClass: 'bg-blue-50 text-blue-800 border-blue-200' },
-  airtel: { id: 'airtel', shortName: 'Airtel Money', payValue: 'Airtel Money', dotBg: '#b91c1c', pillClass: 'bg-rose-50 text-rose-700 border-rose-200' },
-  halopesa: { id: 'halopesa', shortName: 'HaloPesa', payValue: 'HaloPesa (Halotel)', dotBg: '#ea580c', pillClass: 'bg-orange-50 text-orange-700 border-orange-200' },
-  tpesa: { id: 'tpesa', shortName: 'T-Pesa (TTCL)', payValue: 'Mobile Money (T-Pesa)', dotBg: '#0b6b68', pillClass: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
+  mpesa: { id: 'mpesa', shortName: 'M-Pesa', payValue: 'M-Pesa (Vodacom)', logo: '/images/pay/mpesa.svg', dotBg: '#dc2626', pillClass: 'bg-red-50 text-red-700 border-red-200' },
+  yas: { id: 'yas', shortName: 'Mixx by Yas', payValue: 'Mixx by Yas (Tigo)', logo: '/images/pay/yas.svg', dotBg: '#00377b', pillClass: 'bg-blue-50 text-blue-800 border-blue-200' },
+  airtel: { id: 'airtel', shortName: 'Airtel Money', payValue: 'Airtel Money', logo: '/images/pay/airtel.svg', dotBg: '#b91c1c', pillClass: 'bg-rose-50 text-rose-700 border-rose-200' },
+  halopesa: { id: 'halopesa', shortName: 'HaloPesa', payValue: 'HaloPesa (Halotel)', logo: '/images/pay/halotel.png', dotBg: '#ea580c', pillClass: 'bg-orange-50 text-orange-700 border-orange-200' },
+  tpesa: { id: 'tpesa', shortName: 'T-Pesa (TTCL)', payValue: 'Mobile Money (T-Pesa)', logo: '', dotBg: '#0b6b68', pillClass: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
 };
 
 const TZ_PREFIX_TO_NETWORK = {
@@ -5988,7 +5988,10 @@ function renderCarrierBadgeInto(elId, rawPhone) {
     return null;
   }
   el.className = `inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10.5px] font-extrabold ${net.pillClass}`;
-  el.innerHTML = `<span class="w-2 h-2 rounded-full shrink-0" style="background:${net.dotBg}"></span><span>${escapeBookingHtml(net.shortName)}</span>`;
+  const iconHtml = net.logo
+    ? `<img src="${net.logo}" alt="${escapeBookingHtml(net.shortName)}" class="h-3.5 w-auto object-contain shrink-0" />`
+    : `<span class="w-2 h-2 rounded-full shrink-0" style="background:${net.dotBg}"></span>`;
+  el.innerHTML = `${iconHtml}<span>${escapeBookingHtml(net.shortName)}</span>`;
   return net;
 }
 

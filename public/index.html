@@ -1490,37 +1490,33 @@
 
               <div id="payment-cards-grid" class="flex flex-wrap items-center gap-2.5 pt-0.5">
                 <button type="button" data-pay="M-Pesa (Vodacom)" data-carrier="mpesa" onclick="selectPaymentMethod('M-Pesa (Vodacom)', this, true)" class="pay-3d-chip is-active" title="Vodacom M-Pesa">
-                  <span class="pay-3d-orb" style="background: linear-gradient(145deg, #ff3b30 0%, #b91c1c 100%);">M</span>
-                  <span class="text-xs font-extrabold text-slate-900">M-Pesa</span>
+                  <img src="/images/pay/mpesa.svg" alt="M-Pesa" class="h-5 w-auto object-contain pointer-events-none" />
                 </button>
 
-                <button type="button" data-pay="Mixx by Yas (Tigo)" data-carrier="yas" onclick="selectPaymentMethod('Mixx by Yas (Tigo)', this, true)" class="pay-3d-chip" title="Mixx by Yas (Tigo / Zantel)">
-                  <span class="pay-3d-orb" style="background: linear-gradient(145deg, #0057b8 0%, #002b6b 100%); color: #ffd200;">Y</span>
-                  <span class="text-xs font-extrabold text-slate-900">Mixx by Yas</span>
+                <button type="button" data-pay="Mixx by Yas (Tigo)" data-carrier="yas" onclick="selectPaymentMethod('Mixx by Yas (Tigo)', this, true)" class="pay-3d-chip" title="Mixx by Yas">
+                  <img src="/images/pay/yas.svg" alt="Yas" class="h-5 w-auto object-contain pointer-events-none" />
+                  <span class="text-[11px] font-extrabold text-[#123274]">Mixx</span>
                 </button>
 
                 <button type="button" data-pay="Airtel Money" data-carrier="airtel" onclick="selectPaymentMethod('Airtel Money', this, true)" class="pay-3d-chip" title="Airtel Money">
-                  <span class="pay-3d-orb" style="background: linear-gradient(145deg, #ef4444 0%, #991b1b 100%);">A</span>
-                  <span class="text-xs font-extrabold text-slate-900">Airtel Money</span>
+                  <img src="/images/pay/airtel.svg" alt="Airtel Money" class="h-5 w-auto object-contain pointer-events-none" />
+                  <span class="text-[11px] font-extrabold text-[#ed1d24]">Money</span>
                 </button>
 
-                <button type="button" data-pay="HaloPesa (Halotel)" data-carrier="halopesa" onclick="selectPaymentMethod('HaloPesa (Halotel)', this, true)" class="pay-3d-chip" title="Halotel HaloPesa">
-                  <span class="pay-3d-orb" style="background: linear-gradient(145deg, #fb923c 0%, #c2410c 100%);">H</span>
-                  <span class="text-xs font-extrabold text-slate-900">HaloPesa</span>
+                <button type="button" data-pay="HaloPesa (Halotel)" data-carrier="halopesa" onclick="selectPaymentMethod('HaloPesa (Halotel)', this, true)" class="pay-3d-chip" title="HaloPesa (Halotel)">
+                  <img src="/images/pay/halotel.png" alt="Halotel HaloPesa" class="h-4 w-auto object-contain pointer-events-none" />
+                  <span class="text-[11px] font-extrabold text-[#ea580c]">Pesa</span>
                 </button>
 
-                <button type="button" data-pay="CRDB / NMB Bank Transfer" data-carrier="bank" onclick="selectPaymentMethod('CRDB / NMB Bank Transfer', this, true)" class="pay-3d-chip" title="CRDB / NMB Bank Transfer">
-                  <span class="pay-3d-orb" style="background: linear-gradient(145deg, #10b981 0%, #065f46 100%);">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M5 10v8m4-8v8m6-8v8m4-8v8M2 18h20M12 3l9 5H3l9-5z"/></svg>
-                  </span>
-                  <span class="text-xs font-extrabold text-slate-900">CRDB / NMB</span>
+                <button type="button" data-pay="CRDB / NMB Bank Transfer" data-carrier="bank" onclick="selectPaymentMethod('CRDB / NMB Bank Transfer', this, true)" class="pay-3d-chip" title="CRDB Bank / NMB Bank">
+                  <img src="/images/pay/crdb.png" alt="CRDB Bank" class="h-4 w-auto object-contain pointer-events-none" />
+                  <span class="text-slate-300 text-[10px] font-bold">/</span>
+                  <img src="/images/pay/nmb.png" alt="NMB Bank" class="h-4 w-auto object-contain pointer-events-none" />
                 </button>
 
                 <button type="button" data-pay="Visa / Mastercard Online" data-carrier="card" onclick="selectPaymentMethod('Visa / Mastercard Online', this, true)" class="pay-3d-chip" title="Visa / Mastercard">
-                  <span class="pay-3d-orb" style="background: linear-gradient(145deg, #1d4ed8 0%, #1e1b4b 100%);">
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle cx="9.5" cy="12" r="5" fill="#EB001B"/><circle cx="14.5" cy="12" r="5" fill="#F79E1B" fill-opacity="0.88"/></svg>
-                  </span>
-                  <span class="text-xs font-extrabold text-slate-900">Visa / Card</span>
+                  <img src="/images/pay/visa.svg" alt="Visa" class="h-3 w-auto object-contain pointer-events-none" />
+                  <img src="/images/pay/mastercard.svg" alt="Mastercard" class="h-5 w-auto object-contain pointer-events-none" />
                 </button>
               </div>
 
