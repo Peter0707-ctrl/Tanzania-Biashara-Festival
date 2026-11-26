@@ -128,6 +128,38 @@ function getSelcomConfigPhp() {
     );
 }
 
+function getOfficialMailFromPhp() {
+    return trim(getEnvVar('TBF_MAIL_FROM', 'info@biasharafestival.co.tz')) ?: 'info@biasharafestival.co.tz';
+}
+
+function sendFestivalEmailPhp($toEmail, $subject, $htmlBody) {
+    $to = trim(str_replace(array("\r", "\n", "<", ">"), '', (string)$toEmail));
+    if (!filter_var($to, FILTER_VALIDATE_EMAIL)) return false;
+    $fromEmail = getOfficialMailFromPhp();
+    $fromName = trim(getEnvVar('TBF_MAIL_NAME', 'Tanzania Biashara Festival'));
+    $cleanSubject = trim(str_replace(array("\r", "\n"), ' ', (string)$subject));
+    $headers = array(
+        'MIME-Version: 1.0',
+        'Content-type: text/html; charset=UTF-8',
+        "From: {$fromName} <{$fromEmail}>",
+        "Reply-To: {$fromEmail}",
+        'X-Mailer: TBF-Platform/1.0'
+    );
+    return @mail($to, $cleanSubject, (string)$htmlBody, implode("\r\n", $headers), "-f{$fromEmail}");
+}
+
+function buildBrandedNewsletterHtmlPhp($title, $bodyHtml) {
+    $fromEmail = htmlspecialchars(getOfficialMailFromPhp(), ENT_QUOTES, 'UTF-8');
+    $safeTitle = htmlspecialchars((string)$title, ENT_QUOTES, 'UTF-8');
+    return '<div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">'
+        . '<div style="background:#0b6b68;color:#ffffff;padding:24px 28px;"><div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#a7f3d0;font-weight:bold;">TANZANIA BIASHARA FESTIVAL (TBF)</div>'
+        . '<h2 style="margin:8px 0 0;font-size:20px;line-height:1.3;">' . $safeTitle . '</h2></div>'
+        . '<div style="padding:24px 28px;color:#1e293b;font-size:14px;line-height:1.65;">' . $bodyHtml . '</div>'
+        . '<div style="background:#f8fafc;padding:16px 28px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;">'
+        . '<strong>Tanzania Biashara Festival Secretariat</strong> &bull; <a href="https://biasharafestival.co.tz" style="color:#0b6b68;font-weight:bold;">biasharafestival.co.tz</a> &bull; Tel: +255 767 053 250 &bull; ' . $fromEmail
+        . '</div></div>';
+}
+
 function normalizeTzMsisdnPhp($phone) {
     $digits = preg_replace('/\D+/', '', (string)$phone);
     if (strpos($digits, '255') === 0 && strlen($digits) === 12) return $digits;
@@ -1278,12 +1310,74 @@ if ($route === 'newsletter/subscribe' && $method === 'POST') {
                 $nStmt->execute(array($email, $emailHash, substr($name, 0, 120), substr(hash('sha256', $clientIp), 0, 32)));
             } catch (Exception $e) {}
         }
+
+        // Send instant Welcome Email from info@biasharafestival.co.tz
+        $safeName = htmlspecialchars($name ?: 'Mshiriki / Mfuatiliaji', ENT_QUOTES, 'UTF-8');
+        $safeRegion = htmlspecialchars($region ?: 'All Regions', ENT_QUOTES, 'UTF-8');
+        $fromEmail = getOfficialMailFromPhp();
+        $welcomeHtml = buildBrandedNewsletterHtmlPhp(
+            'Asante kwa Kujiunga na Jarida Rasmi la TBF!',
+            "<p>Habari <strong>{$safeName}</strong>,</p><p>Umejiunga kikamilifu na jarida rasmi la <strong>Tanzania Biashara Festival (TBF)</strong> kwa ajili ya taarifa za: <strong>{$safeRegion}</strong>.</p><p>Tutakutumia ratiba rasmi za mikoa, fursa za mabanda, minada ya wazi, na majukwaa ya uwekezaji kupitia <strong>{$fromEmail}</strong>.</p><p><a href=\"https://biasharafestival.co.tz/booking\" style=\"display:inline-block;padding:10px 18px;background:#0b6b68;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;\">Hifadhi Banda Mtandaoni &rarr;</a></p>"
+        );
+        sendFestivalEmailPhp($email, 'Karibu Tanzania Biashara Festival (TBF) — Newsletter Confirmation', $welcomeHtml);
     }
 
     echo json_encode(array(
         'success' => true,
+        'from' => getOfficialMailFromPhp(),
         'message' => 'Successfully subscribed to TBF newsletter',
         'totalSubscribers' => count($db['newsletterSubscribers'])
+    ));
+    exit;
+}
+
+if ($route === 'admin/newsletter/send' && $method === 'POST') {
+    if (empty($_COOKIE['tbf_admin_session']) || strpos($_COOKIE['tbf_admin_session'], '.') === false) {
+        http_response_code(401);
+        echo json_encode(array('success' => false, 'error' => 'Admin authentication required'));
+        exit;
+    }
+    $subject = trim($payload['subject'] ?? '');
+    $message = trim($payload['message'] ?? '');
+    $targetRegion = trim($payload['targetRegion'] ?? 'ALL');
+    if ($subject === '' || $message === '') {
+        http_response_code(400);
+        echo json_encode(array('success' => false, 'error' => 'Subject na Ujumbe vinahitajika.'));
+        exit;
+    }
+    $subs = $db['newsletterSubscribers'] ?? array();
+    $targeted = array();
+    foreach ($subs as $s) {
+        if ($targetRegion === '' || strtoupper($targetRegion) === 'ALL') {
+            $targeted[] = $s;
+        } else {
+            $r = strtolower($s['region'] ?? '');
+            if (strpos($r, 'all') !== false || $r === strtolower($targetRegion)) $targeted[] = $s;
+        }
+    }
+    $lines = array_filter(array_map('trim', preg_split('/\r?\n/', $message)));
+    $bodyHtml = '';
+    foreach ($lines as $ln) {
+        $bodyHtml .= '<p style="margin:0 0 12px;">' . htmlspecialchars($ln, ENT_QUOTES, 'UTF-8') . '</p>';
+    }
+    $bodyHtml .= '<p style="margin-top:20px;"><a href="https://biasharafestival.co.tz/booking" style="display:inline-block;padding:10px 18px;background:#0b6b68;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Book Exhibition Booth / View Schedule &rarr;</a></p>';
+    $html = buildBrandedNewsletterHtmlPhp($subject, $bodyHtml);
+    $sentCount = 0;
+    foreach ($targeted as $s) {
+        $em = trim((string)($s['email'] ?? ''));
+        if (filter_var($em, FILTER_VALIDATE_EMAIL) && sendFestivalEmailPhp($em, $subject, $html)) {
+            $sentCount++;
+        }
+    }
+    $fromEmail = getOfficialMailFromPhp();
+    echo json_encode(array(
+        'success' => true,
+        'from' => $fromEmail,
+        'totalTargeted' => count($targeted),
+        'sentCount' => $sentCount,
+        'message' => count($targeted) === 0
+            ? 'Hakuna msajili kwenye kundi hilo bado.'
+            : "Newsletter imetumwa kutoka {$fromEmail} kwenda kwa wasajili {$sentCount} kati ya " . count($targeted) . "."
     ));
     exit;
 }

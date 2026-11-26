@@ -1538,7 +1538,7 @@
                 </select>
               </div>
               <div class="sm:col-span-2">
-                <label for="form-tagline" class="block text-xs font-bold mb-1.5" data-i18n="lblTagline">Maelezo Mafupi ya Bidhaa / Huduma Zako (Tagline) *</label>
+                <label for="form-tagline" class="block text-xs font-bold mb-1.5" data-i18n="lblTagline">Maelezo Mafupi ya Bidhaa / Huduma Zako (Hiari / Optional)</label>
                 <input id="form-tagline" type="text" data-i18n-placeholder="formTaglinePlaceholder" placeholder="Mfano: Wazalishaji na wasambazaji wa viungo asilia, nafaka na mafuta." class="w-full px-4 py-2.5 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]" />
               </div>
               <div class="sm:col-span-2">
@@ -1552,7 +1552,7 @@
               <button type="button" id="btn-step2-back" onclick="goToBookingStep(1)" class="px-5 py-3 rounded-2xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm transition cursor-pointer" data-i18n="btnBackStep1">
                 &larr; Rudi: Chagua Banda
               </button>
-              <button type="button" id="btn-step2-next" onclick="goToBookingStep(3)" class="px-6 py-3 rounded-2xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm shadow-md transition cursor-pointer" data-i18n="btnNextStep3">
+              <button type="button" id="btn-step2-next" onclick="goToBookingStep(3)" class="px-6 py-3 rounded-2xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm tracking-wide shadow-md transition cursor-pointer" data-i18n="btnNextStep3">
                 Endelea: Malipo &rarr;
               </button>
             </div>
@@ -2395,6 +2395,54 @@
       </div>
     </div>
 
+    <!-- ADMIN NEWSLETTER BROADCASTER (SENDS FROM info@biasharafestival.co.tz) -->
+    <div class="rounded-3xl bg-white border-2 border-[#0b6b68]/25 p-6 sm:p-8 space-y-5 shadow-sm">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
+        <div>
+          <span class="text-[11px] font-black uppercase tracking-widest text-[#0b6b68]">Official Email Dispatcher • info@biasharafestival.co.tz</span>
+          <h3 class="text-xl font-extrabold text-slate-900 mt-0.5">
+            Tuma Newsletter kwa Wafuatiliaji Wote (Broadcast Email)
+          </h3>
+          <p class="text-xs text-slate-500">
+            Andika tangazo la mkoa mpya, fursa za biashara au ratiba na ubonyeze tuma — barua pepe zitatoka moja kwa moja kwa <strong>info@biasharafestival.co.tz</strong> kwenda kwa waliojiunga na jarida.
+          </p>
+        </div>
+        <div class="px-3.5 py-1.5 rounded-xl bg-[#e6f3f2] border border-[#0b6b68]/25 text-[#08524f] text-xs font-extrabold">
+          Waliojiunga: <span id="admin-newsletter-count">0</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="sm:col-span-2">
+          <label for="admin-nl-subject" class="block text-xs font-extrabold text-slate-700 uppercase mb-1">Kichwa cha Barua Pepe (Email Subject) *</label>
+          <input id="admin-nl-subject" type="text" placeholder="Mfano: Tangazo Rasmi la Mkoa &amp; Tarehe za Tanzania Biashara Festival" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-bold text-xs sm:text-sm focus:outline-none focus:border-[#0b6b68]" />
+        </div>
+        <div>
+          <label for="admin-nl-region" class="block text-xs font-extrabold text-slate-700 uppercase mb-1">Walengwa (Target Region)</label>
+          <select id="admin-nl-region" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-bold text-xs sm:text-sm bg-[#f8faf9] focus:outline-none focus:border-[#0b6b68]">
+            <option value="ALL">Wasajili Wote (All Subscribers)</option>
+            <option value="Dar es Salaam">Dar es Salaam</option>
+            <option value="Mwanza">Mwanza</option>
+            <option value="Arusha">Arusha</option>
+            <option value="Dodoma">Dodoma</option>
+            <option value="Mbeya">Mbeya</option>
+            <option value="Zanzibar">Zanzibar</option>
+          </select>
+        </div>
+        <div class="sm:col-span-3">
+          <label for="admin-nl-body" class="block text-xs font-extrabold text-slate-700 uppercase mb-1">Ujumbe wa Newsletter (Message Body) *</label>
+          <textarea id="admin-nl-body" rows="4" placeholder="Andika taarifa kamili hapa (mkoa uliochaguliwa, tarehe, fursa za mabanda, au tangazo la biashara)..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-none focus:border-[#0b6b68]"></textarea>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <button id="btn-admin-send-nl" type="button" onclick="sendAdminNewsletter()" class="px-6 py-3 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm uppercase tracking-wider shadow transition cursor-pointer">
+          Tuma Newsletter Kutoka info@biasharafestival.co.tz &rarr;
+        </button>
+        <div id="admin-nl-status" class="hidden text-xs font-bold px-3.5 py-2 rounded-xl"></div>
+      </div>
+    </div>
+
     <div class="rounded-3xl bg-white border border-slate-200 p-6 space-y-4 overflow-x-auto">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <h3 class="text-lg font-extrabold" data-i18n="adminBookingsTitle">Orodha ya Washiriki Waliohifadhi Mabanda (Booked Exhibition Booths)</h3>
@@ -2462,8 +2510,8 @@
     </div>
   </div>
 
-  <!-- COOKIE CONSENT BANNER (MODERN GLASS TOAST - ALWAYS FIXED AT BOTTOM ON VISIT) -->
-  <div id="cookie-consent-banner" class="footer-modern no-print fixed bottom-2.5 left-4 right-4 md:left-auto md:right-5 md:max-w-md z-50 hidden bg-[#063f3d]/95 backdrop-blur-md text-white border border-white/15 rounded-2xl p-5 shadow-[0_24px_50px_-12px_rgba(6,58,56,0.5)] space-y-3.5">
+  <!-- COOKIE CONSENT BANNER (MODERN GLASS TOAST - BOTTOM-LEFT SO IT NEVER COVERS RIGHT-SIDE CHECKOUT BUTTONS) -->
+  <div id="cookie-consent-banner" class="footer-modern no-print fixed bottom-2.5 left-4 right-4 md:left-5 md:right-auto md:max-w-md z-50 hidden bg-[#063f3d]/95 backdrop-blur-md text-white border border-white/15 rounded-2xl p-5 shadow-[0_24px_50px_-12px_rgba(6,58,56,0.5)] space-y-3.5">
     <div class="flex items-center justify-between gap-3">
       <div class="flex items-center gap-2.5">
         <span class="w-8 h-8 rounded-full bg-emerald-400/15 text-emerald-300 flex items-center justify-center shrink-0">

@@ -5284,8 +5284,8 @@ const BOOKING_MSG = {
     boothUnavailableNow: 'That booth was just taken or held for your selected region. Please pick another open booth.',
     step1PromptDefault: 'Click any open booth slot above to select.',
     step1SelectedPrefix: 'Selected Booth',
-    btnNextStep2: 'Continue: Your Details →',
-    btnNextStep3: 'Continue: Payment →',
+    btnNextStep2: 'Continue to Details →',
+    btnNextStep3: 'Continue to Payment →',
     btnConfirmBooking: 'Confirm & Generate Control Number',
     holdBusy: 'Holding booth...',
     recapBoothLbl: 'Booth & Cities',
@@ -5769,16 +5769,26 @@ function validateBookingStep2() {
   const businessName = (document.getElementById('form-biz-name')?.value || '').trim();
   const contactPerson = (document.getElementById('form-contact-person')?.value || '').trim();
   const phone = (document.getElementById('form-phone')?.value || '').trim();
-  const tagline = (document.getElementById('form-tagline')?.value || '').trim();
   const email = (document.getElementById('form-email')?.value || '').trim();
+  const taglineInput = document.getElementById('form-tagline');
+  const sector = (document.getElementById('form-sector')?.value || 'Biashara & Huduma').trim();
 
-  if (!businessName || !contactPerson || !phone || !tagline) {
-    setBookingError('booking-step2-error', msg.regMissing);
-    const firstEmpty = !businessName ? 'form-biz-name' : (!contactPerson ? 'form-contact-person' : (!phone ? 'form-phone' : 'form-tagline'));
-    document.getElementById(firstEmpty)?.focus();
+  // Auto-populate a clean tagline from selected sector if exhibitor leaves it blank
+  if (taglineInput && !taglineInput.value.trim()) {
+    taglineInput.value = `${sector} — Tanzania Biashara Festival Exhibitor`;
+  }
+
+  if (!businessName) {
+    setBookingError('booking-step2-error', appState.lang === 'sw' ? 'Tafadhali jaza Jina la Biashara / Kampuni.' : 'Please enter your Business / Company Name.');
+    document.getElementById('form-biz-name')?.focus();
     return false;
   }
-  if (phone.replace(/\D/g, '').length < 9) {
+  if (!contactPerson) {
+    setBookingError('booking-step2-error', appState.lang === 'sw' ? 'Tafadhali jaza Jina la Mwakilishi (Contact Person).' : 'Please enter the Contact Person Name.');
+    document.getElementById('form-contact-person')?.focus();
+    return false;
+  }
+  if (!phone || phone.replace(/\D/g, '').length < 9) {
     setBookingError('booking-step2-error', msg.regPhoneInvalid);
     document.getElementById('form-phone')?.focus();
     return false;
@@ -7505,6 +7515,11 @@ function renderAdminDashboard() {
   const holdsPill = document.getElementById('admin-active-holds-pill');
   if (holdsPill) holdsPill.textContent = `${dict.adminHoldsPrefix || 'Holds Active:'} ${activeHoldsCount}`;
 
+  const nlCountEl = document.getElementById('admin-newsletter-count');
+  if (nlCountEl) {
+    nlCountEl.textContent = Number(appState.adminOverview?.newsletterCount || 0);
+  }
+
   const kpiBookings = document.getElementById('admin-kpi-bookings');
   if (kpiBookings) kpiBookings.textContent = adminBookings.length;
 
@@ -7586,5 +7601,60 @@ function renderAdminDashboard() {
     }
   }
 }
+
+async function sendAdminNewsletter() {
+  if (!appState.isAdminAuthenticated) return;
+  const subjectEl = document.getElementById('admin-nl-subject');
+  const bodyEl = document.getElementById('admin-nl-body');
+  const regEl = document.getElementById('admin-nl-region');
+  const statusEl = document.getElementById('admin-nl-status');
+  const btn = document.getElementById('btn-admin-send-nl');
+
+  const subject = (subjectEl?.value || '').trim();
+  const message = (bodyEl?.value || '').trim();
+  const targetRegion = regEl?.value || 'ALL';
+
+  const setNlStatus = (text, ok) => {
+    if (!statusEl) return;
+    statusEl.textContent = text;
+    statusEl.className = ok
+      ? 'text-xs font-bold px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800'
+      : 'text-xs font-bold px-3.5 py-2 rounded-xl bg-red-50 border border-red-200 text-red-700';
+    statusEl.classList.remove('hidden');
+  };
+
+  if (!subject || !message) {
+    setNlStatus('Weka Kichwa (Subject) na Ujumbe wa Newsletter kwanza.', false);
+    return;
+  }
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Inatuma barua pepe...';
+  }
+  try {
+    const res = await fetch('/api/admin/newsletter/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ subject, message, targetRegion })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      setNlStatus(data.error || 'Imeshindikana kutuma newsletter kwa sasa.', false);
+      return;
+    }
+    setNlStatus(data.message || `Imetumwa kikamilifu kwa barua pepe ${data.sentCount || 0} kutoka info@biasharafestival.co.tz!`, true);
+    if (subjectEl) subjectEl.value = '';
+    if (bodyEl) bodyEl.value = '';
+  } catch (err) {
+    setNlStatus('Hitilafu ya mtandao wakati wa kutuma newsletter.', false);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Tuma Newsletter Kutoka info@biasharafestival.co.tz →';
+    }
+  }
+}
+window.sendAdminNewsletter = sendAdminNewsletter;
 
 document.addEventListener('DOMContentLoaded', loadFestivalData);

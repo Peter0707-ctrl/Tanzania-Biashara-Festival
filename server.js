@@ -3,6 +3,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { spawn } = require('child_process');
 
 function loadEnvFile(envPath, overwrite = false) {
   try {
@@ -247,6 +248,59 @@ const MANAGE_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes step-up management tok
 
 const ADMIN_IDENTIFIER = String(process.env.TBF_ADMIN_EMAIL || 'info@biasharafestival.co.tz').trim().toLowerCase();
 const ADMIN_SECRET_CONFIGURED = String(process.env.TBF_ADMIN_PASSWORD || '').trim();
+const OFFICIAL_MAIL_FROM = String(process.env.TBF_MAIL_FROM || 'info@biasharafestival.co.tz').trim();
+const OFFICIAL_MAIL_NAME = String(process.env.TBF_MAIL_NAME || 'Tanzania Biashara Festival').trim();
+
+function sendFestivalEmail(toEmail, subject, htmlBody) {
+  return new Promise((resolve) => {
+    const cleanTo = String(toEmail || '').replace(/[\r\n<>]/g, '').trim();
+    if (!isValidEmail(cleanTo)) return resolve({ sent: false, reason: 'invalid_email' });
+    const cleanSubject = String(subject || 'Tanzania Biashara Festival Update').replace(/[\r\n]/g, ' ').trim();
+    const rawMime = [
+      `From: ${OFFICIAL_MAIL_NAME} <${OFFICIAL_MAIL_FROM}>`,
+      `Reply-To: ${OFFICIAL_MAIL_FROM}`,
+      `To: ${cleanTo}`,
+      `Subject: ${cleanSubject}`,
+      'MIME-Version: 1.0',
+      'Content-Type: text/html; charset=UTF-8',
+      '',
+      String(htmlBody || '')
+    ].join('\r\n');
+
+    const sendmailBins = ['/usr/sbin/sendmail', '/usr/lib/sendmail', 'sendmail'];
+    const bin = sendmailBins.find(p => p === 'sendmail' || fs.existsSync(p));
+    if (!bin) return resolve({ sent: false, reason: 'no_sendmail' });
+
+    try {
+      const child = spawn(bin, ['-t', '-i', '-f', OFFICIAL_MAIL_FROM], { stdio: ['pipe', 'ignore', 'ignore'] });
+      child.on('error', () => resolve({ sent: false, reason: 'spawn_error' }));
+      child.on('close', (code) => resolve({ sent: code === 0 }));
+      child.stdin.write(rawMime);
+      child.stdin.end();
+    } catch (err) {
+      resolve({ sent: false, reason: 'exec_error' });
+    }
+  });
+}
+
+function buildBrandedNewsletterHtml(title, bodyHtml) {
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+      <div style="background:#0b6b68;color:#ffffff;padding:24px 28px;">
+        <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;color:#a7f3d0;font-weight:bold;">TANZANIA BIASHARA FESTIVAL (TBF)</div>
+        <h2 style="margin:8px 0 0;font-size:20px;line-height:1.3;">${String(title || '').replace(/[<>]/g, '')}</h2>
+      </div>
+      <div style="padding:24px 28px;color:#1e293b;font-size:14px;line-height:1.65;">
+        ${bodyHtml}
+      </div>
+      <div style="background:#f8fafc;padding:16px 28px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;">
+        <strong>Tanzania Biashara Festival Secretariat</strong> &bull;
+        <a href="https://biasharafestival.co.tz" style="color:#0b6b68;font-weight:bold;">biasharafestival.co.tz</a> &bull;
+        Tel: +255 767 053 250 &bull; ${OFFICIAL_MAIL_FROM}
+      </div>
+    </div>
+  `;
+}
 
 // In-memory runtime security & presence state (bounded/pruned)
 const activeVisitorSessions = new Map();
@@ -2495,16 +2549,104 @@ const server = http.createServer(async (req, res) => {
             subscribedAt: new Date().toISOString()
           });
         }
-        return { dirty: !existing, value: db.newsletterSubscribers.length };
+        return { dirty: !existing, value: { total: db.newsletterSubscribers.length, isNew: !existing } };
+      });
+
+      // Automatically send a Welcome Email from info@biasharafestival.co.tz on new subscription
+      if (totalSubscribers.isNew) {
+        const safeSubName = sanitizeTextInput(payload.name || 'Mshiriki / Mfuatiliaji', 80);
+        const safeReg = sanitizeTextInput(payload.region || 'All Regions', 60);
+        sendFestivalEmail(
+          email,
+          'Karibu Tanzania Biashara Festival (TBF) — Official Newsletter Confirmation',
+          buildBrandedNewsletterHtml(
+            'Asante kwa Kujiunga na Jarida Rasmi la TBF!',
+            `<p>Habari <strong>${safeSubName}</strong>,</p>
+             <p>Umejiunga kikamilifu na jarida rasmi la <strong>Tanzania Biashara Festival (TBF)</strong> kwa ajili ya taarifa za: <strong>${safeReg}</strong>.</p>
+             <p>Tutakutumia ratiba rasmi za mikoa, fursa za mabanda, minada ya wazi, na majukwaa ya uwekezaji kupitia <strong>${OFFICIAL_MAIL_FROM}</strong>.</p>
+             <p><a href="https://biasharafestival.co.tz/booking" style="display:inline-block;padding:10px 18px;background:#0b6b68;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Hifadhi Banda Mtandaoni &rarr;</a></p>`
+          )
+        ).catch(() => {});
+      }
+
+      return sendJSON(res, 200, {
+        success: true,
+        from: OFFICIAL_MAIL_FROM,
+        message: 'Successfully subscribed to TBF newsletter',
+        totalSubscribers: totalSubscribers.total
+      }, {}, deviceCookieList);
+    } catch (err) {
+      return sendJSON(res, err.statusCode || 500, { success: false, error: err.statusCode === 413 ? err.message : 'Failed to process subscription' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Organizer Admin Broadcast Newsletter (Sends real emails from info@biasharafestival.co.tz)
+  if (pathname === '/api/admin/newsletter/send' && req.method === 'POST') {
+    const session = verifyAdminRequest(req);
+    if (!session) {
+      return sendJSON(res, 401, { success: false, error: 'Admin authentication required' }, {}, deviceCookieList);
+    }
+    try {
+      const payload = await parseBody(req);
+      const subject = sanitizeTextInput(payload.subject, 180);
+      const message = sanitizeTextInput(payload.message, 4000);
+      const targetRegion = sanitizeTextInput(payload.targetRegion || 'ALL', 60);
+      if (!subject || !message) {
+        return sendJSON(res, 400, { success: false, error: 'Subject and message body are required.' }, {}, deviceCookieList);
+      }
+
+      const db = readDbClean();
+      const subs = (db.newsletterSubscribers || []).filter(s => {
+        if (!targetRegion || targetRegion === 'ALL') return true;
+        const reg = String(s.region || '').toLowerCase();
+        return reg.includes('all') || reg === targetRegion.toLowerCase();
+      });
+
+      const escapedParagraphs = message
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .map(line => `<p style="margin:0 0 12px;">${line.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</p>`)
+        .join('');
+      const htmlBody = buildBrandedNewsletterHtml(
+        subject,
+        `${escapedParagraphs}<p style="margin-top:20px;"><a href="https://biasharafestival.co.tz/booking" style="display:inline-block;padding:10px 18px;background:#0b6b68;color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;">Book Exhibition Booth / View Schedule &rarr;</a></p>`
+      );
+
+      let sentCount = 0;
+      for (const s of subs) {
+        const plainEmail = decryptField(s.email).trim().toLowerCase();
+        if (isValidEmail(plainEmail)) {
+          const mailRes = await sendFestivalEmail(plainEmail, subject, htmlBody);
+          if (mailRes.sent) sentCount += 1;
+        }
+      }
+
+      await withDbTransaction(txDb => {
+        if (!Array.isArray(txDb.newsletterCampaigns)) txDb.newsletterCampaigns = [];
+        txDb.newsletterCampaigns.unshift({
+          id: 'CMP-' + crypto.randomInt(1000, 9999),
+          from: OFFICIAL_MAIL_FROM,
+          subject,
+          targetRegion,
+          recipientCount: subs.length,
+          sentCount,
+          sentAt: new Date().toISOString()
+        });
+        return { dirty: true };
       });
 
       return sendJSON(res, 200, {
         success: true,
-        message: 'Successfully subscribed to TBF newsletter',
-        totalSubscribers
+        from: OFFICIAL_MAIL_FROM,
+        totalTargeted: subs.length,
+        sentCount,
+        message: subs.length === 0
+          ? 'Hakuna msajili kwenye kundi hilo bado, lakini kampeni imehifadhiwa.'
+          : `Newsletter imetumwa kutoka ${OFFICIAL_MAIL_FROM} kwenda kwa wasajili ${sentCount} kati ya ${subs.length}.`
       }, {}, deviceCookieList);
     } catch (err) {
-      return sendJSON(res, err.statusCode || 500, { success: false, error: err.statusCode === 413 ? err.message : 'Failed to process subscription' }, {}, deviceCookieList);
+      return sendJSON(res, 400, { success: false, error: 'Failed to broadcast newsletter' }, {}, deviceCookieList);
     }
   }
 
