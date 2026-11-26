@@ -30,11 +30,9 @@ DirectoryIndex index.html public/index.html
     Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
     Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
 
-    # Force fresh HTML and JS on mobile browsers and cPanel Nginx/proxy caches
+    # Always revalidate HTML, JS, and CSS while permitting search/AI index snapshots
     <FilesMatch "\.(html|htm|js|css)$">
-        Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
-        Header set Pragma "no-cache"
-        Header set Expires "0"
+        Header set Cache-Control "public, max-age=0, must-revalidate"
     </FilesMatch>
 </IfModule>
 

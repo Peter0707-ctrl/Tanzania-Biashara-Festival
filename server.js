@@ -2690,7 +2690,7 @@ const server = http.createServer(async (req, res) => {
       'Content-Length': stats.size
     };
     if (ext === '.html' || ext === '.js' || ext === '.css') {
-      staticHeaders['Cache-Control'] = 'no-store, must-revalidate';
+      staticHeaders['Cache-Control'] = 'public, max-age=0, must-revalidate';
     }
     if (deviceCookieList.length) appendSetCookies(staticHeaders, deviceCookieList);
     res.writeHead(200, staticHeaders);
