@@ -4,7 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tanzania Biashara Festival (TBF) — Official Project &amp; Sponsorship Proposal</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
     body {
@@ -12,29 +14,36 @@
     }
     @media print {
       .no-print { display: none !important; }
-      body { background: white !important; }
+      body { background: white !important; padding: 0 !important; }
+      #proposal-document { box-shadow: none !important; border: none !important; border-radius: 0 !important; }
     }
   </style>
 </head>
-<body class="bg-[#f4f7f6] text-slate-900 antialiased py-8 px-4 sm:px-6">
+<body class="bg-[#f4f7f6] text-slate-900 antialiased py-6 sm:py-8 px-3 sm:px-6">
 
   <!-- Top Action Bar -->
-  <div class="no-print max-w-5xl mx-auto mb-6 flex flex-wrap items-center justify-between gap-4 bg-[#0b6b68] text-white p-4 rounded-2xl shadow-lg">
-    <div class="flex items-center gap-3">
-      <a href="/" class="px-3.5 py-2 rounded-xl bg-white text-[#0b6b68] text-xs font-extrabold transition">
-        &larr; Rudi Kwenye Mfumo (Back to Platform)
+  <div class="no-print max-w-5xl mx-auto mb-6 flex flex-wrap items-center justify-between gap-3 bg-[#0b6b68] text-white p-4 rounded-2xl shadow-lg">
+    <div class="flex flex-wrap items-center gap-3">
+      <a href="/" class="px-3.5 py-2 rounded-xl bg-white text-[#0b6b68] hover:bg-emerald-50 text-xs font-extrabold transition">
+        &larr; Rudi Kwenye Tovuti (Back to Website)
       </a>
       <span class="text-xs sm:text-sm font-semibold">
-        Official Bilingual Proposal (English &amp; Kiswahili) • +255 767 053 250
+        Official Bilingual Proposal (Kiswahili &amp; English) • +255 767 053 250
       </span>
     </div>
-    <button onclick="window.print()" class="px-5 py-2.5 rounded-xl bg-white text-[#0b6b68] font-extrabold text-xs sm:text-sm shadow transition">
-      Print / Save Proposal as PDF
-    </button>
+    <div class="flex flex-wrap items-center gap-2.5">
+      <button id="btn-download-pdf" type="button" onclick="downloadProposalPdf()" class="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs sm:text-sm shadow transition inline-flex items-center gap-2 cursor-pointer">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"></path></svg>
+        <span id="btn-download-pdf-text">Pakua PDF (Download PDF)</span>
+      </button>
+      <button type="button" onclick="window.print()" class="px-4 py-2.5 rounded-xl bg-white hover:bg-emerald-50 text-[#0b6b68] font-extrabold text-xs sm:text-sm shadow transition cursor-pointer">
+        Chapisha (Print)
+      </button>
+    </div>
   </div>
 
-  <!-- Printable Document Container -->
-  <div class="max-w-5xl mx-auto bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+  <!-- Printable & Downloadable Document Container -->
+  <div id="proposal-document" class="max-w-5xl mx-auto bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
 
     <!-- Header Cover in Deep Teal-Green (#0b6b68) -->
     <div class="bg-[#0b6b68] text-white p-8 sm:p-12 space-y-6">
@@ -49,7 +58,7 @@
           </div>
         </div>
         <span class="px-3.5 py-1.5 rounded-full bg-white/15 text-white text-xs font-extrabold">
-          +255 767 053 250
+          +255 767 053 250 • biasharafestival.co.tz
         </span>
       </div>
 
@@ -61,7 +70,7 @@
           "Every business has a place, every city has an opportunity."
         </p>
         <p class="text-sm sm:text-base text-white/90 max-w-3xl leading-relaxed">
-          Jukwaa la Kitaifa la Maonyesho ya Biashara, Ubunifu, na Uwekezaji Linalozunguka Mkoa kwa Mkoa Nchini Tanzania • Tanzania's Premier Roving Regional Business, Innovation &amp; Investment Platform.
+          Jukwaa la Kitaifa la Maonyesho ya Biashara, Ubunifu, Minada ya Wazi na Uwekezaji Linalozunguka Mkoa kwa Mkoa Nchini Tanzania • Tanzania's Premier Roving Regional Business, Innovation &amp; Investment Platform.
         </p>
       </div>
 
@@ -94,82 +103,87 @@
         <div class="text-xs font-extrabold uppercase tracking-wider text-[#0b6b68]">01. Executive Concept • Dhana Kuu ya Mradi</div>
         <h2 class="text-2xl font-extrabold">Biashara Kwanza &amp; Mzunguko wa Mikoa (Roving Regional Trade Fair)</h2>
         <p class="text-sm text-slate-600 leading-relaxed">
-          <strong>Kiswahili:</strong> Tofauti na maonyesho yanayofanyika mkoa mmoja pekee mara moja kwa mwaka, <strong>Tanzania Biashara Festival (TBF)</strong> inazunguka mkoa kwa mkoa (*Dar es Salaam, Mwanza, Arusha, Dodoma, Mbeya, Zanzibar, n.k.*) kupeleka fursa za biashara, masoko, na uwekezaji moja kwa moja kwa wananchi. Kwenye mfumo wetu wa kidijitali, <strong>Biashara Zinaonekana Kwanza (Businesses First)</strong> ili kila mfanyabiashara anayejisajili apate wateja mtandaoni na uwanjani.
+          <strong>Kiswahili:</strong> Tofauti na maonyesho yanayofanyika mkoa mmoja pekee mara moja kwa mwaka, <strong>Tanzania Biashara Festival (TBF)</strong> inazunguka mkoa kwa mkoa (<em>Dar es Salaam, Mwanza, Arusha, Dodoma, Mbeya, Zanzibar na mikoa yote 31 ya Tanzania</em>) kupeleka fursa za biashara, minada ya wazi ya bei za kiwandani, masoko, na uwekezaji moja kwa moja kwa wananchi.
         </p>
         <p class="text-sm text-slate-600 leading-relaxed">
-          <strong>English:</strong> Unlike static single-city exhibitions, <strong>Tanzania Biashara Festival (TBF)</strong> tours across Tanzania's economic regions. Our digital platform puts <strong>Showcased Businesses First</strong>, giving every registered vendor continuous online visibility, commercial advertisement space, and physical exhibition booths as the tour moves from city to city.
+          <strong>English:</strong> Unlike static single-city exhibitions, <strong>Tanzania Biashara Festival (TBF)</strong> tours across Tanzania's 31 economic regions. Our digital platform puts <strong>Showcased Businesses First</strong>, giving every registered vendor continuous online visibility, instant Selcom digital booth booking, and physical exhibition booths as the tour moves from city to city.
         </p>
       </section>
 
-      <!-- 2. Zigzag Statistics Showcase -->
+      <!-- 2. Festival Scope & Reach Showcase -->
       <section class="rounded-2xl bg-[#0b6b68] text-white p-6 sm:p-8">
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
           <div>
-            <div class="text-2xl sm:text-4xl font-extrabold">71,998+</div>
-            <div class="text-xs text-white/90 mt-1">Cookie-Tracked Visitors</div>
+            <div class="text-2xl sm:text-4xl font-extrabold">31</div>
+            <div class="text-xs text-white/90 mt-1">Tanzania Regions Covered</div>
           </div>
           <div>
-            <div class="text-2xl sm:text-4xl font-extrabold">18,450+</div>
-            <div class="text-xs text-white/90 mt-1">Regional Attendees</div>
+            <div class="text-2xl sm:text-4xl font-extrabold">160+</div>
+            <div class="text-xs text-white/90 mt-1">Exhibition Booths per City</div>
           </div>
           <div>
-            <div class="text-2xl sm:text-4xl font-extrabold">150+</div>
-            <div class="text-xs text-white/90 mt-1">Investors &amp; Partners</div>
+            <div class="text-2xl sm:text-4xl font-extrabold">5</div>
+            <div class="text-xs text-white/90 mt-1">Specialized Pavilion Zones</div>
           </div>
           <div>
-            <div class="text-2xl sm:text-4xl font-extrabold">499+</div>
-            <div class="text-xs text-white/90 mt-1">Showcased Businesses</div>
+            <div class="text-2xl sm:text-4xl font-extrabold">100%</div>
+            <div class="text-xs text-white/90 mt-1">Digital QR &amp; Selcom Checkout</div>
           </div>
         </div>
       </section>
 
       <!-- 3. Key System Features -->
       <section class="space-y-4">
-        <div class="text-xs font-extrabold uppercase tracking-wider text-[#0b6b68]">02. Platform Architecture • Mfumo wa Kidijitali</div>
-        <h2 class="text-2xl font-extrabold">Vipengele Vikuu vya Mfumo wa Tanzania Biashara Festival</h2>
+        <div class="text-xs font-extrabold uppercase tracking-wider text-[#0b6b68]">02. Platform Architecture • Mfumo wa Kidijitali na Uwanjani</div>
+        <h2 class="text-2xl font-extrabold">Vipengele Vikuu vya Tanzania Biashara Festival</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm">
           <div class="p-4 rounded-2xl bg-[#f4f7f6] border border-slate-200 space-y-1">
             <div class="font-extrabold text-[#0b6b68]">1. Biashara Kwanza (Featured Business Showcase)</div>
-            <p class="text-slate-600">Sehemu ya kwanza kabisa kwenye tovuti inaonyesha biashara zilizosajiliwa, picha za bidhaa zao zinazobadilika, mikoa wanayoshiriki, na mawasiliano yao.</p>
+            <p class="text-slate-600">Kila mfanyabiashara anayehifadhi banda anaonekana moja kwa moja kwenye tovuti rasmi ya TBF pamoja na bidhaa zake, namba ya banda na mawasiliano.</p>
           </div>
           <div class="p-4 rounded-2xl bg-[#f4f7f6] border border-slate-200 space-y-1">
-            <div class="font-extrabold text-[#0b6b68]">2. Cookie Analytics &amp; Regional Attendance Stats</div>
-            <p class="text-slate-600">Mfumo unatumia Cookies kufuatilia watembeleaji na takwimu za wahudhuriaji wa kila mkoa.</p>
+            <div class="font-extrabold text-[#0b6b68]">2. Minada ya Wazi &amp; One-Stop Business Clinic</div>
+            <p class="text-slate-600">Mauzo ya moja kwa moja kwa bei za kiwandani pamoja na huduma za papo kwa papo za BRELA, TRA, TBS, SIDO, na Mabenki uwanjani.</p>
           </div>
           <div class="p-4 rounded-2xl bg-[#f4f7f6] border border-slate-200 space-y-1">
-            <div class="font-extrabold text-[#0b6b68]">3. Dynamic Events, News &amp; Advertisements</div>
-            <p class="text-slate-600">Hakuna tarehe zilizofungwa; tarehe za kila mkoa, habari mpya, na matangazo ya biashara vinawekwa na kubadilishwa muda wowote.</p>
+            <div class="font-extrabold text-[#0b6b68]">3. Ramani ya Mabanda &amp; Malipo ya Selcom Papo Hapo</div>
+            <p class="text-slate-600">Washiriki wanachagua banda kwenye ramani ya uwanja na kulipia papo hapo kupitia Selcom (M-Pesa, Mixx by Yas, Airtel Money, HaloPesa, au Benki/Kadi) na kupata TRA Receipt + QR Pass.</p>
           </div>
           <div class="p-4 rounded-2xl bg-[#f4f7f6] border border-slate-200 space-y-1">
-            <div class="font-extrabold text-[#0b6b68]">4. Vendor Booth Booking &amp; Sponsors Portal</div>
-            <p class="text-slate-600">Wafanyabiashara wanachagua mkoa na namba ya banda kwenye ramani, na wadhamini au washirika wanatuma maombi ya ushirikiano moja kwa moja.</p>
+            <div class="font-extrabold text-[#0b6b68]">4. Ushirikiano wa Wadhamini (Sponsors &amp; Partners)</div>
+            <p class="text-slate-600">Taasisi, mabenki, na makampuni makubwa yanapata nafasi ya kudhamini mkoa mmoja au mzunguko wa kitaifa na kukutana na maelfu ya wafanyabiashara.</p>
           </div>
         </div>
       </section>
 
       <!-- 4. Exhibition Booth Categories -->
       <section class="space-y-4">
-        <div class="text-xs font-extrabold uppercase tracking-wider text-[#0b6b68]">03. Mabanda ya Maonyesho kwa Wafanyabiashara (Exhibition Booths)</div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+        <div class="text-xs font-extrabold uppercase tracking-wider text-[#0b6b68]">03.Viwango vya Mabanda ya Maonyesho (Exhibition Booth Packages)</div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 text-xs">
           <div class="p-4 rounded-2xl border border-slate-200 space-y-1">
-            <div class="font-extrabold text-[#0b6b68]">Kijana / Startup Desk</div>
+            <div class="font-extrabold text-[#0b6b68]">Kijana / Micro-SME Desk</div>
             <div class="text-base font-extrabold">TZS 150,000 / Mkoa</div>
-            <p class="text-slate-600">Meza 1, Viti 2, QR Pass 2 &amp; Kuonekana kwenye Featured Businesses.</p>
+            <p class="text-slate-600">Meza 1, Viti 2 ndani ya SME Pavilion, QR Pass 2 &amp; Kuonekana kwenye TBF Showcase.</p>
           </div>
           <div class="p-4 rounded-2xl border border-slate-200 space-y-1">
             <div class="font-extrabold text-[#0b6b68]">Standard SME Booth (3x3m)</div>
             <div class="text-base font-extrabold">TZS 350,000 / Mkoa</div>
-            <p class="text-slate-600">Hema 3x3m, Jina la Biashara, Umeme, QR Pass 3 &amp; Business Listing.</p>
+            <p class="text-slate-600">Hema kamili 3x3m, Jina la Biashara (Fascia), Umeme, QR Pass 3 &amp; Business Listing.</p>
+          </div>
+          <div class="p-4 rounded-2xl border border-slate-200 space-y-1">
+            <div class="font-extrabold text-[#0b6b68]">Food Court &amp; Lifestyle (4x4m)</div>
+            <div class="text-base font-extrabold">TZS 400,000 / Mkoa</div>
+            <p class="text-slate-600">Nafasi ya 4x4m kwenye Food Court, Maji &amp; Umeme wa Nguvu, QR Pass 4.</p>
           </div>
           <div class="p-4 rounded-2xl border border-slate-200 space-y-1">
             <div class="font-extrabold text-[#0b6b68]">Executive Pavilion (6x3m)</div>
             <div class="text-base font-extrabold">TZS 750,000 / Mkoa</div>
-            <p class="text-slate-600">Double Space Eneo la Mbele, Samani, QR Pass 4 &amp; Featured Ad Banner.</p>
+            <p class="text-slate-600">Double Space Eneo la Mbele, Meza 2, Viti 4, QR Pass 4 &amp; Featured Ad Banner.</p>
           </div>
           <div class="p-4 rounded-2xl border border-slate-200 space-y-1">
             <div class="font-extrabold text-[#0b6b68]">Corporate Island (6x6m)</div>
             <div class="text-base font-extrabold">TZS 1,800,000 / Mkoa</div>
-            <p class="text-slate-600">Prime Arena Space, VIP Investment Forum Passes &amp; Business Clinic.</p>
+            <p class="text-slate-600">Prime Central Arena (Zone A), Custom Pavilion, VIP Forum Passes &amp; Business Clinic Slot.</p>
           </div>
         </div>
       </section>
@@ -182,7 +196,7 @@
     <div class="bg-[#0b6b68] text-white p-6 sm:p-8 flex flex-wrap items-center justify-between gap-4 text-xs sm:text-sm">
       <div>
         <div class="font-extrabold text-base">Tanzania Biashara Festival Secretariat</div>
-        <div>Simu / WhatsApp: <strong>+255 767 053 250</strong> • info@biasharafestival.co.tz</div>
+        <div>Simu / WhatsApp: <strong>+255 767 053 250</strong> • Barua Pepe: <strong>info@biasharafestival.co.tz</strong> • Web: <strong>https://biasharafestival.co.tz</strong></div>
       </div>
       <div class="font-bold italic text-emerald-200">
         "Every business has a place, every city has an opportunity."
@@ -191,5 +205,39 @@
 
   </div>
 
+  <script>
+    async function downloadProposalPdf() {
+      const btn = document.getElementById('btn-download-pdf');
+      const txt = document.getElementById('btn-download-pdf-text');
+      const docEl = document.getElementById('proposal-document');
+      if (!docEl || typeof window.html2pdf !== 'function') {
+        window.print();
+        return;
+      }
+      try {
+        if (btn) btn.disabled = true;
+        if (txt) txt.textContent = 'Inatengeneza PDF...';
+        const opt = {
+          margin: [8, 8, 8, 8],
+          filename: 'Tanzania-Biashara-Festival-Official-Proposal.pdf',
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, logging: false },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        await window.html2pdf().set(opt).from(docEl).save();
+      } catch (err) {
+        window.print();
+      } finally {
+        if (btn) btn.disabled = false;
+        if (txt) txt.textContent = 'Pakua PDF (Download PDF)';
+      }
+    }
+
+    if (window.location.search.includes('download=1')) {
+      window.addEventListener('load', () => {
+        setTimeout(downloadProposalPdf, 600);
+      });
+    }
+  </script>
 </body>
 </html>
