@@ -333,7 +333,70 @@ function locateDbJson() {
     return $dir . '/db.json';
 }
 
+function getMysqlPdoPhp() {
+    static $pdo = null;
+    static $attempted = false;
+    if ($attempted) return $pdo;
+    $attempted = true;
+    $dbType = strtolower(trim(getEnvVar('DB_TYPE', '')));
+    $dbHost = trim(getEnvVar('DB_HOST', 'localhost'));
+    $dbName = trim(getEnvVar('DB_NAME', ''));
+    $dbUser = trim(getEnvVar('DB_USER', ''));
+    $dbPass = getEnvVar('DB_PASS', '');
+    $dbPort = (int)getEnvVar('DB_PORT', '3306') ?: 3306;
+    if ($dbType !== 'mysql' || $dbName === '' || $dbUser === '' || !class_exists('PDO')) {
+        return null;
+    }
+    try {
+        $dsn = "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4";
+        $pdo = new PDO($dsn, $dbUser, $dbPass, array(
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_TIMEOUT => 4
+        ));
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `tbf_state_store` (
+            `state_key` VARCHAR(64) NOT NULL PRIMARY KEY,
+            `state_json` LONGTEXT NOT NULL,
+            `version` BIGINT UNSIGNED NOT NULL DEFAULT 1,
+            `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        return $pdo;
+    } catch (Exception $e) {
+        $pdo = null;
+        return null;
+    }
+}
+
 function readDbPhp() {
+    $pdo = getMysqlPdoPhp();
+    if ($pdo) {
+        try {
+            $stmt = $pdo->prepare("SELECT `state_json` FROM `tbf_state_store` WHERE `state_key` = 'primary' LIMIT 1");
+            $stmt->execute();
+            $row = $stmt->fetch();
+            if ($row && !empty($row['state_json'])) {
+                $data = json_decode($row['state_json'], true);
+                if (is_array($data)) {
+                    if (!isset($data['bookings']) || !is_array($data['bookings'])) $data['bookings'] = array();
+                    if (!isset($data['boothHolds']) || !is_array($data['boothHolds'])) $data['boothHolds'] = array();
+                    if (!isset($data['regions']) || !is_array($data['regions'])) $data['regions'] = array();
+                    return $data;
+                }
+            } else {
+                // Auto-seed MySQL from db.json on first connection
+                $path = locateDbJson();
+                if (file_exists($path)) {
+                    $raw = @file_get_contents($path);
+                    if ($raw) {
+                        $ins = $pdo->prepare("INSERT IGNORE INTO `tbf_state_store` (`state_key`, `state_json`, `version`) VALUES ('primary', ?, 1)");
+                        $ins->execute(array($raw));
+                        $data = json_decode($raw, true);
+                        if (is_array($data)) return $data;
+                    }
+                }
+            }
+        } catch (Exception $e) {}
+    }
     $path = locateDbJson();
     if (!file_exists($path)) {
         return array('regions' => array(), 'boothPackages' => array(), 'bookings' => array(), 'sponsors' => array(), 'announcements' => array(), 'boothHolds' => array());
@@ -348,6 +411,46 @@ function readDbPhp() {
 
 function writeDbPhp($db) {
     $json = json_encode($db, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    $pdo = getMysqlPdoPhp();
+    if ($pdo) {
+        try {
+            $stmt = $pdo->prepare("INSERT INTO `tbf_state_store` (`state_key`, `state_json`, `version`) VALUES ('primary', ?, 1) ON DUPLICATE KEY UPDATE `state_json` = VALUES(`state_json`), `version` = `version` + 1");
+            $stmt->execute(array($json));
+
+            // Also sync recent bookings into relational `bookings` table for cPanel phpMyAdmin visibility
+            if (isset($db['bookings']) && is_array($db['bookings'])) {
+                $bStmt = $pdo->prepare("INSERT INTO `bookings` (`id`, `control_number_enc`, `business_name`, `tagline`, `contact_person_enc`, `phone_enc`, `phone_idx`, `email_enc`, `email_idx`, `sector`, `package_id`, `package_name`, `booth_code`, `cities`, `total_amount`, `payment_method`, `status`, `featured`, `access_pin_hash`, `client_request_id`)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE `booth_code` = VALUES(`booth_code`), `status` = VALUES(`status`), `control_number_enc` = VALUES(`control_number_enc`), `total_amount` = VALUES(`total_amount`)");
+                foreach (array_slice($db['bookings'], 0, 50) as $b) {
+                    $stLower = strtolower(trim($b['status'] ?? ''));
+                    $normStatus = ($stLower === 'paid' || $stLower === 'confirmed') ? 'Confirmed' : (($stLower === 'cancelled') ? 'Cancelled' : (($stLower === 'expired') ? 'Expired' : 'Awaiting Payment'));
+                    @$bStmt->execute(array(
+                        (string)($b['id'] ?? ''),
+                        (string)($b['controlNumber'] ?? ''),
+                        substr((string)($b['businessName'] ?? ''), 0, 180),
+                        substr((string)($b['tagline'] ?? ''), 0, 255),
+                        (string)($b['contactPerson'] ?? ''),
+                        (string)($b['phone'] ?? ''),
+                        (string)($b['phoneIdx'] ?? ''),
+                        (string)($b['email'] ?? ''),
+                        (string)($b['emailIdx'] ?? ''),
+                        substr((string)($b['sector'] ?? 'Biashara'), 0, 120),
+                        substr((string)($b['packageId'] ?? 'standard-booth'), 0, 64),
+                        substr((string)($b['packageName'] ?? 'Standard Booth'), 0, 120),
+                        substr((string)($b['boothCode'] ?? 'B-01'), 0, 32),
+                        json_encode($b['cities'] ?? array()),
+                        max(0, (int)($b['totalAmount'] ?? 0)),
+                        substr((string)($b['paymentMethod'] ?? 'Selcom Pay'), 0, 64),
+                        $normStatus,
+                        1,
+                        $b['accessPinHash'] ?? ($b['accessPin'] ?? null),
+                        !empty($b['clientRequestId']) ? $b['clientRequestId'] : null
+                    ));
+                }
+            }
+        } catch (Exception $e) {}
+    }
     $targets = array(
         __DIR__ . '/data/db.json',
         dirname(__DIR__) . '/data/db.json',
@@ -403,7 +506,8 @@ function buildLiveStatsPhp($db) {
         'totalRegisteredAttendees' => $attendees,
         'totalPartnersAndInvestors' => $investors,
         'totalBusinessesShowcased' => $bookingsCount,
-        'selcomConfigured' => $cfg['configured']
+        'selcomConfigured' => $cfg['configured'],
+        'storageEngine' => getMysqlPdoPhp() ? 'mysql' : 'json'
     );
 }
 

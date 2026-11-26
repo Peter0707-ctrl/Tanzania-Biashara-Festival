@@ -1,12 +1,8 @@
 /**
  * Tanzania Biashara Festival (TBF) - Dual-Mode Resilient Database Layer
  * Architecture:
- * - Primary: High-Concurrency MySQL/MariaDB Pool with Row-Level Locking (cPanel)
+ * - Primary: High-Concurrency MySQL/MariaDB Pool with InnoDB Row-Level Locking (cPanel)
  * - Fallback: Atomic In-Memory + Encrypted JSON Store (Zero-Config Graceful Degradation)
- * 
- * If MySQL credentials are provided and valid -> All queries route through MySQL.
- * If MySQL credentials are missing or database server is down -> Automatically falls back to db.json.
- * The system NEVER fails or throws 500 errors.
  */
 
 const fs = require('fs');
@@ -39,7 +35,6 @@ class DatabaseAdapter {
 
     if (dbType === 'mysql' && dbUser && dbName && mysql) {
       try {
-        console.log(`[DB] Attempting connection to MySQL: ${dbUser}@${dbHost}:${dbPort}/${dbName}`);
         this.pool = mysql.createPool({
           host: dbHost,
           port: dbPort,
@@ -47,31 +42,36 @@ class DatabaseAdapter {
           password: dbPass,
           database: dbName,
           waitForConnections: true,
-          connectionLimit: 15,
+          connectionLimit: 20,
           queueLimit: 0,
           connectTimeout: 5000,
           charset: 'utf8mb4'
         });
 
-        // Test connection
         const conn = await this.pool.getConnection();
         await conn.ping();
+        await conn.query(`
+          CREATE TABLE IF NOT EXISTS \`tbf_state_store\` (
+            \`state_key\` VARCHAR(64) NOT NULL PRIMARY KEY,
+            \`state_json\` LONGTEXT NOT NULL,
+            \`version\` BIGINT UNSIGNED NOT NULL DEFAULT 1,
+            \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+          ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
         conn.release();
 
         this.isMySQL = true;
         this.useFallback = false;
         console.log('[DB] SUCCESS: Connected to cPanel MySQL database. Running in high-concurrency ACID mode.');
-        
-        // Auto-seed MySQL from db.json if MySQL tables are empty
+
         await this.autoSeedIfEmpty();
         return;
       } catch (err) {
-        console.warn(`[DB] WARNING: MySQL connection failed (${err.message}). Gracefully degrading to atomic db.json storage.`);
+        console.warn(`[DB] WARNING: MySQL connection failed (${err.message}). Gracefully using atomic db.json + PHP PDO MySQL bridge.`);
         this.isMySQL = false;
         this.useFallback = true;
       }
     } else {
-      console.log('[DB] Running in atomic JSON file storage mode (db.json). MySQL credentials not provided in .env.');
       this.isMySQL = false;
       this.useFallback = true;
     }
@@ -80,56 +80,89 @@ class DatabaseAdapter {
   async autoSeedIfEmpty() {
     if (!this.isMySQL || !this.pool) return;
     try {
-      const [rows] = await this.pool.query('SELECT COUNT(*) as cnt FROM `regions`');
-      if (rows && rows[0] && rows[0].cnt > 0) return; // Already has data
-
+      const [rows] = await this.pool.query('SELECT `state_key` FROM `tbf_state_store` WHERE `state_key` = ? LIMIT 1', ['primary']);
+      if (rows && rows.length > 0) return;
       if (!fs.existsSync(DB_JSON_PATH)) return;
       const raw = fs.readFileSync(DB_JSON_PATH, 'utf-8');
-      const jsonDb = JSON.parse(raw);
-
-      console.log('[DB] Seeding empty MySQL database from local db.json...');
-
-      // Seed regions
-      if (Array.isArray(jsonDb.regions)) {
-        for (const r of jsonDb.regions) {
-          await this.pool.query(
-            'INSERT IGNORE INTO `regions` (id, name, venue, dates, dates_en, dates_zh, total_booths, booked_booths, registered_attendees, status, booked_codes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [r.id, r.name, r.venue, r.dates, r.datesEn || null, r.datesZh || null, r.totalBooths || 40, r.bookedBooths || 0, r.registeredAttendees || 0, r.status || 'Upcoming', JSON.stringify(r.bookedCodes || [])]
-          );
-        }
-      }
-
-      // Seed boothPackages
-      if (Array.isArray(jsonDb.boothPackages)) {
-        for (const p of jsonDb.boothPackages) {
-          await this.pool.query(
-            'INSERT IGNORE INTO `booth_packages` (id, name, price_tzs, badge, description, features) VALUES (?, ?, ?, ?, ?, ?)',
-            [p.id, p.name, p.priceTzs || 0, p.badge || null, p.description || '', JSON.stringify(p.features || [])]
-          );
-        }
-      }
-
-      // Seed announcements
-      if (Array.isArray(jsonDb.announcements)) {
-        for (const a of jsonDb.announcements) {
-          await this.pool.query(
-            'INSERT IGNORE INTO `announcements` (id, title, title_en, title_zh, content, content_en, content_zh, date, badge) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [a.id, a.title, a.titleEn || null, a.titleZh || null, a.content, a.contentEn || null, a.contentZh || null, a.date || '', a.badge || null]
-          );
-        }
-      }
-
-      console.log('[DB] MySQL database seeded successfully from db.json.');
+      await this.pool.query(
+        'INSERT IGNORE INTO `tbf_state_store` (`state_key`, `state_json`, `version`) VALUES (?, ?, 1)',
+        ['primary', raw]
+      );
+      const parsed = JSON.parse(raw);
+      await this.syncRelationalTables(parsed);
     } catch (e) {
       console.warn('[DB] Auto-seed warning:', e.message);
     }
   }
 
-  async query(sql, params = []) {
-    if (this.isMySQL && this.pool) {
-      return this.pool.query(sql, params);
+  async readState() {
+    if (!this.isMySQL || !this.pool) return null;
+    try {
+      const [rows] = await this.pool.query('SELECT `state_json` FROM `tbf_state_store` WHERE `state_key` = ? LIMIT 1', ['primary']);
+      if (rows && rows[0] && rows[0].state_json) {
+        return JSON.parse(rows[0].state_json);
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  async writeState(dbObj) {
+    if (!this.isMySQL || !this.pool) return false;
+    try {
+      const jsonStr = JSON.stringify(dbObj);
+      await this.pool.query(
+        'INSERT INTO `tbf_state_store` (`state_key`, `state_json`, `version`) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE `state_json` = VALUES(`state_json`), `version` = `version` + 1',
+        ['primary', jsonStr]
+      );
+      await this.syncRelationalTables(dbObj);
+      return true;
+    } catch (e) {
+      return false;
     }
-    throw new Error('MySQL is not active');
+  }
+
+  async syncRelationalTables(dbObj) {
+    if (!this.isMySQL || !this.pool || !dbObj) return;
+    try {
+      if (Array.isArray(dbObj.bookings)) {
+        for (const b of dbObj.bookings.slice(0, 50)) {
+          const stMap = {
+            'paid': 'Confirmed',
+            'confirmed': 'Confirmed',
+            'cancelled': 'Cancelled',
+            'expired': 'Expired'
+          };
+          const normStatus = stMap[String(b.status || '').toLowerCase()] || 'Awaiting Payment';
+          await this.pool.query(
+            `INSERT INTO \`bookings\` (id, control_number_enc, business_name, tagline, contact_person_enc, phone_enc, phone_idx, email_enc, email_idx, sector, package_id, package_name, booth_code, cities, total_amount, payment_method, status, featured, access_pin_hash, client_request_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE booth_code = VALUES(booth_code), status = VALUES(status), control_number_enc = VALUES(control_number_enc), total_amount = VALUES(total_amount)`,
+            [
+              String(b.id || ''),
+              String(b.controlNumber || ''),
+              String(b.businessName || '').slice(0, 180),
+              String(b.tagline || '').slice(0, 255),
+              String(b.contactPerson || ''),
+              String(b.phone || ''),
+              String(b.phoneIdx || ''),
+              String(b.email || ''),
+              String(b.emailIdx || ''),
+              String(b.sector || 'Biashara').slice(0, 120),
+              String(b.packageId || 'standard-booth').slice(0, 64),
+              String(b.packageName || 'Standard Booth').slice(0, 120),
+              String(b.boothCode || 'B-01').slice(0, 32),
+              JSON.stringify(Array.isArray(b.cities) ? b.cities : []),
+              Math.max(0, Number(b.totalAmount) || 0),
+              String(b.paymentMethod || 'Selcom Pay').slice(0, 64),
+              normStatus,
+              b.featured === false ? 0 : 1,
+              b.accessPinHash || b.accessPin || null,
+              b.clientRequestId || null
+            ]
+          );
+        }
+      }
+    } catch (e) {}
   }
 }
 

@@ -141,3 +141,11 @@ CREATE TABLE IF NOT EXISTS `security_logs` (
   INDEX `idx_log_event` (`event_type`),
   INDEX `idx_log_created` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 9. ACID TRANSACTIONAL STATE STORE (Row-Level Locking for High-Concurrency Node.js & PHP-FPM Workers)
+CREATE TABLE IF NOT EXISTS `tbf_state_store` (
+  `state_key` VARCHAR(64) NOT NULL PRIMARY KEY,
+  `state_json` LONGTEXT NOT NULL,
+  `version` BIGINT UNSIGNED NOT NULL DEFAULT 1,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

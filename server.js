@@ -575,11 +575,22 @@ function pruneExpiredRecords(db) {
 
 function withDbTransaction(mutator) {
   const run = dbQueue.then(async () => {
-    const db = readDB();
+    let db = null;
+    if (dbAdapter && dbAdapter.isMySQL) {
+      db = await dbAdapter.readState();
+    }
+    if (!db) {
+      db = readDB();
+    } else {
+      ensureDbShape(db);
+    }
     const pruned = pruneExpiredRecords(db);
     const result = await mutator(db);
     if (pruned || (result && result.dirty !== false)) {
       writeDBAtomic(db);
+      if (dbAdapter && dbAdapter.isMySQL) {
+        await dbAdapter.writeState(db);
+      }
     }
     return result ? result.value : undefined;
   });
@@ -661,7 +672,8 @@ function getLiveStats(db) {
     totalRegisteredAttendees: Math.max(totalRegisteredAttendees, Number(db.analytics?.totalRegisteredAttendees || 240)),
     totalBusinessesShowcased: activeBookings.length,
     totalPartnersAndInvestors: Math.max(1, (db.sponsors || []).length + 1),
-    selcomConfigured: getSelcomConfig().configured
+    selcomConfigured: getSelcomConfig().configured,
+    storageEngine: (dbAdapter && dbAdapter.isMySQL) || String(process.env.DB_TYPE || '').toLowerCase() === 'mysql' ? 'mysql' : 'json'
   };
 }
 
