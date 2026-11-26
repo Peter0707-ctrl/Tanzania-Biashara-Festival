@@ -2381,15 +2381,32 @@ function switchSection(secId) {
 }
 window.switchSection = switchSection;
 
-function handleContactSubmit() {
+async function handleContactSubmit() {
   const name = document.getElementById('contact-form-name')?.value.trim();
   const phone = document.getElementById('contact-form-phone')?.value.trim();
   const email = document.getElementById('contact-form-email')?.value.trim();
   const type = document.getElementById('contact-form-type')?.value;
   const msg = document.getElementById('contact-form-msg')?.value.trim();
 
-  if (!name || !phone) {
-    alert(appState.lang === 'sw' ? 'Tafadhali weka Jina Lako na Namba ya Simu.' : 'Please enter your Full Name and Phone Number.');
+  if (!name || !phone || !msg) {
+    alert(appState.lang === 'sw' ? 'Tafadhali weka Jina Lako, Namba ya Simu na Ujumbe wako.' : 'Please enter your Full Name, Phone Number, and Message.');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/contact-messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ name, phone, email, type, message: msg })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      alert(data.error || (appState.lang === 'sw' ? 'Imeshindikana kutuma ujumbe kwa sasa. Jaribu tena.' : 'Could not send message right now. Please try again.'));
+      return;
+    }
+  } catch (err) {
+    alert(appState.lang === 'sw' ? 'Hitilafu ya mtandao wakati wa kutuma ujumbe. Tafadhali jaribu tena.' : 'Network error while sending message. Please try again.');
     return;
   }
 

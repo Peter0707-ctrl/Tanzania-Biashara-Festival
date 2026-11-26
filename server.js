@@ -452,18 +452,54 @@ function pruneMapStore(store, maxSize = 5000) {
   }
 }
 
-function checkRateLimit(bucket, maxHits, windowMs) {
+function isMaliciousOrAutomatedBot(req, isMutation = false) {
+  const ua = String(req.headers['user-agent'] || '').trim();
+  if (!ua && isMutation) return true;
+  // Always block vulnerability scanners & exploit bots on all routes
+  if (/(sqlmap|nikto|nmap|masscan|zgrab|gobuster|dirbuster|nuclei|acunetix|nessus|wfuzz|havij|libwww-perl|morfeus)/i.test(ua)) {
+    return true;
+  }
+  // On state-mutating POST/DELETE routes (except Selcom webhook), block raw scripting libraries & headless scrapers
+  if (isMutation && /(python-requests|python-urllib|go-http-client|scrapy|phantomjs|headlesschrome| pycurl|axios\/0\.|java\/1\.|Mechanize)/i.test(ua)) {
+    return true;
+  }
+  return false;
+}
+
+function hasHoneypotTripped(payload) {
+  if (!payload || typeof payload !== 'object') return false;
+  return Boolean(
+    (payload.website_url && String(payload.website_url).trim() !== '') ||
+    (payload.fax_number && String(payload.fax_number).trim() !== '') ||
+    (payload._hp_trap && String(payload._hp_trap).trim() !== '')
+  );
+}
+
+function checkRateLimit(bucket, maxHits, windowMs, ipAddress = '') {
   pruneMapStore(rateLimitStore);
   const now = Date.now();
   const entry = rateLimitStore.get(bucket);
   if (!entry || entry.resetAt <= now) {
     rateLimitStore.set(bucket, { count: 1, resetAt: now + windowMs });
-    return { allowed: true, retryAfterSec: 0 };
-  }
-  if (entry.count >= maxHits) {
+  } else if (entry.count >= maxHits) {
     return { allowed: false, retryAfterSec: Math.max(1, Math.ceil((entry.resetAt - now) / 1000)) };
+  } else {
+    entry.count += 1;
   }
-  entry.count += 1;
+
+  // Enforce strict IP-only bucket as well so cookie-less bots cannot bypass rate limits by rotating deviceId
+  if (ipAddress) {
+    const ipBucket = `ip-strict:${bucket.split(':')[0]}:${ipAddress}`;
+    const ipMax = Math.max(maxHits, Math.ceil(maxHits * 1.5));
+    const ipEntry = rateLimitStore.get(ipBucket);
+    if (!ipEntry || ipEntry.resetAt <= now) {
+      rateLimitStore.set(ipBucket, { count: 1, resetAt: now + windowMs });
+    } else if (ipEntry.count >= ipMax) {
+      return { allowed: false, retryAfterSec: Math.max(1, Math.ceil((ipEntry.resetAt - now) / 1000)) };
+    } else {
+      ipEntry.count += 1;
+    }
+  }
   return { allowed: true, retryAfterSec: 0 };
 }
 
@@ -1129,12 +1165,17 @@ const server = http.createServer(async (req, res) => {
     return sendJSON(res, 200, { ok: true }, {}, deviceCookieList);
   }
 
+  const isMutationReq = req.method !== 'GET' && req.method !== 'HEAD';
+  if (pathname !== '/api/webhooks/selcom' && isMaliciousOrAutomatedBot(req, isMutationReq)) {
+    return sendJSON(res, 403, { success: false, error: 'Automated bot traffic is not permitted.' }, {}, deviceCookieList);
+  }
+
   if (!verifySameOriginMutation(req)) {
     return sendJSON(res, 403, { success: false, error: 'Forbidden cross-origin mutation' }, {}, deviceCookieList);
   }
 
   if (pathname.startsWith('/api/')) {
-    const apiRate = checkRateLimit(`api:${ctx.deviceId}:${ctx.clientIp}`, 240, 60 * 1000);
+    const apiRate = checkRateLimit(`api:${ctx.deviceId}:${ctx.clientIp}`, 240, 60 * 1000, ctx.clientIp);
     if (!apiRate.allowed) {
       return sendJSON(res, 429, {
         success: false,
@@ -1540,9 +1581,9 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // API: Acquire or Refresh Temporary Booth Hold (10-min Anti-Race-Condition Lock)
+  // API: Acquire or Refresh Temporary Booth Hold (10-min Anti-Race-Condition Lock + Anti-Bot Hoarding Cap)
   if (pathname === '/api/bookings/hold' && req.method === 'POST') {
-    const rate = checkRateLimit(`hold:${ctx.deviceId}:${ctx.clientIp}`, 60, 10 * 60 * 1000);
+    const rate = checkRateLimit(`hold:${ctx.deviceId}:${ctx.clientIp}`, 35, 10 * 60 * 1000, ctx.clientIp);
     if (!rate.allowed) {
       return sendJSON(res, 429, {
         success: false,
@@ -1552,6 +1593,9 @@ const server = http.createServer(async (req, res) => {
     }
     try {
       const payload = await parseBody(req);
+      if (hasHoneypotTripped(payload)) {
+        return sendJSON(res, 403, { success: false, error: 'Automated bot request rejected.' }, {}, deviceCookieList);
+      }
       const boothCode = String(payload.boothCode || '').trim().toUpperCase();
       const cities = Array.isArray(payload.cities) ? payload.cities.filter(Boolean) : [];
       const incomingHoldToken = payload.holdToken ? String(payload.holdToken) : null;
@@ -1565,10 +1609,12 @@ const server = http.createServer(async (req, res) => {
         if (conflict) {
           return { dirty: false, value: { conflict } };
         }
-        // Remove previous holds owned by this exact incoming token so switching booths releases the old one
-        if (incomingHoldToken) {
-          db.boothHolds = db.boothHolds.filter(h => h.holdToken !== incomingHoldToken);
-        }
+        // Remove previous holds owned by this exact incoming token OR same deviceId/IP (>1 hold) so bots cannot hoard booths
+        db.boothHolds = db.boothHolds.filter(h => {
+          if (incomingHoldToken && h.holdToken === incomingHoldToken) return false;
+          if (h.deviceId === ctx.deviceId || (h.clientIp && h.clientIp === ctx.clientIp)) return false;
+          return true;
+        });
         const holdToken = incomingHoldToken || crypto.randomBytes(16).toString('hex');
         const holdRecord = {
           holdId: 'HLD-' + crypto.randomBytes(3).toString('hex').toUpperCase(),
@@ -1576,6 +1622,7 @@ const server = http.createServer(async (req, res) => {
           boothCode,
           cities,
           deviceId: ctx.deviceId,
+          clientIp: ctx.clientIp,
           createdAt: Date.now(),
           expiresAt: Date.now() + HOLD_TTL_MS
         };
@@ -1623,7 +1670,7 @@ const server = http.createServer(async (req, res) => {
 
   // API: Create Booking (Booking-First Final Checkout + Race Guard + Access PIN + Auto-Expiry)
   if (pathname === '/api/bookings' && req.method === 'POST') {
-    const rate = checkRateLimit(`book:${ctx.deviceId}:${ctx.clientIp}`, 5, 15 * 60 * 1000);
+    const rate = checkRateLimit(`book:${ctx.deviceId}:${ctx.clientIp}`, 5, 15 * 60 * 1000, ctx.clientIp);
     if (!rate.allowed) {
       return sendJSON(res, 429, {
         success: false,
@@ -1634,6 +1681,9 @@ const server = http.createServer(async (req, res) => {
 
     try {
       const payload = await parseBody(req);
+      if (hasHoneypotTripped(payload)) {
+        return sendJSON(res, 403, { success: false, error: 'Automated bot submission rejected.' }, {}, deviceCookieList);
+      }
       const businessName = sanitizeTextInput(payload.businessName, 120);
       const contactPerson = sanitizeTextInput(payload.contactPerson, 100);
       const phone = sanitizeTextInput(payload.phone, 32);
@@ -2369,6 +2419,48 @@ const server = http.createServer(async (req, res) => {
       return sendJSON(res, 200, { success: true, ...out }, {}, deviceCookieList);
     } catch (err) {
       return sendJSON(res, err.statusCode || 400, { success: false, error: err.statusCode === 413 ? err.message : 'Invalid destination payload' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Submit Contact Inquiry (Real Persisted Contact Form + Anti-Bot Protection)
+  if (pathname === '/api/contact-messages' && req.method === 'POST') {
+    const rate = checkRateLimit(`contact:${ctx.deviceId}:${ctx.clientIp}`, 10, 15 * 60 * 1000, ctx.clientIp);
+    if (!rate.allowed) {
+      return sendJSON(res, 429, { success: false, retryAfterSec: rate.retryAfterSec, error: 'Too many messages sent. Please wait a few minutes.' }, {}, deviceCookieList);
+    }
+    try {
+      const payload = await parseBody(req);
+      if (hasHoneypotTripped(payload)) {
+        return sendJSON(res, 403, { success: false, error: 'Automated bot submission rejected.' }, {}, deviceCookieList);
+      }
+      const name = sanitizeTextInput(payload.name, 100);
+      const phone = sanitizeTextInput(payload.phone, 32);
+      const email = sanitizeTextInput(payload.email, 120).toLowerCase();
+      const inquiryType = sanitizeTextInput(payload.type || 'General Inquiry', 80);
+      const message = sanitizeTextInput(payload.message, 1200);
+
+      if (!name || normalizePhoneTail(phone).length < 7 || !message) {
+        return sendJSON(res, 400, { success: false, error: 'Full name, valid phone number, and message are required.' }, {}, deviceCookieList);
+      }
+
+      await withDbTransaction(db => {
+        if (!Array.isArray(db.contactMessages)) db.contactMessages = [];
+        db.contactMessages.unshift({
+          id: 'MSG-' + crypto.randomInt(1000, 9999),
+          name: encryptField(name),
+          phone: encryptField(phone),
+          email: email ? encryptField(email) : '',
+          type: inquiryType,
+          message,
+          createdAt: new Date().toISOString()
+        });
+        if (db.contactMessages.length > 250) db.contactMessages = db.contactMessages.slice(0, 250);
+        return { dirty: true, value: true };
+      });
+
+      return sendJSON(res, 201, { success: true, message: 'Inquiry received and logged.' }, {}, deviceCookieList);
+    } catch (err) {
+      return sendJSON(res, err.statusCode || 400, { success: false, error: 'Invalid contact message payload.' }, {}, deviceCookieList);
     }
   }
 

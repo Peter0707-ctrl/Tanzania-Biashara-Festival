@@ -12,6 +12,59 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 $route = isset($_GET['route']) ? trim($_GET['route'], '/') : '';
 $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper($_SERVER['REQUEST_METHOD']) : 'GET';
 $rawBody = file_get_contents('php://input');
+$clientIp = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'] ?? ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1'))[0]);
+$userAgent = trim($_SERVER['HTTP_USER_AGENT'] ?? '');
+
+// Anti-Bot Shield: Block vulnerability scanners and headless form-stuffing bots
+if ($route !== 'webhooks/selcom') {
+    if (preg_match('/(sqlmap|nikto|nmap|masscan|zgrab|gobuster|dirbuster|nuclei|acunetix|nessus|wfuzz|havij|libwww-perl)/i', $userAgent)) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(array('success' => false, 'error' => 'Automated security scanner blocked.'));
+        exit;
+    }
+    if ($method !== 'GET' && $method !== 'HEAD' && ($userAgent === '' || preg_match('/(python-requests|python-urllib|go-http-client|scrapy|phantomjs|headlesschrome|pycurl)/i', $userAgent))) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(array('success' => false, 'error' => 'Automated bot mutation traffic is not permitted.'));
+        exit;
+    }
+}
+
+function checkIpRateLimitPhp($bucketPrefix, $maxHits, $windowSec) {
+    global $clientIp;
+    $dir = sys_get_temp_dir() . '/tbf_rl';
+    if (!is_dir($dir)) @mkdir($dir, 0700, true);
+    $key = md5($bucketPrefix . ':' . $clientIp);
+    $file = $dir . '/' . $key . '.json';
+    $now = time();
+    $entry = array('count' => 0, 'resetAt' => $now + $windowSec);
+    if (file_exists($file)) {
+        $parsed = json_decode(@file_get_contents($file), true);
+        if (is_array($parsed) && isset($parsed['resetAt']) && $parsed['resetAt'] > $now) {
+            $entry = $parsed;
+        }
+    }
+    if ($entry['count'] >= $maxHits) {
+        http_response_code(429);
+        header('Content-Type: application/json; charset=utf-8');
+        $wait = max(1, $entry['resetAt'] - $now);
+        echo json_encode(array('success' => false, 'retryAfterSec' => $wait, 'error' => "Too many requests from your IP. Please wait {$wait}s."));
+        exit;
+    }
+    $entry['count'] = ((int)$entry['count']) + 1;
+    @file_put_contents($file, json_encode($entry), LOCK_EX);
+}
+
+function rejectIfHoneypotPhp($payload) {
+    if (!is_array($payload)) return;
+    if (!empty($payload['website_url']) || !empty($payload['fax_number']) || !empty($payload['_hp_trap'])) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(array('success' => false, 'error' => 'Automated bot submission rejected.'));
+        exit;
+    }
+}
 
 function loadEnvPhp() {
     $envCandidates = array(
@@ -416,8 +469,10 @@ function writeDbPhp($db) {
         try {
             $stmt = $pdo->prepare("INSERT INTO `tbf_state_store` (`state_key`, `state_json`, `version`) VALUES ('primary', ?, 1) ON DUPLICATE KEY UPDATE `state_json` = VALUES(`state_json`), `version` = `version` + 1");
             $stmt->execute(array($json));
+        } catch (Exception $e) {}
 
-            // Also sync recent bookings into relational `bookings` table for cPanel phpMyAdmin visibility
+        // Separate try/catch so relational table sync can never interrupt primary state store
+        try {
             if (isset($db['bookings']) && is_array($db['bookings'])) {
                 $bStmt = $pdo->prepare("INSERT INTO `bookings` (`id`, `control_number_enc`, `business_name`, `tagline`, `contact_person_enc`, `phone_enc`, `phone_idx`, `email_enc`, `email_idx`, `sector`, `package_id`, `package_name`, `booth_code`, `cities`, `total_amount`, `payment_method`, `status`, `featured`, `access_pin_hash`, `client_request_id`)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -425,7 +480,7 @@ function writeDbPhp($db) {
                 foreach (array_slice($db['bookings'], 0, 50) as $b) {
                     $stLower = strtolower(trim($b['status'] ?? ''));
                     $normStatus = ($stLower === 'paid' || $stLower === 'confirmed') ? 'Confirmed' : (($stLower === 'cancelled') ? 'Cancelled' : (($stLower === 'expired') ? 'Expired' : 'Awaiting Payment'));
-                    @$bStmt->execute(array(
+                    $bStmt->execute(array(
                         (string)($b['id'] ?? ''),
                         (string)($b['controlNumber'] ?? ''),
                         substr((string)($b['businessName'] ?? ''), 0, 180),
@@ -633,6 +688,8 @@ if ($route === 'data' && $method === 'GET') {
 }
 
 if ($route === 'bookings/hold' && $method === 'POST') {
+    checkIpRateLimitPhp('hold', 35, 600);
+    rejectIfHoneypotPhp($payload);
     $boothCode = strtoupper(trim($payload['boothCode'] ?? ''));
     $cities = isset($payload['cities']) && is_array($payload['cities']) ? array_values(array_filter($payload['cities'])) : array();
     $holdToken = trim($payload['holdToken'] ?? '');
@@ -653,13 +710,15 @@ if ($route === 'bookings/hold' && $method === 'POST') {
         ));
         exit;
     }
-    if ($holdToken !== '') {
-        $filtered = array();
-        foreach ($db['boothHolds'] as $h) {
-            if (($h['holdToken'] ?? '') !== $holdToken) $filtered[] = $h;
-        }
-        $db['boothHolds'] = $filtered;
-    } else {
+    // Anti-Hoarding Guard: Release previous holds from same token or same IP so a bot cannot lock multiple booths
+    $filtered = array();
+    foreach ($db['boothHolds'] as $h) {
+        if ($holdToken !== '' && ($h['holdToken'] ?? '') === $holdToken) continue;
+        if (!empty($h['clientIp']) && $h['clientIp'] === $clientIp) continue;
+        $filtered[] = $h;
+    }
+    $db['boothHolds'] = $filtered;
+    if ($holdToken === '') {
         $holdToken = bin2hex(random_bytes(16));
     }
     $nowMs = round(microtime(true) * 1000);
@@ -668,6 +727,7 @@ if ($route === 'bookings/hold' && $method === 'POST') {
         'holdToken' => $holdToken,
         'boothCode' => $boothCode,
         'cities' => $cities,
+        'clientIp' => $clientIp,
         'createdAt' => $nowMs,
         'expiresAt' => $nowMs + (10 * 60 * 1000)
     );
@@ -696,6 +756,8 @@ if ($route === 'bookings/hold' && $method === 'DELETE') {
 }
 
 if ($route === 'bookings' && $method === 'POST') {
+    checkIpRateLimitPhp('book', 6, 900);
+    rejectIfHoneypotPhp($payload);
     $businessName = trim($payload['businessName'] ?? '');
     $contactPerson = trim($payload['contactPerson'] ?? '');
     $phone = trim($payload['phone'] ?? '');
@@ -1133,6 +1195,35 @@ if ($route === 'admin/set-destination' && $method === 'POST') {
     }
     writeDbPhp($db);
     echo json_encode(array('success' => true, 'destination' => $db['destination'], 'regions' => $db['regions']));
+    exit;
+}
+
+if ($route === 'contact-messages' && $method === 'POST') {
+    checkIpRateLimitPhp('contact', 10, 900);
+    rejectIfHoneypotPhp($payload);
+    $name = trim($payload['name'] ?? '');
+    $phone = trim($payload['phone'] ?? '');
+    $email = strtolower(trim($payload['email'] ?? ''));
+    $type = trim($payload['type'] ?? 'General Inquiry');
+    $message = trim($payload['message'] ?? '');
+    if ($name === '' || strlen(normalizePhoneTailPhp($phone)) < 7 || $message === '') {
+        http_response_code(400);
+        echo json_encode(array('success' => false, 'error' => 'Tafadhali jaza Jina, Namba ya Simu sahihi na Ujumbe wako.'));
+        exit;
+    }
+    if (!isset($db['contactMessages']) || !is_array($db['contactMessages'])) $db['contactMessages'] = array();
+    array_unshift($db['contactMessages'], array(
+        'id' => 'MSG-' . mt_rand(1000, 9999),
+        'name' => $name,
+        'phone' => $phone,
+        'email' => $email,
+        'type' => $type,
+        'message' => substr($message, 0, 1200),
+        'createdAt' => gmdate('c')
+    ));
+    writeDbPhp($db);
+    http_response_code(201);
+    echo json_encode(array('success' => true));
     exit;
 }
 
