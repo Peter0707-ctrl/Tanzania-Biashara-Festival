@@ -510,9 +510,9 @@ const I18N = {
     btnBackStep1: '← Rudi: Chagua Banda',
     btnNextStep3: 'Endelea: Malipo →',
     btnBackStep2: '← Rudi: Taarifa Zako',
-    bookingRetrieveTitle: 'Angalia Booking Yako, Fungua Control Number & Badili Banda',
-    bookingRetrieveDesc: 'Weka Kumbukumbu (Booking ID au Control Number) na Namba ya Simu kuona muhtasari, kisha weka PIN ya tarakimu 6 kufungua risiti kamili au kubadili banda.',
-    bookingRetrieveRefLbl: 'Booking ID au Control Number *',
+    bookingRetrieveTitle: 'Angalia Booking Yako, Fungua Risiti & Badili Banda',
+    bookingRetrieveDesc: 'Weka Kumbukumbu (Booking ID au Payment Reference) na Namba ya Simu kuona muhtasari, kisha weka PIN ya tarakimu 6 kufungua risiti kamili au kubadili banda.',
+    bookingRetrieveRefLbl: 'Booking ID au Payment Reference *',
     bookingRetrievePhoneLbl: 'Namba ya Simu Iliyosajiliwa *',
     bookingRetrieveBtn: 'Tafuta Booking Yako →',
     bookingStep1Title: 'Chagua Mkoa / Mikoa Unayotaka Kushiriki',
@@ -527,10 +527,10 @@ const I18N = {
     bookingHoldBtn: 'Shikilia Banda Dakika 10',
     bookingStep2WizardTitle: 'Hatua ya 2: Jaza Taarifa za Biashara Yako',
     bookingStep2WizardDesc: 'Weka taarifa za biashara yako kisha uendelee kwenye malipo.',
-    bookingStep3WizardTitle: 'Hatua ya 3: Malipo & Pata Control Number',
-    bookingStep3WizardDesc: 'Hakiki chaguo lako, chagua njia ya malipo, na uthibitishe kupokea Control Number na PIN yako ya usalama.',
+    bookingStep3WizardTitle: 'Hatua ya 3: Malipo & Risiti Rasmi',
+    bookingStep3WizardDesc: 'Hakiki chaguo lako, chagua mtandao au njia ya malipo, kisha uthibitishe kulipa kupitia Selcom na kupokea Risiti na PIN yako ya usalama.',
     bookingStep4Title: 'Taarifa za Biashara & Njia ya Malipo',
-    bookingStep4Desc: 'Jaza taarifa zako hapa chini kupata Control Number na PIN ya usalama.',
+    bookingStep4Desc: 'Jaza taarifa zako hapa chini kupata Risiti na PIN ya usalama.',
     lblBizName: 'Jina la Biashara / Kampuni *',
     lblSector: 'Sekta ya Biashara (Sector) *',
     lblTagline: 'Maelezo Mafupi ya Bidhaa / Huduma Zako (Tagline) *',
@@ -547,7 +547,7 @@ const I18N = {
     sumCityCount: 'Mkoa wa Maonyesho:',
     sumDiscount: 'Punguzo la Mzunguko (15%):',
     sumTotal: 'Jumla ya Kulipia:',
-    sumSubmitBtn: 'Thibitisha & Pata Control Number',
+    sumSubmitBtn: 'Thibitisha & Endelea Kulipa',
 
     // Sponsors Page
     spTitle: 'Shirikiana Nasi: Partners & Sponsors',
@@ -639,10 +639,10 @@ const I18N = {
     adminDestSuccess: 'Mkoa na Eneo Vimesasishwa Kikamilifu Kwenye Ramani!',
 
     // Modals & Cookies
-    modalBookingConfirmed: 'Namba ya Malipo Imetolewa • Subiri Malipo',
-    modalBookingTitle: 'Risiti ya Banda na Control Number',
-    modalBookingSub: 'Tumia Control Number hapa chini kukamilisha malipo yako. Kwa msaada piga +255 767 053 250.',
-    modalDownloadBtn: 'Pakua QR Pass & Risiti (PNG)',
+    modalBookingConfirmed: 'Risiti Imetolewa • Subiri Malipo',
+    modalBookingTitle: 'Risiti ya Banda & Kumbukumbu ya Malipo',
+    modalBookingSub: 'Kamilisha malipo yako kupitia Selcom au njia uliyochagua. Kwa msaada piga +255 767 053 250.',
+    modalDownloadBtn: 'Pakua Risiti / Pass (PNG)',
     modalPrintBtn: 'Chapisha',
     modalHomeBtn: 'Ona Biashara Yako Kwenye Ukurasa wa Mbele →',
     modalCloseBtn: '✕ Funga',
@@ -699,7 +699,7 @@ const I18N = {
     optSectorFood: 'Huduma za Chakula (Food Court)',
 
     optPayMobile: 'M-Pesa / Mixx by Yas / Airtel Money',
-    optPayBank: 'CRDB / NMB Bank Control Number',
+    optPayBank: 'CRDB / NMB Bank Transfer',
     optPayCard: 'Visa / Mastercard Online',
 
     // Contact Form Select Options
@@ -938,9 +938,9 @@ const I18N = {
     btnBackStep1: '← Back: Change Booth',
     btnNextStep3: 'Continue: Payment →',
     btnBackStep2: '← Back: Edit Details',
-    bookingRetrieveTitle: 'Retrieve Booking, Unlock Control Number & Switch Booth',
-    bookingRetrieveDesc: 'Enter your Booking ID or Control Number with your Phone Number for a summary, then enter your 6-digit Access PIN to unlock your full receipt or change your booth.',
-    bookingRetrieveRefLbl: 'Booking ID or Control Number *',
+    bookingRetrieveTitle: 'Retrieve Booking, Unlock Receipt & Switch Booth',
+    bookingRetrieveDesc: 'Enter your Booking ID or Payment Reference with your Phone Number for a summary, then enter your 6-digit Access PIN to unlock your full receipt or change your booth.',
+    bookingRetrieveRefLbl: 'Booking ID or Payment Reference *',
     bookingRetrievePhoneLbl: 'Registered Phone Number *',
     bookingRetrieveBtn: 'Find Booking & Pass →',
     bookingStep1Title: 'Select Tour City / Cities to Participate',
@@ -955,10 +955,10 @@ const I18N = {
     bookingHoldBtn: 'Hold Selected Booth (10 Min)',
     bookingStep2WizardTitle: 'Step 2: Enter Your Business Details',
     bookingStep2WizardDesc: 'Fill in your business details below, then proceed to payment.',
-    bookingStep3WizardTitle: 'Step 3: Payment & Generate Control Number',
-    bookingStep3WizardDesc: 'Review your selection, pick a payment method, and confirm to receive your Control Number and Security PIN.',
+    bookingStep3WizardTitle: 'Step 3: Payment & Official Receipt',
+    bookingStep3WizardDesc: 'Review your selection, choose your Mobile Money network or card/bank, and confirm to pay via Selcom and get your Receipt & Security PIN.',
     bookingStep4Title: 'Business Details & Payment Method',
-    bookingStep4Desc: 'Complete your business details below to receive your Control Number and 6-digit Security Access PIN.',
+    bookingStep4Desc: 'Complete your business details below to receive your Official Receipt and 6-digit Security Access PIN.',
     lblBizName: 'Business / Company Name *',
     lblSector: 'Business Sector *',
     lblTagline: 'Short Description of Products / Services (Tagline) *',
@@ -975,7 +975,7 @@ const I18N = {
     sumCityCount: 'Scheduled Region:',
     sumDiscount: 'Tour Discount (15%):',
     sumTotal: 'Total Amount Payable:',
-    sumSubmitBtn: 'Confirm & Generate Control Number',
+    sumSubmitBtn: 'Confirm & Proceed to Payment',
 
     // Sponsors Page
     spTitle: 'Partner With Us: Sponsors & Partners',
@@ -1067,10 +1067,10 @@ const I18N = {
     adminDestSuccess: 'Destination & Venue Updated on Interactive Map!',
 
     // Modals & Cookies
-    modalBookingConfirmed: 'Control Number Issued • Awaiting Payment',
-    modalBookingTitle: 'Your Booth Receipt & Control Number',
-    modalBookingSub: 'Use the Control Number below to complete payment. For assistance call +255 767 053 250.',
-    modalDownloadBtn: 'Download QR Pass & Receipt (PNG)',
+    modalBookingConfirmed: 'Booking Slip Issued • Awaiting Payment',
+    modalBookingTitle: 'Your Official Booth Receipt & Payment Reference',
+    modalBookingSub: 'Complete payment via Selcom Mobile Money, Bank, or Card below. For assistance call +255 767 053 250.',
+    modalDownloadBtn: 'Download Receipt / Pass (PNG)',
     modalPrintBtn: 'Print',
     modalHomeBtn: 'View Your Business on Front Page →',
     modalCloseBtn: '✕ Close',
@@ -1128,7 +1128,7 @@ const I18N = {
     optSectorFood: 'Catering, Beverage & Food Court',
 
     optPayMobile: 'Mobile Money (M-Pesa / Mixx by Yas / Airtel Money)',
-    optPayBank: 'Bank Transfer / Control Number (CRDB / NMB)',
+    optPayBank: 'Bank Transfer (CRDB / NMB)',
     optPayCard: 'Visa / Mastercard Online Payment',
 
     // Contact Form Select Options
@@ -1369,7 +1369,7 @@ const I18N = {
     btnBackStep2: '← 返回修改信息',
     bookingRetrieveTitle: '查询预订、解锁缴费识别码与调换展位',
     bookingRetrieveDesc: '输入预订编号或缴费识别码及预留手机号即可查看摘要，随后输入6位安全PIN码解锁完整缴费单或更换展位。',
-    bookingRetrieveRefLbl: '预订编号或缴费识别码 (ID / Control Number) *',
+    bookingRetrieveRefLbl: '预订编号或支付参考号 (ID / Payment Ref) *',
     bookingRetrievePhoneLbl: '登记预留手机号码 *',
     bookingRetrieveBtn: '立即查询预订记录 →',
     bookingStep1Title: '选择您要参展的巡回省份 / 城市',
@@ -1557,7 +1557,7 @@ const I18N = {
     optSectorFood: '特色美食品鉴与餐饮专区 (Food Court)',
 
     optPayMobile: '移动钱包支付 (M-Pesa / Mixx by Yas / Airtel)',
-    optPayBank: '银行转账 / 政府控制号 (CRDB / NMB Control Number)',
+    optPayBank: '银行转账 (CRDB / NMB Bank Transfer)',
     optPayCard: 'Visa / Mastercard 万事达卡在线安全支付',
 
     // Contact Form Select Options
@@ -5167,7 +5167,7 @@ const BOOKING_MSG = {
     step1SelectedPrefix: 'Umechagua Banda',
     btnNextStep2: 'Endelea: Jaza Taarifa →',
     btnNextStep3: 'Endelea: Malipo →',
-    btnConfirmBooking: 'Thibitisha & Pata Control Number',
+    btnConfirmBooking: 'Thibitisha & Endelea Kulipa',
     holdBusy: 'Inalinda banda lako...',
     recapBoothLbl: 'Banda & Mikoa',
     recapBizLbl: 'Biashara & Simu',
@@ -5176,27 +5176,27 @@ const BOOKING_MSG = {
     regMissing: 'Tafadhali jaza Jina la Biashara, Mwakilishi, Namba ya Simu sahihi, na Maelezo ya Bidhaa.',
     regPhoneInvalid: 'Weka namba ya simu sahihi (angalau tarakimu 9, mfano +255 7XX XXX XXX).',
     noCitiesSelected: 'Tafadhali chagua angalau mkoa mmoja katika Hatua ya 1 kabla ya kuendelea.',
-    lookupMissing: 'Weka Kumbukumbu (Booking ID au Control Number) na Namba ya Simu iliyotumika kuweka booking.',
+    lookupMissing: 'Weka Kumbukumbu (Booking ID au Payment Reference) na Namba ya Simu iliyotumika kuweka booking.',
     lookupSearching: 'Inatafuta kumbukumbu zako...',
     lookupNotFound: 'Hakuna booking iliyopatikana kwa Kumbukumbu na Namba ya Simu hiyo. Hakikisha umeandika kwa usahihi.',
     lookupError: 'Hitilafu ya mtandao wakati wa kutafuta booking. Tafadhali jaribu tena.',
     lookupFoundLocked: 'MUHTASARI WA BOOKING (TAARIFA NYETI ZIMEFICHWA)',
     lookupFoundUnlocked: 'TIKETI KAMILI IMEFUNGULIWA (ACCESS VERIFIED)',
-    lookupStatusPending: 'Inasubiri Malipo (Control Number Tayari)',
+    lookupStatusPending: 'Inasubiri Malipo (Risiti Tayari)',
     lookupStatusPaid: 'Imelipiwa',
     lookupStatusExpired: 'Muda Umeisha (24h Expired)',
     lookupStatusCancelled: 'Imeghairiwa',
-    pinUnlockHint: 'Weka Security Access PIN yako ya tarakimu 6 kufungua Control Number kamili, kuchapisha risiti, kubadilisha banda, au kughairi booking:',
+    pinUnlockHint: 'Weka Security Access PIN yako ya tarakimu 6 kufungua Payment Reference kamili, kuchapisha risiti, kubadilisha banda, au kughairi booking:',
     pinUnlockBtn: 'Fungua Risiti Kamili (Unlock)',
     pinMissing: 'Weka PIN ya usalama ya tarakimu 6 kwanza.',
-    switchBoothLabel: 'Chagua Banda Jipya Linalopatikana:',
+    switchBoothLabel: 'Chagua Banda Jipya Linalopokewa:',
     switchBoothBtn: 'Badili Banda (Switch)',
     cancelBookingBtn: 'Ghairi Booking Hii (Cancel Unpaid)',
     confirmCancelMsg: 'Una uhakika unataka kughairi booking hii ambayo haijalipiwa? Banda litaachiwa kwa wafanyabiashara wengine.',
     printPass: 'Chapisha / Hifadhi Tiketi (Print)',
-    saveReceiptNote: 'Hifadhi Control Number pamoja na Security Access PIN hii kuangalia risiti au kubadili banda muda wowote.',
+    saveReceiptNote: 'Hifadhi Payment Reference pamoja na Security Access PIN hii kuangalia risiti au kubadili banda muda wowote.',
     pinBoxTitle: 'SECURITY ACCESS PIN YAKO (TARAKIMU 6)',
-    pinBoxWarning: 'Hifadhi namba hii kwa siri — itaombwa unapotaka kufungua Control Number kamili, kubadilisha banda, au kughairi.',
+    pinBoxWarning: 'Hifadhi namba hii kwa siri — itaombwa unapotaka kufungua risiti kamili, kubadilisha banda, au kughairi.',
     holdActiveLabel: 'Muda wa Malipo:',
     holdReservedPendingPayment: 'Banda limetengwa kwako:',
     holdCountdownStartsAtPayment: 'Muda utaanza kuhesabika ukifika hatua ya Malipo',
@@ -5208,22 +5208,22 @@ const BOOKING_MSG = {
     offlineNotice: 'Huna intaneti kwa sasa — unaona nakala iliyohifadhiwa. Unganisha intaneti ili kuhifadhi banda.',
     syncNowBtn: 'Pakia Upya',
     modalQrTitle: 'QR Pass ya Banda',
-    modalQrHint: 'Skani msimbo huu wa QR kupitia simu yako ili kuhakiki banda, Control Number na kibali cha kuingia.',
-    downloadPassBtn: 'Pakua Pass (PNG)',
+    modalQrHint: 'Skani msimbo huu wa QR kupitia simu yako ili kuhakiki banda, Payment Reference na kibali cha kuingia.',
+    downloadPassBtn: 'Pakua Risiti / Pass (PNG)',
     qrLockedTitle: 'QR Pass Imefungwa',
-    qrLockedHint: 'Kibali cha QR na kupakua vitafunguka pindi malipo yakithibitishwa.',
-    downloadPaymentRequired: 'Huwezi kupakua QR Pass au risiti kabla ya kulipia. Tafadhali kamilisha malipo kwa Control Number yako kwanza.',
+    qrLockedHint: 'Kibali cha kuingia (QR) kitafunguka mara malipo yakithibitishwa. Unaweza kupakua nakala ya risiti sasa hivi.',
+    downloadPaymentRequired: 'Nakala ya risiti iko tayari kupakuliwa; QR ya kuingia uwanjani itafunguka baada ya malipo.',
     verifyPaymentBtn: 'Nimeshalipa — Hakiki & Fungua Pass',
     checkingPaymentBtn: 'Inahakiki malipo...',
-    paymentStillPendingMsg: 'Malipo bado hayajathibitishwa kwenye mfumo. Lipa kwa Control Number yako kisha bonyeza tena kuhakiki.',
-    paymentUnlockedMsg: 'Malipo yamethibitishwa! Sasa unaweza kupakua QR Pass na risiti yako.',
-    copyControlBtn: 'Nakili Control Number',
+    paymentStillPendingMsg: 'Malipo bado hayajathibitishwa kwenye mfumo. Kamilisha malipo kupitia Selcom kisha bonyeza tena kuhakiki.',
+    paymentUnlockedMsg: 'Malipo yamethibitishwa! Sasa unaweza kupakua QR Pass kamili na risiti yako.',
+    copyControlBtn: 'Nakili Payment Reference',
     copiedControlBtn: 'Imenakiliwa',
     paidBadgeLabel: 'Malipo Yamethibitishwa',
     paidModalTitle: 'QR Pass na Risiti ya Malipo',
     viewTraReceiptBtn: 'Fungua Risiti Kamili (TRA View) →',
     regEmailInvalid: 'Tafadhali weka Barua Pepe sahihi (mfano barua@kampuni.co.tz) ili uweze kuingia na kufungua risiti yako baadaye.',
-    exLoginMissingRefOrPin: 'Weka PIN / Nenosiri AU Booking ID / Control Number pamoja na Barua Pepe.',
+    exLoginMissingRefOrPin: 'Weka PIN / Nenosiri AU Booking ID / Payment Reference pamoja na Barua Pepe.',
     exLoginNotFound: 'Taarifa za kuingia si sahihi.',
     exLoginLogoutBtn: 'Toka Kwenye Kipindi Hiki'
   },
@@ -5234,7 +5234,7 @@ const BOOKING_MSG = {
     step1SelectedPrefix: 'Selected Booth',
     btnNextStep2: 'Continue to Details →',
     btnNextStep3: 'Continue to Payment →',
-    btnConfirmBooking: 'Confirm & Generate Control Number',
+    btnConfirmBooking: 'Confirm & Proceed to Payment',
     holdBusy: 'Holding booth...',
     recapBoothLbl: 'Booth & Cities',
     recapBizLbl: 'Business & Phone',
@@ -5243,27 +5243,27 @@ const BOOKING_MSG = {
     regMissing: 'Please enter Business Name, Contact Person, valid Phone Number, and Product Description.',
     regPhoneInvalid: 'Please enter a valid phone number (at least 9 digits, e.g. +255 7XX XXX XXX).',
     noCitiesSelected: 'Please select at least one tour city in Step 1 before continuing.',
-    lookupMissing: 'Enter both your Booking ID / Control Number and the registered Phone Number.',
+    lookupMissing: 'Enter both your Booking ID / Payment Reference and the registered Phone Number.',
     lookupSearching: 'Searching for your booking...',
-    lookupNotFound: 'No matching booking found for that ID / Control Number and Phone Number.',
+    lookupNotFound: 'No matching booking found for that ID / Payment Reference and Phone Number.',
     lookupError: 'Network error while looking up booking. Please try again.',
     lookupFoundLocked: 'BOOKING SUMMARY FOUND (SENSITIVE DETAILS MASKED)',
     lookupFoundUnlocked: 'FULL BOOKING PASS UNLOCKED (PIN VERIFIED)',
-    lookupStatusPending: 'Awaiting Payment (Control Number Active)',
+    lookupStatusPending: 'Awaiting Payment (Receipt Ready)',
     lookupStatusPaid: 'Paid',
     lookupStatusExpired: 'Expired After 24h Unpaid',
     lookupStatusCancelled: 'Cancelled',
-    pinUnlockHint: 'Enter your 6-digit Security Access PIN to reveal your full Control Number, print receipt, switch booth, or cancel reservation:',
+    pinUnlockHint: 'Enter your 6-digit Security Access PIN to reveal your full Payment Reference, print receipt, switch booth, or cancel reservation:',
     pinUnlockBtn: 'Unlock Full Details',
     pinMissing: 'Please enter your 6-digit Security Access PIN.',
     switchBoothLabel: 'Switch to Another Available Booth:',
     switchBoothBtn: 'Switch Booth',
     cancelBookingBtn: 'Cancel Unpaid Booking',
     confirmCancelMsg: 'Are you sure you want to cancel this unpaid booking? The booth will immediately be released to other exhibitors.',
-    printPass: 'Print / Save Pass',
-    saveReceiptNote: 'Keep your Control Number and 6-digit Access PIN to view your full receipt or change your booth anytime.',
+    printPass: 'Print / Save Receipt',
+    saveReceiptNote: 'Keep your Payment Reference and 6-digit Access PIN to view your full receipt or change your booth anytime.',
     pinBoxTitle: 'YOUR 6-DIGIT SECURITY ACCESS PIN',
-    pinBoxWarning: 'Save this PIN carefully — it is required to unlock your full Control Number, switch booths, or cancel.',
+    pinBoxWarning: 'Save this PIN carefully — it is required to unlock your full receipt, switch booths, or cancel.',
     holdActiveLabel: 'Payment Hold Timer:',
     holdReservedPendingPayment: 'Booth held for you:',
     holdCountdownStartsAtPayment: 'Countdown begins when you reach Payment',
@@ -5275,22 +5275,22 @@ const BOOKING_MSG = {
     offlineNotice: 'You appear to be offline — cached festival info is shown. Reconnect to reserve a booth.',
     syncNowBtn: 'Retry Sync',
     modalQrTitle: 'Booth QR Pass',
-    modalQrHint: 'Scan this QR code on entry or to verify your reserved booth, Control Number & schedule.',
-    downloadPassBtn: 'Download Pass (PNG)',
-    qrLockedTitle: 'QR Pass Locked',
-    qrLockedHint: 'QR Pass and Download unlock automatically once payment is confirmed.',
-    downloadPaymentRequired: 'Download is disabled until payment is confirmed. Please complete payment with your Control Number first.',
-    verifyPaymentBtn: 'I Have Paid — Verify & Unlock Pass',
+    modalQrHint: 'Scan this QR code on entry or to verify your reserved booth, Payment Reference & schedule.',
+    downloadPassBtn: 'Download Receipt / Pass (PNG)',
+    qrLockedTitle: 'Entry QR Pass Locked Until Paid',
+    qrLockedHint: 'Your scannable gate QR unlocks automatically once payment is verified. You can download and keep your receipt now.',
+    downloadPaymentRequired: 'Receipt slip ready for download; entry QR unlocks upon payment.',
+    verifyPaymentBtn: 'I Have Paid — Verify & Unlock QR Pass',
     checkingPaymentBtn: 'Checking payment status...',
-    paymentStillPendingMsg: 'Payment has not been confirmed by the system yet. Complete payment using your Control Number, then check again.',
-    paymentUnlockedMsg: 'Payment confirmed! You can now download your QR Pass and paid receipt.',
-    copyControlBtn: 'Copy Control Number',
+    paymentStillPendingMsg: 'Payment has not been confirmed by Selcom yet. Complete Mobile Money, Bank, or Card payment, then check again.',
+    paymentUnlockedMsg: 'Payment confirmed! Your scannable QR Pass and Paid Receipt are now active.',
+    copyControlBtn: 'Copy Payment Reference',
     copiedControlBtn: 'Copied',
     paidBadgeLabel: 'Payment Confirmed',
     paidModalTitle: 'Your Booth QR Pass & Paid Receipt',
     viewTraReceiptBtn: 'Open Dedicated TRA Receipt →',
     regEmailInvalid: 'Please enter a valid Email Address (e.g. email@company.co.tz) so you can access your booth and TRA receipt later.',
-    exLoginMissingRefOrPin: 'Please enter your PIN / Password or Booking ID / Control Number together with your Email.',
+    exLoginMissingRefOrPin: 'Please enter your PIN / Password or Booking ID / Payment Reference together with your Email.',
     exLoginNotFound: 'Invalid email, reference, or PIN/password.',
     exLoginLogoutBtn: 'Sign Out Session'
   },
@@ -6144,7 +6144,7 @@ function renderLookupResultCard(b, rawResponse, actionNotice, actionError, targe
       <div class="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
         <div class="${isUnmasked ? 'sm:col-span-8' : 'sm:col-span-12'} grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
           <div><span class="text-slate-500">Booking ID:</span> <strong class="font-mono text-[#0b6b68]">${escapeBookingHtml(b.id)}</strong></div>
-          <div><span class="text-slate-500">Control Number:</span> <strong class="font-mono text-slate-900">${escapeBookingHtml(b.controlNumber || '-')}</strong></div>
+          <div><span class="text-slate-500">Payment Ref:</span> <strong class="font-mono text-slate-900">${escapeBookingHtml(b.controlNumber || '-')}</strong></div>
           <div><span class="text-slate-500">Business:</span> <strong>${escapeBookingHtml(b.businessName)}</strong></div>
           <div><span class="text-slate-500">Contact:</span> <strong>${escapeBookingHtml(b.contactPerson || '-')} (${escapeBookingHtml(b.phone || '-')})</strong></div>
           <div><span class="text-slate-500">Booth:</span> <strong>${escapeBookingHtml(b.packageName)} (#${escapeBookingHtml(b.boothCode)})</strong></div>
@@ -6675,13 +6675,9 @@ function wrapCanvasText(ctx, text, maxWidth) {
 function downloadBookingPassPng(booking, accessPin) {
   if (!booking) return;
   const lang = appState.lang || 'en';
-  const msg = BOOKING_MSG[lang] || BOOKING_MSG.en;
-  if (!isBookingPaidStatus(booking.status)) {
-    alert(msg.downloadPaymentRequired);
-    return;
-  }
+  const isPaid = isBookingPaidStatus(booking.status);
 
-  // Narrow Tanzania TRA / EFD thermal receipt strip canvas
+  // Narrow Tanzania TRA / EFD thermal receipt strip canvas (always downloadable as Receipt Slip or Paid Pass)
   const canvas = document.createElement('canvas');
   canvas.width = 720;
   canvas.height = 1480;
@@ -6748,7 +6744,7 @@ function downloadBookingPassPng(booking, accessPin) {
   ctx.textAlign = 'center';
   ctx.fillStyle = '#0f172a';
   ctx.font = `700 22px ${monoStack}`;
-  ctx.fillText('*** START OF LEGAL RECEIPT ***', centerX, y);
+  ctx.fillText(isPaid ? '*** START OF LEGAL RECEIPT ***' : '*** BOOKING PAYMENT RECEIPT ***', centerX, y);
   y += 38;
   ctx.font = `800 25px ${monoStack}`;
   ctx.fillText('TANZANIA BIASHARA FESTIVAL', centerX, y);
@@ -6762,7 +6758,9 @@ function downloadBookingPassPng(booking, accessPin) {
   ctx.fillStyle = '#0b6b68';
   ctx.font = `700 19px ${monoStack}`;
   ctx.fillText(
-    lang === 'zh' ? '参展展位已付款电子小票与入场凭证' : (lang === 'en' ? 'PAID BOOTH RECEIPT & QR ENTRY PASS' : 'RISITI HALISI YA MALIPO & QR PASS'),
+    isPaid
+      ? (lang === 'zh' ? '参展展位已付款电子小票与入场凭证' : (lang === 'en' ? 'PAID BOOTH RECEIPT & QR ENTRY PASS' : 'RISITI HALISI YA MALIPO & QR PASS'))
+      : (lang === 'zh' ? '待付款展位收据与缴费详情单' : (lang === 'en' ? 'OFFICIAL BOOKING RECEIPT (AWAITING PAYMENT)' : 'RISITI YA USAJILI (SUBIRI MALIPO)')),
     centerX, y
   );
 
@@ -6775,8 +6773,8 @@ function downloadBookingPassPng(booking, accessPin) {
   const metaRows = [
     ['RECEIPT / ID:', booking.id || '-'],
     ['DATE / TIME:', createdStr],
-    ['CONTROL NO:', booking.controlNumber || '-'],
-    ['STATUS:', String(booking.status || 'Paid').toUpperCase()],
+    ['PAYMENT REF:', booking.controlNumber || '-'],
+    ['STATUS:', String(booking.status || (isPaid ? 'Paid' : 'Awaiting Payment')).toUpperCase()],
     ['EXHIBITOR:', booking.businessName || '-'],
     ['CONTACT:', `${booking.contactPerson || '-'} (${booking.phone || '-'})`],
     ['BOOTH CODE:', `#${boothCode}`],
@@ -6825,7 +6823,10 @@ function downloadBookingPassPng(booking, accessPin) {
   // Bold Total Payable Row
   ctx.fillStyle = '#0f172a';
   ctx.font = `800 22px ${monoStack}`;
-  ctx.fillText(lang === 'zh' ? 'TOTAL PAID:' : (lang === 'en' ? 'TOTAL PAID:' : 'JUMLA ILIYOLIPWA:'), innerL, y);
+  const totalCanvasLbl = isPaid
+    ? (lang === 'zh' ? 'TOTAL PAID:' : (lang === 'en' ? 'TOTAL PAID:' : 'JUMLA ILIYOLIPWA:'))
+    : (lang === 'zh' ? 'TOTAL PAYABLE:' : (lang === 'en' ? 'TOTAL PAYABLE:' : 'JUMLA YA KULIPA:'));
+  ctx.fillText(totalCanvasLbl, innerL, y);
   ctx.fillStyle = '#0b6b68';
   ctx.font = `800 26px ${monoStack}`;
   ctx.textAlign = 'right';
@@ -6836,28 +6837,46 @@ function downloadBookingPassPng(booking, accessPin) {
   drawDashedRule(y);
   y += 34;
 
-  // Centered Bottom TRA-style Scannable Verification QR Code
+  // Centered Bottom TRA-style Scannable Verification QR Code (only active when Paid)
   const qrSize = 270;
   const qrX = Math.round(centerX - qrSize / 2);
   const qrY = y;
-  const qrPayload = `TBF-PASS|ID:${booking.id}|CN:${booking.controlNumber || ''}|BOOTH:${boothCode}|CITIES:${(booking.cities || []).join(',')}|BIZ:${booking.businessName}`;
-  if (typeof window.qrcode === 'function') {
-    const qr = window.qrcode(0, 'M');
-    qr.addData(qrPayload, 'Byte');
-    qr.make();
-    const count = qr.getModuleCount();
-    const cell = Math.floor(qrSize / count);
-    const totalQr = cell * count;
-    const ox = qrX + Math.floor((qrSize - totalQr) / 2);
-    const oy = qrY + Math.floor((qrSize - totalQr) / 2);
-    ctx.fillStyle = '#0f172a';
-    for (let r = 0; r < count; r++) {
-      for (let c = 0; c < count; c++) {
-        if (qr.isDark(r, c)) {
-          ctx.fillRect(ox + c * cell, oy + r * cell, cell, cell);
+  if (isPaid) {
+    const qrPayload = `TBF-PASS|ID:${booking.id}|CN:${booking.controlNumber || ''}|BOOTH:${boothCode}|CITIES:${(booking.cities || []).join(',')}|BIZ:${booking.businessName}`;
+    if (typeof window.qrcode === 'function') {
+      const qr = window.qrcode(0, 'M');
+      qr.addData(qrPayload, 'Byte');
+      qr.make();
+      const count = qr.getModuleCount();
+      const cell = Math.floor(qrSize / count);
+      const totalQr = cell * count;
+      const ox = qrX + Math.floor((qrSize - totalQr) / 2);
+      const oy = qrY + Math.floor((qrSize - totalQr) / 2);
+      ctx.fillStyle = '#0f172a';
+      for (let r = 0; r < count; r++) {
+        for (let c = 0; c < count; c++) {
+          if (qr.isDark(r, c)) {
+            ctx.fillRect(ox + c * cell, oy + r * cell, cell, cell);
+          }
         }
       }
     }
+  } else {
+    ctx.save();
+    ctx.fillStyle = '#fffbeb';
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 2;
+    drawCanvasRoundedRect(ctx, innerL, qrY + 30, innerR - innerL, 180, 14);
+    ctx.fill();
+    ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#92400e';
+    ctx.font = `800 21px ${sansStack}`;
+    ctx.fillText(lang === 'sw' ? 'QR YA KUINGIA IMEFUNGWA' : 'GATE ENTRY QR LOCKED', centerX, qrY + 100);
+    ctx.fillStyle = '#78350f';
+    ctx.font = `600 17px ${sansStack}`;
+    ctx.fillText(lang === 'sw' ? 'Kamilisha malipo ya Selcom kufungua QR Pass' : 'Complete Selcom payment to activate Entry QR Pass', centerX, qrY + 140);
+    ctx.restore();
   }
 
   y = qrY + qrSize + 34;
@@ -6874,7 +6893,7 @@ function downloadBookingPassPng(booking, accessPin) {
   }
   ctx.fillStyle = '#334155';
   ctx.font = `700 20px ${monoStack}`;
-  ctx.fillText('*** END OF LEGAL RECEIPT ***', centerX, Math.min(y + 10, paperBottom - 36));
+  ctx.fillText(isPaid ? '*** END OF LEGAL RECEIPT ***' : '*** KEEP RECEIPT • PAY VIA SELCOM ***', centerX, Math.min(y + 10, paperBottom - 36));
   ctx.textAlign = 'left';
 
   const link = document.createElement('a');
@@ -7083,11 +7102,11 @@ function renderDedicatedReceiptPage(booking, accessPin) {
     dotEl.className = isPaid ? 'w-1.5 h-1.5 rounded-full bg-emerald-500' : 'w-1.5 h-1.5 rounded-full bg-amber-500';
     statusTxtEl.textContent = isPaid ? msg.paidBadgeLabel : dict.modalBookingConfirmed;
   }
-  if (btnDownload) btnDownload.classList.toggle('hidden', !isPaid);
-  if (btnPrint) btnPrint.classList.toggle('hidden', !isPaid);
+  if (btnDownload) btnDownload.classList.remove('hidden');
+  if (btnPrint) btnPrint.classList.remove('hidden');
   if (btnHome) {
-    btnHome.classList.toggle('col-span-1', isPaid);
-    btnHome.classList.toggle('col-span-2', !isPaid);
+    btnHome.classList.add('col-span-1');
+    btnHome.classList.remove('col-span-2');
   }
   if (btnVerify) btnVerify.classList.toggle('hidden', isPaid);
   if (btnCopy) {
@@ -7129,7 +7148,7 @@ function renderDedicatedReceiptPage(booking, accessPin) {
     ? new Date(booking.createdAt).toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
     : new Date().toLocaleString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 
-  const startBanner = isPaid ? '*** START OF LEGAL RECEIPT ***' : '*** PAYMENT CONTROL INVOICE ***';
+  const startBanner = isPaid ? '*** START OF LEGAL RECEIPT ***' : '*** BOOKING PAYMENT RECEIPT ***';
   const docTitle = isPaid
     ? (lang === 'zh' ? '参展展位付款小票' : (lang === 'en' ? 'OFFICIAL EXHIBITOR RECEIPT' : 'RISITI HALISI YA MALIPO'))
     : (lang === 'zh' ? '待付款缴费通知单' : (lang === 'en' ? 'AWAITING PAYMENT INVOICE' : 'ANKARA YA MALIPO (SUBIRI MALIPO)'));
@@ -7180,7 +7199,7 @@ function renderDedicatedReceiptPage(booking, accessPin) {
     <div class="space-y-1 text-[11px]">
       <div class="flex justify-between gap-2"><span class="text-slate-600">RECEIPT / ID:</span><strong class="text-slate-950 text-right">${escapeBookingHtml(booking.id)}</strong></div>
       <div class="flex justify-between gap-2"><span class="text-slate-600">DATE / TIME:</span><span class="text-right">${escapeBookingHtml(createdStr)}</span></div>
-      <div class="flex justify-between gap-2"><span class="text-slate-600">CONTROL NO:</span><strong class="text-slate-950 text-right text-[12px]">${escapeBookingHtml(booking.controlNumber || '-')}</strong></div>
+      <div class="flex justify-between gap-2"><span class="text-slate-600">PAYMENT REF:</span><strong class="text-slate-950 text-right text-[12px]">${escapeBookingHtml(booking.controlNumber || '-')}</strong></div>
       <div class="flex justify-between gap-2"><span class="text-slate-600">STATUS:</span><strong class="${isPaid ? 'text-emerald-700' : 'text-amber-700'} text-right">${escapeBookingHtml(statusDisplay)}</strong></div>
     </div>
 

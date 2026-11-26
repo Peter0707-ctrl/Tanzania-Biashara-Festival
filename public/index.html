@@ -1297,16 +1297,16 @@
     <div id="booking-panel-retrieve" class="hidden max-w-3xl mx-auto rounded-3xl bg-white border border-slate-200 p-6 sm:p-8 space-y-6 shadow-sm">
       <div class="space-y-1.5 border-b border-slate-100 pb-4">
         <h3 class="text-lg sm:text-xl font-extrabold uppercase text-slate-900" data-i18n="bookingRetrieveTitle">
-          Angalia Booking Yako, Fungua Control Number &amp; Badili Banda
+          Angalia Booking Yako, Fungua Risiti &amp; Badili Banda
         </h3>
         <p class="text-xs sm:text-sm text-slate-600 leading-relaxed" data-i18n="bookingRetrieveDesc">
-          Enter your Booking ID or Control Number with your Phone Number for a summary, then enter your 6-digit Access PIN to unlock your full receipt or change your booth.
+          Enter your Booking ID or Payment Reference with your Phone Number for a summary, then enter your 6-digit Access PIN to unlock your full receipt or change your booth.
         </p>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label for="retrieve-ref" class="block text-xs font-bold mb-1.5" data-i18n="bookingRetrieveRefLbl">Booking ID au Control Number *</label>
+          <label for="retrieve-ref" class="block text-xs font-bold mb-1.5" data-i18n="bookingRetrieveRefLbl">Booking ID au Payment Reference *</label>
           <input id="retrieve-ref" type="text" data-i18n-placeholder="retrieveRefPlaceholder" placeholder="Mfano: TBF-BIZ-101 au 99104..." class="w-full px-4 py-2.5 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]" />
         </div>
         <div>
@@ -1470,10 +1470,10 @@
           <div id="booking-wizard-step-3" class="hidden rounded-3xl bg-white border border-slate-200 p-6 sm:p-7 space-y-5 shadow-sm">
             <div class="space-y-1 border-b border-slate-100 pb-3.5">
               <h3 class="text-base sm:text-lg font-extrabold text-slate-900" data-i18n="bookingStep3WizardTitle">
-                Hatua ya 3: Malipo &amp; Pata Control Number
+                Hatua ya 3: Malipo &amp; Risiti Rasmi
               </h3>
               <p class="text-xs sm:text-sm text-slate-500" data-i18n="bookingStep3WizardDesc">
-                Hakiki chaguo lako, chagua njia ya malipo, na uthibitishe kupokea Control Number na PIN yako ya usalama.
+                Hakiki chaguo lako, chagua mtandao au njia ya malipo, kisha uthibitishe kulipa kupitia Selcom na kupokea Risiti na PIN yako ya usalama.
               </p>
             </div>
 
@@ -1509,7 +1509,7 @@
                   <span class="text-xs font-extrabold text-slate-900">HaloPesa</span>
                 </button>
 
-                <button type="button" data-pay="CRDB / NMB Bank Control Number" data-carrier="bank" onclick="selectPaymentMethod('CRDB / NMB Bank Control Number', this, true)" class="pay-3d-chip" title="CRDB / NMB Bank Transfer">
+                <button type="button" data-pay="CRDB / NMB Bank Transfer" data-carrier="bank" onclick="selectPaymentMethod('CRDB / NMB Bank Transfer', this, true)" class="pay-3d-chip" title="CRDB / NMB Bank Transfer">
                   <span class="pay-3d-orb" style="background: linear-gradient(145deg, #10b981 0%, #065f46 100%);">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M5 10v8m4-8v8m6-8v8m4-8v8M2 18h20M12 3l9 5H3l9-5z"/></svg>
                   </span>
@@ -1541,7 +1541,7 @@
                 &larr; Rudi: Taarifa Zako
               </button>
               <button id="btn-submit-booking" type="button" onclick="submitVendorBooking()" class="px-7 py-3.5 rounded-2xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm shadow-md transition cursor-pointer" data-i18n="sumSubmitBtn">
-                Thibitisha &amp; Pata Control Number
+                Thibitisha &amp; Endelea Kulipa
               </button>
             </div>
           </div>
@@ -2173,19 +2173,19 @@
       </button>
 
       <button id="btn-copy-modal-control" type="button" onclick="copyModalControlNumber()" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs transition cursor-pointer">
-        Nakili Control Number
+        Nakili Payment Reference
       </button>
 
-      <button id="btn-download-modal-pass" type="button" onclick="downloadCurrentModalPass()" class="hidden w-full py-3 px-4 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm shadow-md transition inline-flex items-center justify-center gap-2 cursor-pointer">
+      <button id="btn-download-modal-pass" type="button" onclick="downloadCurrentModalPass()" class="w-full py-3 px-4 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm shadow-md transition inline-flex items-center justify-center gap-2 cursor-pointer">
         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"></path></svg>
-        <span data-i18n="modalDownloadBtn">Pakua QR Pass &amp; Risiti (PNG)</span>
+        <span data-i18n="modalDownloadBtn">Pakua Risiti / Pass (PNG)</span>
       </button>
 
       <div class="grid grid-cols-2 gap-2">
-        <button id="btn-print-modal-pass" type="button" onclick="window.print()" class="hidden py-2.5 px-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs transition cursor-pointer" data-i18n="modalPrintBtn">
+        <button id="btn-print-modal-pass" type="button" onclick="window.print()" class="py-2.5 px-3 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs transition cursor-pointer" data-i18n="modalPrintBtn">
           Chapisha
         </button>
-        <button id="btn-receipt-home" type="button" onclick="switchSection('home');" class="col-span-2 py-2.5 px-3 rounded-xl bg-slate-200/80 hover:bg-slate-200 text-slate-800 font-bold text-xs transition cursor-pointer" data-i18n="modalHomeBtn">
+        <button id="btn-receipt-home" type="button" onclick="switchSection('home');" class="col-span-1 py-2.5 px-3 rounded-xl bg-slate-200/80 hover:bg-slate-200 text-slate-800 font-bold text-xs transition cursor-pointer" data-i18n="modalHomeBtn">
           Ona Biashara Yako Kwenye Ukurasa wa Mbele &rarr;
         </button>
       </div>

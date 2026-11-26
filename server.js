@@ -1361,7 +1361,7 @@ const server = http.createServer(async (req, res) => {
       if (!emailInput || !emailInput.includes('@') || (!refInput && !rawSecret)) {
         return sendJSON(res, 400, {
           success: false,
-          error: 'Email address and either your PIN/Password or Booking ID / Control Number are required.'
+          error: 'Email address and either your PIN/Password or Booking ID / Payment Reference are required.'
         }, {}, deviceCookieList);
       }
 
@@ -1971,7 +1971,7 @@ const server = http.createServer(async (req, res) => {
           gatewayUrl: selcomGwUrl,
           message: created.pushSent
             ? `Prompt ya malipo (Selcom USSD Push) imetumwa kwenye simu ${msisdn}. Weka PIN yako kukamilisha malipo.`
-            : (created.pushMessage || 'Oda ya Selcom imeundwa. Kamilisha malipo kwa Control Number au jaribu tena.')
+            : (created.pushMessage || 'Oda ya Selcom imeundwa. Kamilisha malipo au jaribu tena.')
         }, {}, deviceCookieList);
       }
 
@@ -2061,7 +2061,7 @@ const server = http.createServer(async (req, res) => {
       if (!emailInput || !emailInput.includes('@') || (!refInput && !pin)) {
         return sendJSON(res, 400, {
           success: false,
-          error: 'Email address and either a Booking ID / Control Number or 6-digit Security PIN are required.'
+          error: 'Email address and either a Booking ID / Payment Reference or 6-digit Security PIN are required.'
         }, {}, deviceCookieList);
       }
 
@@ -2104,7 +2104,7 @@ const server = http.createServer(async (req, res) => {
       const pin = String(payload.pin || '').trim();
 
       if (!refInput || (!phoneTail && !emailInput)) {
-        return sendJSON(res, 400, { success: false, error: 'Booking ID / Control Number and Phone or Email are required' }, {}, deviceCookieList);
+        return sendJSON(res, 400, { success: false, error: 'Booking ID / Payment Reference and Phone or Email are required' }, {}, deviceCookieList);
       }
 
       const db = readDbClean();
