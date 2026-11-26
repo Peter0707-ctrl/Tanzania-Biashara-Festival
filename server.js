@@ -831,7 +831,7 @@ function normalizePhoneTail(phone) {
   return digits.length >= 9 ? digits.slice(-9) : digits;
 }
 
-function buildSecurityHeaders(req, { isHtml = false } = {}) {
+function buildSecurityHeaders(req, { isHtml = false, isServiceWorker = false } = {}) {
   const headers = {
     'Server': 'TBF-Edge/1.0',
     'X-Content-Type-Options': 'nosniff',
@@ -860,6 +860,8 @@ function buildSecurityHeaders(req, { isHtml = false } = {}) {
       "form-action 'self'",
       "frame-ancestors 'none'"
     ].join('; ');
+  } else if (isServiceWorker) {
+    headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'";
   } else {
     headers['Content-Security-Policy'] = "default-src 'none'; frame-ancestors 'none'";
   }
@@ -2680,10 +2682,12 @@ const server = http.createServer(async (req, res) => {
       return res.end('404 Not Found');
     }
     const ext = path.extname(resolvedTarget).toLowerCase();
+    const isServiceWorker = ext === '.js' && path.basename(resolvedTarget).toLowerCase() === 'sw.js';
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
     const staticHeaders = {
-      ...buildSecurityHeaders(req, { isHtml: ext === '.html' }),
-      'Content-Type': contentType
+      ...buildSecurityHeaders(req, { isHtml: ext === '.html', isServiceWorker }),
+      'Content-Type': contentType,
+      'Content-Length': stats.size
     };
     if (ext === '.html' || ext === '.js' || ext === '.css') {
       staticHeaders['Cache-Control'] = 'no-store, must-revalidate';
@@ -2699,8 +2703,8 @@ const server = http.createServer(async (req, res) => {
         res.destroy();
       }
     });
-    req.on('close', () => {
-      stream.destroy();
+    res.on('close', () => {
+      if (!res.writableEnded) stream.destroy();
     });
     stream.pipe(res);
   });
