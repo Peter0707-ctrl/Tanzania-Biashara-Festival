@@ -1227,12 +1227,64 @@ if ($route === 'contact-messages' && $method === 'POST') {
     exit;
 }
 
-if (($route === 'attendee-rsvp' || $route === 'newsletter/subscribe') && $method === 'POST') {
-    if ($route === 'attendee-rsvp') {
-        $db['analytics']['totalRegisteredAttendees'] = max(240, (int)($db['analytics']['totalRegisteredAttendees'] ?? 240)) + 1;
-        writeDbPhp($db);
-    }
+if ($route === 'attendee-rsvp' && $method === 'POST') {
+    checkIpRateLimitPhp('rsvp', 15, 900);
+    rejectIfHoneypotPhp($payload);
+    $db['analytics']['totalRegisteredAttendees'] = max(240, (int)($db['analytics']['totalRegisteredAttendees'] ?? 240)) + 1;
+    writeDbPhp($db);
     echo json_encode(array('success' => true, 'liveStats' => buildLiveStatsPhp($db)));
+    exit;
+}
+
+if ($route === 'newsletter/subscribe' && $method === 'POST') {
+    checkIpRateLimitPhp('newsletter', 10, 900);
+    rejectIfHoneypotPhp($payload);
+    $email = strtolower(trim($payload['email'] ?? ''));
+    $name = trim($payload['name'] ?? '');
+    $region = trim($payload['region'] ?? 'All Regions');
+
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || !preg_match('/^[^\s@<>]{1,64}@[^\s@<>]{1,120}\.[^\s@<>]{2,32}$/', $email)) {
+        http_response_code(400);
+        echo json_encode(array('success' => false, 'error' => 'Tafadhali weka Barua Pepe (Email) sahihi.'));
+        exit;
+    }
+
+    if (!isset($db['newsletterSubscribers']) || !is_array($db['newsletterSubscribers'])) {
+        $db['newsletterSubscribers'] = array();
+    }
+    $emailHash = substr(hash('sha256', $email), 0, 32);
+    $already = false;
+    foreach ($db['newsletterSubscribers'] as $sub) {
+        if (($sub['emailIdx'] ?? '') === $emailHash || strtolower(trim($sub['email'] ?? '')) === $email) {
+            $already = true;
+            break;
+        }
+    }
+    if (!$already) {
+        array_unshift($db['newsletterSubscribers'], array(
+            'id' => 'SUB-' . mt_rand(1000, 9999),
+            'email' => $email,
+            'emailIdx' => $emailHash,
+            'name' => substr($name, 0, 80),
+            'region' => substr($region ?: 'All Regions', 0, 60),
+            'subscribedAt' => gmdate('c')
+        ));
+        writeDbPhp($db);
+
+        $pdo = getMysqlPdoPhp();
+        if ($pdo) {
+            try {
+                $nStmt = $pdo->prepare("INSERT IGNORE INTO `newsletter_subscribers` (`email_enc`, `email_idx`, `name_enc`, `ip_hash`) VALUES (?, ?, ?, ?)");
+                $nStmt->execute(array($email, $emailHash, substr($name, 0, 120), substr(hash('sha256', $clientIp), 0, 32)));
+            } catch (Exception $e) {}
+        }
+    }
+
+    echo json_encode(array(
+        'success' => true,
+        'message' => 'Successfully subscribed to TBF newsletter',
+        'totalSubscribers' => count($db['newsletterSubscribers'])
+    ));
     exit;
 }
 

@@ -162,6 +162,18 @@ class DatabaseAdapter {
           );
         }
       }
+      if (Array.isArray(dbObj.newsletterSubscribers)) {
+        for (const sub of dbObj.newsletterSubscribers.slice(0, 50)) {
+          await this.pool.query(
+            `INSERT IGNORE INTO \`newsletter_subscribers\` (email_enc, email_idx, name_enc) VALUES (?, ?, ?)`,
+            [
+              String(sub.email || '').slice(0, 255),
+              String(sub.emailIdx || '').slice(0, 64),
+              String(sub.name || '').slice(0, 255)
+            ]
+          );
+        }
+      }
     } catch (e) {}
   }
 }

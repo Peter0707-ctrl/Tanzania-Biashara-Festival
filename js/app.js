@@ -3626,12 +3626,16 @@ async function handleNewsletterSubmit(e) {
   const regionEl = document.getElementById('newsletter-region');
   const submitBtn = document.getElementById('newsletter-submit-btn');
 
-  const email = emailEl ? emailEl.value.trim() : '';
+  const email = emailEl ? emailEl.value.trim().toLowerCase() : '';
   const name = nameEl ? nameEl.value.trim() : '';
   const region = regionEl ? regionEl.value : 'All Regions';
 
-  if (!email || !email.includes('@')) {
-    alert((t('newsletterEmailInputLabel') || 'Email') + ': invalid email');
+  const emailRegex = /^[^\s@<>]{1,64}@[^\s@<>]{1,120}\.[^\s@<>]{2,32}$/;
+  if (!email || !emailRegex.test(email)) {
+    alert(appState.lang === 'sw'
+      ? 'Tafadhali weka Barua Pepe (Email) sahihi (mfano: jina@kampuni.co.tz).'
+      : 'Please enter a valid email address (e.g. name@company.co.tz).');
+    if (emailEl) emailEl.focus();
     return;
   }
 
@@ -3641,13 +3645,32 @@ async function handleNewsletterSubmit(e) {
   }
 
   try {
-    await fetch('/api/newsletter/subscribe', {
+    const res = await fetch('/api/newsletter/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({ email, name, region })
     });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<span>${t('newsletterSubmitBtn')}</span>`;
+      }
+      alert(data.error || (appState.lang === 'sw'
+        ? 'Imeshindikana kusajili barua pepe kwa sasa. Tafadhali hakikisha umeandika kwa usahihi.'
+        : 'Could not subscribe with that email address. Please check and try again.'));
+      return;
+    }
   } catch (err) {
-    debugLog('Newsletter API offline, saving to localStorage:', err);
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `<span>${t('newsletterSubmitBtn')}</span>`;
+    }
+    alert(appState.lang === 'sw'
+      ? 'Hitilafu ya mtandao wakati wa kujisajili kwenye jarida. Tafadhali jaribu tena.'
+      : 'Network error while subscribing to the newsletter. Please try again.');
+    return;
   }
 
   try {

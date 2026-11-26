@@ -2466,12 +2466,15 @@ const server = http.createServer(async (req, res) => {
 
   // API: Subscribe to Newsletter
   if (pathname === '/api/newsletter/subscribe' && req.method === 'POST') {
-    const rate = checkRateLimit(`sub:${ctx.deviceId}:${ctx.clientIp}`, 15, 15 * 60 * 1000);
+    const rate = checkRateLimit(`sub:${ctx.deviceId}:${ctx.clientIp}`, 12, 15 * 60 * 1000, ctx.clientIp);
     if (!rate.allowed) {
       return sendJSON(res, 429, { success: false, retryAfterSec: rate.retryAfterSec, error: 'Too many requests' }, {}, deviceCookieList);
     }
     try {
       const payload = await parseBody(req);
+      if (hasHoneypotTripped(payload)) {
+        return sendJSON(res, 403, { success: false, error: 'Automated bot submission rejected.' }, {}, deviceCookieList);
+      }
       const email = sanitizeTextInput(payload.email, 120).toLowerCase();
       if (!isValidEmail(email)) {
         return sendJSON(res, 400, { success: false, error: 'Valid email address is required' }, {}, deviceCookieList);
