@@ -7108,7 +7108,11 @@ function renderDedicatedReceiptPage(booking, accessPin) {
     </div>
     <div class="flex justify-between text-[10.5px] text-slate-600 mt-1">
       <span>PAYMENT METHOD:</span>
-      <span class="text-right">${escapeBookingHtml(booking.paymentMethod || 'Control Number')}</span>
+      <span class="text-right">${escapeBookingHtml(booking.paymentMethod || 'Selcom Pay')}</span>
+    </div>
+    <div class="flex justify-between text-[10px] text-slate-500 mt-0.5">
+      <span>SELCOM MERCHANT:</span>
+      <strong class="text-right text-slate-800">RELIANCE SOLUTIONS &amp; TECH LTD</strong>
     </div>
 
     ${accessPin ? `
