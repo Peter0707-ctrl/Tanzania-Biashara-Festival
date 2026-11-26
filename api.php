@@ -640,7 +640,20 @@ if ($route === 'bookings' && $method === 'POST') {
 
     $refNum = 'TBF-BIZ-' . mt_rand(1000, 9999);
     $accessPin = (string)mt_rand(100000, 999999);
-    $totalAmount = max(0, (float)($payload['totalAmount'] ?? 350000));
+    $reqPkgId = trim($payload['packageId'] ?? 'standard-booth');
+    $prefix = strtoupper(explode('-', $boothCode)[0] ?? 'B');
+    $defaultPrices = array('SME' => 150000, 'B' => 350000, 'FOOD' => 400000, 'A' => 750000);
+    $unitPrice = $defaultPrices[$prefix] ?? 350000;
+    foreach (($db['boothPackages'] ?? array()) as $pkg) {
+        if (($pkg['id'] ?? '') === $reqPkgId && strtoupper($pkg['zonePrefix'] ?? '') === $prefix) {
+            $unitPrice = max(100000, (float)($pkg['price'] ?? $unitPrice));
+            break;
+        }
+    }
+    $cityCount = max(1, count($cities));
+    $subtotal = $unitPrice * $cityCount;
+    $discount = $cityCount >= 2 ? round($subtotal * 0.15) : 0;
+    $totalAmount = $subtotal - $discount;
     $paymentMethod = trim($payload['paymentMethod'] ?? 'M-Pesa / Mixx by Yas / Airtel Money');
 
     $selcomRes = createSelcomOrderAndPushPhp($refNum, $totalAmount, $contactPerson, $email, $phone, $boothCode, $cities, $paymentMethod, true);
@@ -805,27 +818,32 @@ if ($route === 'bookings/selcom-push' && $method === 'POST') {
 
 if ($route === 'webhooks/selcom' && $method === 'POST') {
     $orderId = strtoupper(trim($payload['order_id'] ?? ''));
-    $resultcode = (string)($payload['resultcode'] ?? '');
-    $payStatus = strtoupper(trim($payload['payment_status'] ?? ''));
     if ($orderId === '') {
         http_response_code(400);
         echo json_encode(array('result' => 'FAIL', 'message' => 'Missing order_id'));
         exit;
     }
-    $verifiedPaid = ($resultcode === '000' && ($payStatus === 'COMPLETED' || $payStatus === 'PAID'));
     $cfg = getSelcomConfigPhp();
-    if ($cfg['configured']) {
-        $live = querySelcomOrderStatusPhp($orderId);
-        if (!empty($live['paid'])) $verifiedPaid = true;
+    if (!$cfg['configured']) {
+        http_response_code(503);
+        echo json_encode(array('result' => 'FAIL', 'message' => 'Selcom not configured'));
+        exit;
     }
+    // Always verify directly against Selcom API (never trust raw webhook payload alone)
+    $live = querySelcomOrderStatusPhp($orderId);
+    $verifiedPaid = !empty($live['paid']);
     if ($verifiedPaid) {
         foreach ($db['bookings'] as &$b) {
             if (strtoupper($b['id'] ?? '') === $orderId) {
                 $b['status'] = 'Paid';
                 $b['paymentExpiresAt'] = null;
                 $b['paidAt'] = gmdate('c');
-                if (!empty($payload['reference'])) $b['selcomReference'] = (string)$payload['reference'];
-                if (!empty($payload['transid'])) $b['selcomTransId'] = (string)$payload['transid'];
+                if (!empty($live['reference']) || !empty($payload['reference'])) {
+                    $b['selcomReference'] = (string)($live['reference'] ?: $payload['reference']);
+                }
+                if (!empty($live['transId']) || !empty($payload['transid'])) {
+                    $b['selcomTransId'] = (string)($live['transId'] ?: $payload['transid']);
+                }
                 break;
             }
         }
@@ -960,6 +978,11 @@ if ($route === 'visitor-ping' && $method === 'POST') {
 }
 
 if ($route === 'admin/set-destination' && $method === 'POST') {
+    if (empty($_COOKIE['tbf_admin_session']) || strpos($_COOKIE['tbf_admin_session'], '.') === false) {
+        http_response_code(401);
+        echo json_encode(array('success' => false, 'error' => 'Admin authentication required'));
+        exit;
+    }
     $regionId = strtolower(trim($payload['regionId'] ?? 'mwanza'));
     $regionName = trim($payload['regionName'] ?? 'Mwanza');
     $venue = trim($payload['venue'] ?? ($regionName . ' Exhibition Grounds'));

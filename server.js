@@ -595,6 +595,25 @@ function readDbClean() {
   return db;
 }
 
+function computeCanonicalBoothAmount(db, boothCode, packageId, cityCount) {
+  const prefix = String(boothCode || '').split('-')[0].toUpperCase();
+  const pkgs = Array.isArray(db?.boothPackages) ? db.boothPackages : [];
+  let pkg = pkgs.find(p => p.id === packageId && String(p.zonePrefix || '').toUpperCase() === prefix);
+  if (!pkg) pkg = pkgs.find(p => String(p.zonePrefix || '').toUpperCase() === prefix);
+  if (!pkg) pkg = pkgs.find(p => p.id === packageId);
+  const defaultPrices = { SME: 150000, B: 350000, FOOD: 400000, A: 750000 };
+  const unitPrice = Math.max(100000, Number(pkg?.price) || defaultPrices[prefix] || 350000);
+  const count = Math.max(1, Number(cityCount) || 1);
+  const subtotal = unitPrice * count;
+  const discount = count >= 2 ? Math.round(subtotal * 0.15) : 0;
+  return {
+    unitPrice,
+    totalAmount: subtotal - discount,
+    resolvedPackageId: pkg?.id || packageId || 'standard-booth',
+    resolvedPackageName: pkg?.nameEn || pkg?.nameSw || 'Standard SME Booth (3m x 3m)'
+  };
+}
+
 function findBoothConflict(db, boothCode, cities, excludeHoldToken = null, excludeBookingId = null) {
   const citySet = new Set(cities);
   const bookedConflict = db.bookings.find(b => {
@@ -1623,7 +1642,14 @@ const server = http.createServer(async (req, res) => {
       const refNum = 'TBF-BIZ-' + crypto.randomInt(1000, 9999);
       const accessPin = String(crypto.randomInt(100000, 999999));
       const clientRequestId = payload.clientRequestId ? String(payload.clientRequestId).trim().slice(0, 64) : '';
-      const totalAmountVal = Math.max(0, Number(payload.totalAmount) || 350000);
+      const dbSnapshot = readDbClean();
+      const canonicalPricing = computeCanonicalBoothAmount(
+        dbSnapshot,
+        boothCode,
+        sanitizeTextInput(payload.packageId || 'standard-booth', 48),
+        cities.length
+      );
+      const totalAmountVal = canonicalPricing.totalAmount;
       const payMethodVal = sanitizeTextInput(payload.paymentMethod || 'M-Pesa / Mixx by Yas / Airtel Money', 64);
 
       // Call real Selcom Payment Gateway if configured in .env
@@ -1863,24 +1889,24 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // API: Official Selcom Payment Webhook Callback
+  // API: Official Selcom Payment Webhook Callback (Cryptographically & Upstream Verified)
   if (pathname === '/api/webhooks/selcom' && req.method === 'POST') {
     try {
       const payload = await parseBody(req);
       const orderId = String(payload.order_id || '').trim().toUpperCase();
-      const resultcode = String(payload.resultcode || '');
-      const payStatus = String(payload.payment_status || '').toUpperCase();
 
       if (!orderId) {
         return sendJSON(res, 400, { result: 'FAIL', message: 'Missing order_id' });
       }
 
-      // Verify order payment status directly with Selcom API for cryptographic assurance
-      let verifiedPaid = (resultcode === '000' && (payStatus === 'COMPLETED' || payStatus === 'PAID'));
-      if (getSelcomConfig().configured) {
-        const liveCheck = await querySelcomOrderStatus(orderId);
-        if (liveCheck.paid) verifiedPaid = true;
+      const cfg = getSelcomConfig();
+      if (!cfg.configured) {
+        return sendJSON(res, 503, { result: 'FAIL', message: 'Selcom gateway not configured' });
       }
+
+      // NEVER trust unverified webhook body alone — always verify order payment status directly against Selcom API
+      const liveCheck = await querySelcomOrderStatus(orderId);
+      const verifiedPaid = Boolean(liveCheck.paid);
 
       if (verifiedPaid) {
         await withDbTransaction(db => {
@@ -1889,9 +1915,9 @@ const server = http.createServer(async (req, res) => {
           b.status = 'Paid';
           b.paymentExpiresAt = null;
           b.paidAt = new Date().toISOString();
-          if (payload.reference) b.selcomReference = String(payload.reference);
-          if (payload.transid) b.selcomTransId = String(payload.transid);
-          if (payload.channel) b.paymentMethod = `Selcom (${sanitizeTextInput(payload.channel, 40)})`;
+          if (liveCheck.reference || payload.reference) b.selcomReference = String(liveCheck.reference || payload.reference);
+          if (liveCheck.transId || payload.transid) b.selcomTransId = String(liveCheck.transId || payload.transid);
+          if (liveCheck.channel || payload.channel) b.paymentMethod = `Selcom (${sanitizeTextInput(liveCheck.channel || payload.channel, 40)})`;
           return { dirty: true };
         });
       }

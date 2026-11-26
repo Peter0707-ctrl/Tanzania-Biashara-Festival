@@ -1,20 +1,34 @@
 # ==============================================================================
-# Tanzania Biashara Festival (TBF) - cPanel Production Configuration
+# Tanzania Biashara Festival (TBF) - cPanel Hardened Production Configuration
 # ==============================================================================
 
 DirectoryIndex index.html public/index.html
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
+
+    # Force HTTPS (TLS encryption for all visitor & exhibitor traffic)
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
+    RewriteCond %{HTTP_HOST} !^localhost [NC]
+    RewriteCond %{HTTP_HOST} !^127\.0\.0\.1 [NC]
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Route API calls through api.php bridge
     RewriteRule ^api/(.*)$ api.php?route=$1 [QSA,L]
+
+    # Clean SEO section routes for Google Search & Sitelinks
     RewriteRule ^(booking|about|sponsors|events|news|contacts|login)/?$ index.html [QSA,L]
 </IfModule>
 
 <IfModule mod_headers.c>
     Header unset X-Powered-By
     Header always unset X-Powered-By
-    Header set X-Content-Type-Options "nosniff"
-    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
 
     # Force fresh HTML and JS on mobile browsers and cPanel Nginx/proxy caches
     <FilesMatch "\.(html|htm|js|css)$">
@@ -24,7 +38,8 @@ DirectoryIndex index.html public/index.html
     </FilesMatch>
 </IfModule>
 
-<FilesMatch "^\.|\.(env|json|sql|log|md|sh|lock|git|secret|auth_secret)$">
+# Block direct HTTP access to dotfiles, database files, backend server code, and CLI tools
+<FilesMatch "(^\.|^server\.js$|^db_adapter\.js$|^selcom_test_cpanel\.php$|^package(-lock)?\.json$|\.(env|json|sql|log|md|sh|lock|git|secret|auth_secret|bak|tmp)$)">
     Require all denied
 </FilesMatch>
 
