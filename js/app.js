@@ -162,10 +162,10 @@ let appState = {
   sponsors: [],
   announcements: [],
   liveStats: {
-    totalCookieVisitors: 71997,
-    totalRegisteredAttendees: 6997,
-    totalBusinessesShowcased: 499,
-    totalPartnersAndInvestors: 150
+    totalCookieVisitors: 227,
+    totalRegisteredAttendees: 240,
+    totalBusinessesShowcased: 0,
+    totalPartnersAndInvestors: 2
   }
 };
 
@@ -2706,7 +2706,11 @@ window.handleExhibitorLogin = handleExhibitorLogin;
 window.clearExhibitorLoginSession = clearExhibitorLoginSession;
 window.refreshActiveLookupBooking = refreshActiveLookupBooking;
 
-const DATA_CACHE_KEY = 'tbf_api_cache_v1';
+const DATA_CACHE_KEY = 'tbf_api_cache_v3';
+try {
+  localStorage.removeItem('tbf_api_cache_v1');
+  localStorage.removeItem('tbf_api_cache_v2');
+} catch (e) {}
 
 async function fetchWithRetry(url, fetchOpts = {}, retryCfg = {}) {
   const { retries = 2, timeoutMs = 12000, backoffMs = 700 } = retryCfg;
@@ -3088,6 +3092,27 @@ function renderFeaturedBusinesses() {
   });
 
   if (!filtered.length) {
+    if (!appState.bookings.length) {
+      const openTitle = lang === 'zh'
+        ? '各省展位现已正式开放预订！'
+        : (lang === 'en' ? 'Exhibition Booths Are Now Open for Booking!' : 'Usajili wa Mabanda ya Maonyesho Uko Wazi Sasa!');
+      const openDesc = lang === 'zh'
+        ? '预订展位后，您的企业名片、展位号及主营业务将自动实时展示在官方首页。'
+        : (lang === 'en'
+          ? 'Reserve your real exhibition booth today and your business profile will automatically appear live right here.'
+          : 'Kuwa miongoni mwa wafanyabiashara wa kwanza kuhifadhi banda halisi na biashara yako itaonekana hapa moja kwa moja.');
+      const bookNowLabel = lang === 'zh'
+        ? '立即预订展位 →'
+        : (lang === 'en' ? 'Book Your Exhibition Booth Now →' : 'Hifadhi Banda Lako Sasa →');
+      grid.innerHTML = `
+        <div class="col-span-full p-8 text-center rounded-2xl bg-[#f4f7f6] border-2 border-dashed border-[#0b6b68]/35 space-y-3">
+          <div class="text-base sm:text-lg font-extrabold text-slate-900">${openTitle}</div>
+          <p class="text-xs sm:text-sm text-slate-600 max-w-xl mx-auto leading-relaxed">${openDesc}</p>
+          <button onclick="switchSection('booking')" class="px-6 py-3 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white text-xs sm:text-sm font-extrabold shadow transition cursor-pointer">${bookNowLabel}</button>
+        </div>
+      `;
+      return;
+    }
     const emptyMsg = lang === 'zh'
       ? '当前筛选条件下暂无已预订参展商。'
       : (lang === 'en' ? 'No exhibitors matched the current filter.' : 'Hakuna biashara iliyopatikana kwa kichujio hiki.');
@@ -3210,7 +3235,7 @@ function renderLiveStatsBanner(forceAnimate = false) {
   const targetVisitors = Number(s.totalCookieVisitors || 185);
   const targetAttendees = Number(s.totalRegisteredAttendees || 240);
   const targetInvestors = Number(s.totalPartnersAndInvestors || 2);
-  const targetBiz = Number(s.totalBusinessesShowcased || 10);
+  const targetBiz = Number(s.totalBusinessesShowcased ?? (appState.bookings ? appState.bookings.length : 0));
 
   const visitorsEl = document.getElementById('stat-cookie-visitors');
   const attendeesEl = document.getElementById('stat-regional-attendees');
@@ -6833,11 +6858,61 @@ function openLookupInReceiptPage() {
   }
 }
 
+async function triggerSelcomUssdPush() {
+  const b = appState.lastConfirmedBooking;
+  if (!b) return;
+  const phoneInput = document.getElementById('selcom-push-phone');
+  const pushBtn = document.getElementById('btn-selcom-push');
+  const phone = (phoneInput?.value || b.phone || '').trim();
+  const lang = appState.lang || 'en';
+  if (!phone) {
+    setModalPaymentMsg(lang === 'sw' ? 'Weka namba ya simu ya Mobile Money kwanza.' : 'Please enter your Mobile Money phone number first.', false);
+    return;
+  }
+  if (pushBtn) {
+    pushBtn.disabled = true;
+    pushBtn.textContent = lang === 'sw' ? 'Inatuma...' : 'Sending...';
+  }
+  setModalPaymentMsg('', false);
+  try {
+    const res = await fetch('/api/bookings/selcom-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ bookingId: b.id, phone })
+    });
+    const data = await res.json();
+    if (data.alreadyPaid && data.booking) {
+      showBookingConfirmationModal(data.booking, appState.lastConfirmedPin || '');
+      setModalPaymentMsg(data.message || 'Malipo yamethibitishwa!', true);
+      return;
+    }
+    if (res.ok && data.success) {
+      if (data.controlNumber && appState.lastConfirmedBooking) {
+        appState.lastConfirmedBooking.controlNumber = data.controlNumber;
+        if (data.gatewayUrl) appState.lastConfirmedBooking.selcomGatewayUrl = data.gatewayUrl;
+        renderDedicatedReceiptPage(appState.lastConfirmedBooking, appState.lastConfirmedPin || '');
+      }
+      setModalPaymentMsg(data.message || 'Prompt ya malipo (Selcom USSD Push) imetumwa kwenye simu yako!', true);
+    } else {
+      setModalPaymentMsg(data.error || data.message || 'Imeshindikana kutuma Selcom USSD Push kwa sasa.', false);
+    }
+  } catch (err) {
+    setModalPaymentMsg(lang === 'sw' ? 'Hitilafu ya mtandao wakati wa kuwasiliana na Selcom.' : 'Network error while contacting Selcom gateway.', false);
+  } finally {
+    if (pushBtn) {
+      pushBtn.disabled = false;
+      pushBtn.textContent = lang === 'sw' ? 'Tuma Prompt' : 'Send Push';
+    }
+  }
+}
+
 window.downloadCurrentModalPass = downloadCurrentModalPass;
 window.downloadActiveLookupPass = downloadActiveLookupPass;
 window.verifyCurrentModalPayment = verifyCurrentModalPayment;
 window.copyModalControlNumber = copyModalControlNumber;
 window.openLookupInReceiptPage = openLookupInReceiptPage;
+window.triggerSelcomUssdPush = triggerSelcomUssdPush;
 
 function saveReceiptToSession(booking, accessPin) {
   try {
@@ -6902,8 +6977,33 @@ function renderDedicatedReceiptPage(booking, accessPin) {
     btnCopy.classList.toggle('hidden', isPaid);
     btnCopy.textContent = msg.copyControlBtn;
   }
+  const selcomBox = document.getElementById('selcom-payment-box');
+  if (selcomBox) {
+    selcomBox.classList.toggle('hidden', isPaid);
+  }
+  const selcomPhoneEl = document.getElementById('selcom-push-phone');
+  if (selcomPhoneEl && booking.phone && !String(booking.phone).includes('*')) {
+    selcomPhoneEl.value = booking.phone;
+  }
+  const selcomGwBtn = document.getElementById('btn-selcom-gateway-url');
+  if (selcomGwBtn) {
+    if (!isPaid && booking.selcomGatewayUrl) {
+      selcomGwBtn.href = booking.selcomGatewayUrl;
+      selcomGwBtn.classList.remove('hidden');
+    } else {
+      selcomGwBtn.classList.add('hidden');
+    }
+  }
   if (btnVerifyLbl) btnVerifyLbl.textContent = msg.verifyPaymentBtn;
   setModalPaymentMsg('', false);
+  if (!isPaid && booking.selcomPushSent) {
+    setModalPaymentMsg(
+      lang === 'sw'
+        ? 'Prompt ya malipo ya Selcom (USSD Push) imetumwa kwenye simu yako! Weka PIN kukamilisha malipo kisha bonyeza "Nimeshalipa".'
+        : 'Selcom USSD Push prompt sent to your phone! Enter your Mobile Money PIN, then click "I Have Paid".',
+      true
+    );
+  }
 
   const destInfo = getLocalizedDestinationInfo(appState.destination, lang);
   const boothCode = String(booking.boothCode || '--').toUpperCase();

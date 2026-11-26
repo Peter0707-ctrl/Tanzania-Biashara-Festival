@@ -1,9 +1,10 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-function loadEnvFile(envPath) {
+function loadEnvFile(envPath, overwrite = false) {
   try {
     if (!fs.existsSync(envPath)) return;
     const raw = fs.readFileSync(envPath, 'utf-8');
@@ -17,14 +18,209 @@ function loadEnvFile(envPath) {
       if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
         val = val.slice(1, -1);
       }
-      if (key && process.env[key] === undefined) {
+      if (key && (overwrite || process.env[key] === undefined || process.env[key] === '')) {
         process.env[key] = val;
       }
     });
   } catch (err) {}
 }
 
-loadEnvFile(path.join(__dirname, '.env'));
+loadEnvFile(path.join(__dirname, '.env'), true);
+
+function getSelcomConfig() {
+  loadEnvFile(path.join(__dirname, '.env'), true);
+  const vendorId = String(process.env.SELCOM_VENDOR_ID || '').trim();
+  const apiKey = String(process.env.SELCOM_API_KEY || '').trim();
+  const apiSecret = String(process.env.SELCOM_API_SECRET || '').trim();
+  const baseUrl = String(process.env.SELCOM_BASE_URL || 'https://apigw.selcommobile.com').trim().replace(/\/+$/, '');
+  const webhookUrl = String(process.env.SELCOM_WEBHOOK_URL || 'https://biasharafestival.co.tz/api/webhooks/selcom').trim();
+  return {
+    vendorId,
+    apiKey,
+    apiSecret,
+    baseUrl,
+    webhookUrl,
+    configured: Boolean(vendorId && apiKey && apiSecret)
+  };
+}
+
+function normalizeTzMsisdn(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (digits.startsWith('255') && digits.length === 12) return digits;
+  if (digits.startsWith('0') && digits.length === 10) return '255' + digits.slice(1);
+  if (digits.length === 9) return '255' + digits;
+  return digits;
+}
+
+function buildSelcomHeaders(payloadObj, apiKey, apiSecret) {
+  const timestamp = new Date().toISOString();
+  const keys = Object.keys(payloadObj || {});
+  const signedFields = keys.join(',');
+  const parts = [`timestamp=${timestamp}`];
+  keys.forEach(k => {
+    parts.push(`${k}=${String(payloadObj[k] ?? '')}`);
+  });
+  const signString = parts.join('&');
+  const digest = crypto.createHmac('sha256', apiSecret).update(signString, 'utf8').digest('base64');
+  const authToken = Buffer.from(apiKey, 'utf8').toString('base64');
+  return {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'Authorization': `SELCOM ${authToken}`,
+    'Digest-Method': 'HS256',
+    'Digest': digest,
+    'Timestamp': timestamp,
+    'Signed-Fields': signedFields
+  };
+}
+
+function selcomApiCall(method, endpointPath, payloadObj = {}) {
+  return new Promise((resolve) => {
+    const cfg = getSelcomConfig();
+    if (!cfg.configured) {
+      return resolve({ ok: false, configured: false, error: 'Selcom API credentials not yet configured in .env' });
+    }
+    try {
+      const headers = buildSelcomHeaders(payloadObj, cfg.apiKey, cfg.apiSecret);
+      let fullUrl = `${cfg.baseUrl}${endpointPath}`;
+      let bodyStr = '';
+      if (method === 'GET') {
+        const qs = Object.keys(payloadObj)
+          .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(String(payloadObj[k] ?? ''))}`)
+          .join('&');
+        if (qs) fullUrl += (fullUrl.includes('?') ? '&' : '?') + qs;
+      } else {
+        bodyStr = JSON.stringify(payloadObj);
+        headers['Content-Length'] = Buffer.byteLength(bodyStr, 'utf8');
+      }
+
+      const parsedUrl = new URL(fullUrl);
+      const reqOpts = {
+        method,
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || 443,
+        path: parsedUrl.pathname + parsedUrl.search,
+        headers,
+        timeout: 15000
+      };
+
+      const req = https.request(reqOpts, (res) => {
+        let raw = '';
+        res.on('data', chunk => { raw += chunk.toString('utf8'); });
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(raw || '{}');
+            const isOk = res.statusCode >= 200 && res.statusCode < 300 && (json.resultcode === '000' || json.result === 'SUCCESS');
+            resolve({ ok: isOk, configured: true, status: res.statusCode, data: json });
+          } catch (e) {
+            resolve({ ok: false, configured: true, status: res.statusCode, error: 'Invalid JSON from Selcom gateway' });
+          }
+        });
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        resolve({ ok: false, configured: true, error: 'Selcom gateway request timed out' });
+      });
+      req.on('error', (err) => {
+        resolve({ ok: false, configured: true, error: err.message || 'Selcom network error' });
+      });
+
+      if (bodyStr) req.write(bodyStr);
+      req.end();
+    } catch (err) {
+      resolve({ ok: false, configured: true, error: err.message || 'Selcom request exception' });
+    }
+  });
+}
+
+async function createSelcomOrderAndPush({ orderId, amount, buyerName, buyerEmail, buyerPhone, boothCode, cities, paymentMethod, triggerPush = true }) {
+  const cfg = getSelcomConfig();
+  if (!cfg.configured) {
+    return { configured: false, orderCreated: false, pushSent: false };
+  }
+  const msisdn = normalizeTzMsisdn(buyerPhone);
+  const orderPayload = {
+    vendor: cfg.vendorId,
+    order_id: String(orderId),
+    buyer_email: String(buyerEmail || 'info@biasharafestival.co.tz'),
+    buyer_name: String(buyerName || 'TBF Exhibitor'),
+    buyer_phone: msisdn,
+    amount: Math.max(100, Math.round(Number(amount) || 0)),
+    currency: 'TZS',
+    buyer_remarks: `TBF Booth #${boothCode} (${(cities || []).join(', ')})`.slice(0, 96),
+    merchant_remarks: `TBF Booth ${orderId}`.slice(0, 96),
+    no_of_items: 1,
+    webhook: Buffer.from(cfg.webhookUrl, 'utf8').toString('base64')
+  };
+
+  const orderRes = await selcomApiCall('POST', '/v1/checkout/create-order-minimal', orderPayload);
+  if (!orderRes.ok) {
+    return {
+      configured: true,
+      orderCreated: false,
+      pushSent: false,
+      error: orderRes.data?.message || orderRes.error || 'Selcom order creation failed'
+    };
+  }
+
+  const row = Array.isArray(orderRes.data?.data) && orderRes.data.data[0] ? orderRes.data.data[0] : {};
+  const reference = String(orderRes.data?.reference || row.reference || '');
+  const paymentToken = String(row.payment_token || row.control_number || reference || '');
+  let gatewayUrl = '';
+  if (row.payment_gateway_url) {
+    try {
+      const decoded = Buffer.from(String(row.payment_gateway_url), 'base64').toString('utf8');
+      gatewayUrl = /^https?:\/\//i.test(decoded) ? decoded : String(row.payment_gateway_url);
+    } catch (e) {
+      gatewayUrl = String(row.payment_gateway_url);
+    }
+  }
+
+  let pushSent = false;
+  let pushMessage = '';
+  let transId = '';
+  const isMobileMoney = !/card|visa|mastercard|bank|crdb|nmb/i.test(String(paymentMethod || ''));
+  if (triggerPush && isMobileMoney && /^255[67]\d{8}$/.test(msisdn)) {
+    transId = 'TBF' + Date.now().toString().slice(-9) + crypto.randomInt(10, 99);
+    const pushRes = await selcomApiCall('POST', '/v1/checkout/wallet-payment', {
+      transid: transId,
+      order_id: String(orderId),
+      msisdn
+    });
+    pushSent = Boolean(pushRes.ok);
+    pushMessage = pushRes.data?.message || (pushSent ? 'USSD Push prompt sent to mobile phone' : (pushRes.error || ''));
+  }
+
+  return {
+    configured: true,
+    orderCreated: true,
+    reference,
+    controlNumber: paymentToken || reference,
+    gatewayUrl,
+    pushSent,
+    pushMessage,
+    transId
+  };
+}
+
+async function querySelcomOrderStatus(orderId) {
+  const cfg = getSelcomConfig();
+  if (!cfg.configured || !orderId) return { configured: cfg.configured, paid: false };
+  const statusRes = await selcomApiCall('GET', '/v1/checkout/order-status', { order_id: String(orderId) });
+  if (!statusRes.ok) return { configured: true, paid: false, raw: statusRes.data };
+  const row = Array.isArray(statusRes.data?.data) && statusRes.data.data[0] ? statusRes.data.data[0] : {};
+  const payStatus = String(row.payment_status || statusRes.data?.payment_status || '').toUpperCase();
+  const isPaid = payStatus === 'COMPLETED' || payStatus === 'PAID' || payStatus === 'SUCCESSFUL';
+  return {
+    configured: true,
+    paid: isPaid,
+    paymentStatus: payStatus || 'PENDING',
+    reference: String(row.reference || statusRes.data?.reference || ''),
+    transId: String(row.transid || ''),
+    channel: String(row.channel || '')
+  };
+}
 
 const IS_PROD = String(process.env.NODE_ENV || 'production').toLowerCase() === 'production';
 const DEBUG_MODE = !IS_PROD && process.env.TBF_DEBUG === '1';
@@ -439,8 +635,9 @@ function getLiveStats(db) {
     regionLiveMap,
     totalCookieVisitors: Math.max(1, Number(db.analytics?.totalCookieVisitors || 185)),
     totalRegisteredAttendees: Math.max(totalRegisteredAttendees, Number(db.analytics?.totalRegisteredAttendees || 240)),
-    totalBusinessesShowcased: Math.max(activeBookings.length, 10),
-    totalPartnersAndInvestors: (db.sponsors || []).length + 1
+    totalBusinessesShowcased: activeBookings.length,
+    totalPartnersAndInvestors: Math.max(1, (db.sponsors || []).length + 1),
+    selcomConfigured: getSelcomConfig().configured
   };
 }
 
@@ -484,7 +681,8 @@ function sanitizePublicDb(db) {
     announcements: db.announcements,
     destination: db.destination,
     analytics: db.analytics,
-    sponsorsCount: (db.sponsors || []).length
+    sponsorsCount: (db.sponsors || []).length,
+    selcomConfigured: getSelcomConfig().configured
   };
 }
 
@@ -559,6 +757,8 @@ function getAllowedCorsOrigin(req) {
 function verifySameOriginMutation(req) {
   const method = String(req.method || 'GET').toUpperCase();
   if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return true;
+  const rawPath = String(req.url || '/').split('?')[0];
+  if (rawPath === '/api/webhooks/selcom') return true;
   const secFetchSite = String(req.headers['sec-fetch-site'] || '').trim().toLowerCase();
   if (secFetchSite === 'cross-site') return false;
   const origin = String(req.headers.origin || '').trim();
@@ -801,6 +1001,10 @@ function toSafeBookingReceipt(b, { unmasked = false, hasPin = false, stepUpRequi
   return {
     id: b.id,
     controlNumber: unmasked ? (plainCtrl || '-') : (plainCtrl ? `***${String(plainCtrl).slice(-4)}` : '-'),
+    selcomReference: b.selcomReference || null,
+    selcomGatewayUrl: unmasked ? (b.selcomGatewayUrl || null) : null,
+    selcomPushSent: Boolean(b.selcomPushSent),
+    selcomConfigured: getSelcomConfig().configured,
     businessName: b.businessName,
     tagline: b.tagline,
     contactPerson: unmasked ? plainContact : (plainContact ? `${String(plainContact).slice(0, 2)}***` : '-'),
@@ -816,6 +1020,7 @@ function toSafeBookingReceipt(b, { unmasked = false, hasPin = false, stepUpRequi
     status: b.status,
     paymentExpiresAt: b.paymentExpiresAt || null,
     createdAt: b.createdAt || null,
+    paidAt: b.paidAt || null,
     hasAccessPin: hasPin,
     unmasked,
     stepUpRequired,
@@ -1411,9 +1616,26 @@ const server = http.createServer(async (req, res) => {
       }
 
       const refNum = 'TBF-BIZ-' + crypto.randomInt(1000, 9999);
-      const controlNum = '99104' + crypto.randomInt(1000000, 9999999);
       const accessPin = String(crypto.randomInt(100000, 999999));
       const clientRequestId = payload.clientRequestId ? String(payload.clientRequestId).trim().slice(0, 64) : '';
+      const totalAmountVal = Math.max(0, Number(payload.totalAmount) || 350000);
+      const payMethodVal = sanitizeTextInput(payload.paymentMethod || 'M-Pesa / Mixx by Yas / Airtel Money', 64);
+
+      // Call real Selcom Payment Gateway if configured in .env
+      const selcomRes = await createSelcomOrderAndPush({
+        orderId: refNum,
+        amount: totalAmountVal,
+        buyerName: contactPerson,
+        buyerEmail: email,
+        buyerPhone: phone,
+        boothCode,
+        cities,
+        paymentMethod: payMethodVal,
+        triggerPush: true
+      });
+      const controlNum = (selcomRes.orderCreated && selcomRes.controlNumber)
+        ? selcomRes.controlNumber
+        : ('TBF-' + refNum.replace('TBF-BIZ-', '') + '-' + crypto.randomInt(1000, 9999));
 
       const outcome = await withDbTransaction(db => {
         // Idempotent retry safety on slow/flaky mobile networks
@@ -1425,6 +1647,7 @@ const server = http.createServer(async (req, res) => {
               value: {
                 deduplicated: true,
                 booking: toSafeBookingReceipt(existing, { unmasked: true, hasPin: Boolean(existing.accessPinHash), stepUpRequired: false }),
+                selcom: selcomRes,
                 liveStats: getLiveStats(db),
                 db: sanitizePublicDb(db)
               }
@@ -1446,6 +1669,10 @@ const server = http.createServer(async (req, res) => {
         const newBooking = {
           id: refNum,
           controlNumber: encryptField(controlNum),
+          selcomReference: selcomRes.reference || null,
+          selcomGatewayUrl: selcomRes.gatewayUrl || null,
+          selcomPushSent: Boolean(selcomRes.pushSent),
+          selcomTransId: selcomRes.transId || null,
           accessPinHash: hashSecret(accessPin),
           clientRequestId: clientRequestId || undefined,
           ownerDeviceHash: crypto.createHash('sha256').update(ctx.deviceId).digest('hex').slice(0, 16),
@@ -1461,8 +1688,8 @@ const server = http.createServer(async (req, res) => {
           packageName: sanitizeTextInput(payload.packageName || 'Standard SME Booth (3m x 3m)', 80),
           boothCode,
           cities,
-          totalAmount: Math.max(0, Number(payload.totalAmount) || 350000),
-          paymentMethod: sanitizeTextInput(payload.paymentMethod || 'M-Pesa / Mobile Money', 64),
+          totalAmount: totalAmountVal,
+          paymentMethod: payMethodVal,
           featured: true,
           status: 'Awaiting Payment',
           paymentExpiresAt: new Date(Date.now() + UNPAID_BOOKING_TTL_MS).toISOString(),
@@ -1472,10 +1699,10 @@ const server = http.createServer(async (req, res) => {
         db.bookings.unshift(newBooking);
         db.regions.forEach(region => {
           if (newBooking.cities.includes(region.name)) {
-            if (region.bookedBooths < region.totalBooths) region.bookedBooths += 1;
             if (!Array.isArray(region.bookedCodes)) region.bookedCodes = [];
             if (!region.bookedCodes.includes(newBooking.boothCode)) {
               region.bookedCodes.push(newBooking.boothCode);
+              region.bookedBooths = region.bookedCodes.length;
             }
           }
         });
@@ -1485,6 +1712,7 @@ const server = http.createServer(async (req, res) => {
           value: {
             booking: toSafeBookingReceipt(newBooking, { unmasked: true, hasPin: true, stepUpRequired: false }),
             accessPin,
+            selcom: selcomRes,
             liveStats: getLiveStats(db),
             db: sanitizePublicDb(db)
           }
@@ -1507,6 +1735,165 @@ const server = http.createServer(async (req, res) => {
       }, {}, deviceCookieList);
     } catch (err) {
       return sendJSON(res, err.statusCode || 400, { success: false, error: err.statusCode === 413 ? err.message : 'Invalid booking payload' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Trigger / Re-trigger Selcom Mobile Money USSD Push on an Unpaid Booking
+  if (pathname === '/api/bookings/selcom-push' && req.method === 'POST') {
+    const rate = checkRateLimit(`selcom-push:${ctx.deviceId}:${ctx.clientIp}`, 15, 10 * 60 * 1000);
+    if (!rate.allowed) {
+      return sendJSON(res, 429, { success: false, retryAfterSec: rate.retryAfterSec, error: `Subiri sekunde ${rate.retryAfterSec} kabla ya kutuma prompt nyingine.` }, {}, deviceCookieList);
+    }
+    try {
+      const payload = await parseBody(req);
+      const bookingId = String(payload.bookingId || payload.ref || '').trim().toUpperCase();
+      const rawPhone = String(payload.phone || '').trim();
+      const db = readDbClean();
+      const found = (db.bookings || []).find(b => String(b.id || '').toUpperCase() === bookingId);
+      if (!found) {
+        return sendJSON(res, 404, { success: false, error: 'Booking haijapatikana.' }, {}, deviceCookieList);
+      }
+      if (String(found.status || '').toLowerCase() === 'paid' || String(found.status || '').toLowerCase() === 'confirmed') {
+        return sendJSON(res, 200, {
+          success: true,
+          alreadyPaid: true,
+          message: 'Malipo yako tayari yamethibitishwa!',
+          booking: toSafeBookingReceipt(found, { unmasked: true, hasPin: Boolean(found.accessPinHash) })
+        }, {}, deviceCookieList);
+      }
+
+      const cfg = getSelcomConfig();
+      if (!cfg.configured) {
+        return sendJSON(res, 503, {
+          success: false,
+          configured: false,
+          error: 'Selcom API Keys (SELCOM_VENDOR_ID, SELCOM_API_KEY, SELCOM_API_SECRET) bado hazijawekwa kwenye .env ya server.'
+        }, {}, deviceCookieList);
+      }
+
+      const targetPhone = rawPhone || decryptField(found.phone);
+      const msisdn = normalizeTzMsisdn(targetPhone);
+      if (!/^255[67]\d{8}$/.test(msisdn)) {
+        return sendJSON(res, 400, {
+          success: false,
+          error: 'Tafadhali weka namba sahihi ya simu ya Tanzania (mfano 07XXXXXXXX au 2557XXXXXXXX).'
+        }, {}, deviceCookieList);
+      }
+
+      let selcomOrderRef = found.selcomReference;
+      let selcomCtrl = decryptField(found.controlNumber);
+      let selcomGwUrl = found.selcomGatewayUrl;
+      if (!selcomOrderRef) {
+        const created = await createSelcomOrderAndPush({
+          orderId: found.id,
+          amount: found.totalAmount,
+          buyerName: decryptField(found.contactPerson),
+          buyerEmail: decryptField(found.email),
+          buyerPhone: msisdn,
+          boothCode: found.boothCode,
+          cities: found.cities,
+          paymentMethod: 'M-Pesa / Mobile Money',
+          triggerPush: true
+        });
+        if (!created.orderCreated) {
+          return sendJSON(res, 502, {
+            success: false,
+            error: created.error || 'Imeshindikana kuwasiliana na Selcom Gateway kwa sasa.'
+          }, {}, deviceCookieList);
+        }
+        selcomOrderRef = created.reference;
+        selcomCtrl = created.controlNumber || selcomCtrl;
+        selcomGwUrl = created.gatewayUrl || selcomGwUrl;
+        await withDbTransaction(txDb => {
+          const b = txDb.bookings.find(x => x.id === found.id);
+          if (b) {
+            b.selcomReference = selcomOrderRef;
+            if (selcomCtrl) b.controlNumber = encryptField(selcomCtrl);
+            if (selcomGwUrl) b.selcomGatewayUrl = selcomGwUrl;
+            b.selcomPushSent = Boolean(created.pushSent);
+          }
+          return { dirty: true, value: true };
+        });
+        return sendJSON(res, 200, {
+          success: created.pushSent,
+          pushSent: created.pushSent,
+          controlNumber: selcomCtrl,
+          reference: selcomOrderRef,
+          gatewayUrl: selcomGwUrl,
+          message: created.pushSent
+            ? `Prompt ya malipo (Selcom USSD Push) imetumwa kwenye simu ${msisdn}. Weka PIN yako kukamilisha malipo.`
+            : (created.pushMessage || 'Oda ya Selcom imeundwa. Kamilisha malipo kwa Control Number au jaribu tena.')
+        }, {}, deviceCookieList);
+      }
+
+      const transId = 'TBF' + Date.now().toString().slice(-9) + crypto.randomInt(10, 99);
+      const pushRes = await selcomApiCall('POST', '/v1/checkout/wallet-payment', {
+        transid: transId,
+        order_id: String(found.id),
+        msisdn
+      });
+
+      if (pushRes.ok) {
+        await withDbTransaction(txDb => {
+          const b = txDb.bookings.find(x => x.id === found.id);
+          if (b) {
+            b.selcomPushSent = true;
+            b.selcomTransId = transId;
+          }
+          return { dirty: true, value: true };
+        });
+      }
+
+      return sendJSON(res, pushRes.ok ? 200 : 502, {
+        success: pushRes.ok,
+        pushSent: pushRes.ok,
+        transId,
+        message: pushRes.ok
+          ? `Prompt ya malipo (Selcom USSD Push) imetumwa kwenye simu ${msisdn}. Weka PIN yako ya M-Pesa / Mixx / Airtel / HaloPesa.`
+          : (pushRes.data?.message || pushRes.error || 'Imeshindikana kutuma USSD Push kwenye namba hiyo.'),
+        error: !pushRes.ok ? (pushRes.data?.message || pushRes.error || 'Selcom USSD Push failed') : undefined
+      }, {}, deviceCookieList);
+    } catch (err) {
+      return sendJSON(res, 400, { success: false, error: 'Invalid Selcom push request' }, {}, deviceCookieList);
+    }
+  }
+
+  // API: Official Selcom Payment Webhook Callback
+  if (pathname === '/api/webhooks/selcom' && req.method === 'POST') {
+    try {
+      const payload = await parseBody(req);
+      const orderId = String(payload.order_id || '').trim().toUpperCase();
+      const resultcode = String(payload.resultcode || '');
+      const payStatus = String(payload.payment_status || '').toUpperCase();
+
+      if (!orderId) {
+        return sendJSON(res, 400, { result: 'FAIL', message: 'Missing order_id' });
+      }
+
+      // Verify order payment status directly with Selcom API for cryptographic assurance
+      let verifiedPaid = (resultcode === '000' && (payStatus === 'COMPLETED' || payStatus === 'PAID'));
+      if (getSelcomConfig().configured) {
+        const liveCheck = await querySelcomOrderStatus(orderId);
+        if (liveCheck.paid) verifiedPaid = true;
+      }
+
+      if (verifiedPaid) {
+        await withDbTransaction(db => {
+          const b = (db.bookings || []).find(x => String(x.id || '').toUpperCase() === orderId);
+          if (!b) return { dirty: false };
+          b.status = 'Paid';
+          b.paymentExpiresAt = null;
+          b.paidAt = new Date().toISOString();
+          if (payload.reference) b.selcomReference = String(payload.reference);
+          if (payload.transid) b.selcomTransId = String(payload.transid);
+          if (payload.channel) b.paymentMethod = `Selcom (${sanitizeTextInput(payload.channel, 40)})`;
+          return { dirty: true };
+        });
+      }
+
+      return sendJSON(res, 200, { result: 'SUCCESS', resultcode: '000', order_id: orderId, verifiedPaid });
+    } catch (err) {
+      return sendJSON(res, 400, { result: 'FAIL', message: 'Invalid webhook payload' });
     }
   }
 
@@ -1572,9 +1959,28 @@ const server = http.createServer(async (req, res) => {
       }
 
       const db = readDbClean();
-      const found = findBookingByRefAndContact(db, refInput, phoneTail, emailInput);
+      let found = findBookingByRefAndContact(db, refInput, phoneTail, emailInput);
       if (!found) {
         return sendJSON(res, 404, { success: false, error: 'No matching booth reservation found for those details.' }, {}, deviceCookieList);
+      }
+
+      // Live Selcom payment verification whenever an unpaid booking is checked
+      const stLower = String(found.status || '').toLowerCase();
+      if (stLower !== 'paid' && stLower !== 'confirmed' && getSelcomConfig().configured) {
+        const liveSelcom = await querySelcomOrderStatus(found.id);
+        if (liveSelcom.paid) {
+          const updated = await withDbTransaction(txDb => {
+            const b = txDb.bookings.find(x => x.id === found.id);
+            if (!b) return { dirty: false, value: null };
+            b.status = 'Paid';
+            b.paymentExpiresAt = null;
+            b.paidAt = new Date().toISOString();
+            if (liveSelcom.reference) b.selcomReference = liveSelcom.reference;
+            if (liveSelcom.transId) b.selcomTransId = liveSelcom.transId;
+            return { dirty: true, value: b };
+          });
+          if (updated) found = updated;
+        }
       }
 
       const hasPin = Boolean(found.accessPinHash);

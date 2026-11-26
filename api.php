@@ -1,8 +1,9 @@
 <?php
 /**
- * Tanzania Biashara Festival (TBF) - cPanel Apache <-> Node.js & JSON DB Bridge
- * Automatically proxies /api/* to Node.js server.js (auto-starting it if needed)
- * and provides a zero-downtime native PHP fallback directly against data/db.json.
+ * Tanzania Biashara Festival (TBF) - cPanel Apache <-> Node.js, JSON DB & Selcom Payment Gateway Bridge
+ * 1. Proxies /api/* to Node.js server.js when listening on 127.0.0.1:3000
+ * 2. Provides full native PHP execution against data/db.json + Official Selcom Checkout & USSD Push API
+ *    so Booking, Holds, Lookup, Admin, and Selcom Payments work 100% on cPanel even without Node.js daemon.
  */
 error_reporting(0);
 header('X-Content-Type-Options: nosniff');
@@ -11,6 +12,216 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 $route = isset($_GET['route']) ? trim($_GET['route'], '/') : '';
 $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper($_SERVER['REQUEST_METHOD']) : 'GET';
 $rawBody = file_get_contents('php://input');
+
+function loadEnvPhp() {
+    $envCandidates = array(
+        __DIR__ . '/.env',
+        dirname(__DIR__) . '/.env',
+        '/home/reliancetech/www.biasharafestival.co.tz/.env',
+        '/home/reliancetech/biasharafestival.co.tz/.env',
+        '/home/reliancetech/public_html/.env',
+        '/home/reliancetech/.env'
+    );
+    $vars = array();
+    foreach ($envCandidates as $file) {
+        if (file_exists($file) && is_readable($file)) {
+            $lines = @file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            if (is_array($lines)) {
+                foreach ($lines as $line) {
+                    $trimmed = trim($line);
+                    if ($trimmed === '' || $trimmed[0] === '#') continue;
+                    $pos = strpos($trimmed, '=');
+                    if ($pos === false || $pos <= 0) continue;
+                    $k = trim(substr($trimmed, 0, $pos));
+                    $v = trim(substr($trimmed, $pos + 1));
+                    if ((strlen($v) >= 2) && (($v[0] === '"' && substr($v, -1) === '"') || ($v[0] === "'" && substr($v, -1) === "'"))) {
+                        $v = substr($v, 1, -1);
+                    }
+                    if ($k !== '' && (!isset($vars[$k]) || $vars[$k] === '')) {
+                        $vars[$k] = $v;
+                    }
+                }
+            }
+        }
+    }
+    return $vars;
+}
+
+$ENV_VARS = loadEnvPhp();
+function getEnvVar($key, $default = '') {
+    global $ENV_VARS;
+    if (isset($ENV_VARS[$key]) && $ENV_VARS[$key] !== '') return $ENV_VARS[$key];
+    $g = getenv($key);
+    if ($g !== false && $g !== '') return $g;
+    return $default;
+}
+
+function getSelcomConfigPhp() {
+    $vendorId = trim(getEnvVar('SELCOM_VENDOR_ID', ''));
+    $apiKey = trim(getEnvVar('SELCOM_API_KEY', ''));
+    $apiSecret = trim(getEnvVar('SELCOM_API_SECRET', ''));
+    $baseUrl = rtrim(trim(getEnvVar('SELCOM_BASE_URL', 'https://apigw.selcommobile.com')), '/');
+    $webhookUrl = trim(getEnvVar('SELCOM_WEBHOOK_URL', 'https://biasharafestival.co.tz/api/webhooks/selcom'));
+    return array(
+        'vendorId' => $vendorId,
+        'apiKey' => $apiKey,
+        'apiSecret' => $apiSecret,
+        'baseUrl' => $baseUrl,
+        'webhookUrl' => $webhookUrl,
+        'configured' => ($vendorId !== '' && $apiKey !== '' && $apiSecret !== '')
+    );
+}
+
+function normalizeTzMsisdnPhp($phone) {
+    $digits = preg_replace('/\D+/', '', (string)$phone);
+    if (strpos($digits, '255') === 0 && strlen($digits) === 12) return $digits;
+    if (strpos($digits, '0') === 0 && strlen($digits) === 10) return '255' . substr($digits, 1);
+    if (strlen($digits) === 9) return '255' . $digits;
+    return $digits;
+}
+
+function selcomApiCallPhp($method, $endpointPath, $payloadObj = array()) {
+    $cfg = getSelcomConfigPhp();
+    if (!$cfg['configured']) {
+        return array('ok' => false, 'configured' => false, 'error' => 'Selcom API credentials not yet configured in .env');
+    }
+    if (!function_exists('curl_init')) {
+        return array('ok' => false, 'configured' => true, 'error' => 'PHP cURL extension required for Selcom API');
+    }
+    $timestamp = gmdate('Y-m-d\TH:i:s\Z');
+    $keys = array_keys($payloadObj);
+    $signedFields = implode(',', $keys);
+    $parts = array('timestamp=' . $timestamp);
+    foreach ($keys as $k) {
+        $parts[] = $k . '=' . (string)($payloadObj[$k] ?? '');
+    }
+    $signString = implode('&', $parts);
+    $digest = base64_encode(hash_hmac('sha256', $signString, $cfg['apiSecret'], true));
+    $authToken = base64_encode($cfg['apiKey']);
+
+    $url = $cfg['baseUrl'] . $endpointPath;
+    if ($method === 'GET' && !empty($payloadObj)) {
+        $url .= (strpos($url, '?') === false ? '?' : '&') . http_build_query($payloadObj);
+    }
+
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+    $headers = array(
+        'Content-Type: application/json',
+        'Accept: application/json',
+        'Authorization: SELCOM ' . $authToken,
+        'Digest-Method: HS256',
+        'Digest: ' . $digest,
+        'Timestamp: ' . $timestamp,
+        'Signed-Fields: ' . $signedFields
+    );
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    if ($method !== 'GET') {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payloadObj));
+    }
+    $raw = curl_exec($ch);
+    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err = curl_error($ch);
+    curl_close($ch);
+
+    if ($raw === false) {
+        return array('ok' => false, 'configured' => true, 'error' => $err ?: 'Selcom network error');
+    }
+    $json = json_decode($raw, true);
+    if (!is_array($json)) $json = array();
+    $isOk = ($status >= 200 && $status < 300) && (($json['resultcode'] ?? '') === '000' || ($json['result'] ?? '') === 'SUCCESS');
+    return array('ok' => $isOk, 'configured' => true, 'status' => $status, 'data' => $json);
+}
+
+function createSelcomOrderAndPushPhp($orderId, $amount, $buyerName, $buyerEmail, $buyerPhone, $boothCode, $cities, $paymentMethod, $triggerPush = true) {
+    $cfg = getSelcomConfigPhp();
+    if (!$cfg['configured']) {
+        return array('configured' => false, 'orderCreated' => false, 'pushSent' => false);
+    }
+    $msisdn = normalizeTzMsisdnPhp($buyerPhone);
+    $citiesStr = is_array($cities) ? implode(', ', $cities) : (string)$cities;
+    $orderPayload = array(
+        'vendor' => $cfg['vendorId'],
+        'order_id' => (string)$orderId,
+        'buyer_email' => (string)($buyerEmail ?: 'info@biasharafestival.co.tz'),
+        'buyer_name' => (string)($buyerName ?: 'TBF Exhibitor'),
+        'buyer_phone' => $msisdn,
+        'amount' => max(100, (int)round((float)$amount)),
+        'currency' => 'TZS',
+        'buyer_remarks' => substr("TBF Booth #$boothCode ($citiesStr)", 0, 96),
+        'merchant_remarks' => substr("TBF Booth $orderId", 0, 96),
+        'no_of_items' => 1,
+        'webhook' => base64_encode($cfg['webhookUrl'])
+    );
+
+    $orderRes = selcomApiCallPhp('POST', '/v1/checkout/create-order-minimal', $orderPayload);
+    if (!$orderRes['ok']) {
+        return array(
+            'configured' => true,
+            'orderCreated' => false,
+            'pushSent' => false,
+            'error' => $orderRes['data']['message'] ?? ($orderRes['error'] ?? 'Selcom order creation failed')
+        );
+    }
+
+    $row = (isset($orderRes['data']['data'][0]) && is_array($orderRes['data']['data'][0])) ? $orderRes['data']['data'][0] : array();
+    $reference = (string)($orderRes['data']['reference'] ?? ($row['reference'] ?? ''));
+    $paymentToken = (string)($row['payment_token'] ?? ($row['control_number'] ?? $reference));
+    $gatewayUrl = '';
+    if (!empty($row['payment_gateway_url'])) {
+        $decoded = @base64_decode((string)$row['payment_gateway_url'], true);
+        if ($decoded && preg_match('/^https?:\/\//i', $decoded)) {
+            $gatewayUrl = $decoded;
+        } else {
+            $gatewayUrl = (string)$row['payment_gateway_url'];
+        }
+    }
+
+    $pushSent = false;
+    $pushMessage = '';
+    $transId = '';
+    $isMobileMoney = !preg_match('/card|visa|mastercard|bank|crdb|nmb/i', (string)$paymentMethod);
+    if ($triggerPush && $isMobileMoney && preg_match('/^255[67]\d{8}$/', $msisdn)) {
+        $transId = 'TBF' . substr((string)time(), -7) . mt_rand(100, 999);
+        $pushRes = selcomApiCallPhp('POST', '/v1/checkout/wallet-payment', array(
+            'transid' => $transId,
+            'order_id' => (string)$orderId,
+            'msisdn' => $msisdn
+        ));
+        $pushSent = !empty($pushRes['ok']);
+        $pushMessage = $pushRes['data']['message'] ?? ($pushSent ? 'USSD Push prompt sent to mobile phone' : ($pushRes['error'] ?? ''));
+    }
+
+    return array(
+        'configured' => true,
+        'orderCreated' => true,
+        'reference' => $reference,
+        'controlNumber' => $paymentToken ?: $reference,
+        'gatewayUrl' => $gatewayUrl,
+        'pushSent' => $pushSent,
+        'pushMessage' => $pushMessage,
+        'transId' => $transId
+    );
+}
+
+function querySelcomOrderStatusPhp($orderId) {
+    $cfg = getSelcomConfigPhp();
+    if (!$cfg['configured'] || !$orderId) return array('configured' => $cfg['configured'], 'paid' => false);
+    $res = selcomApiCallPhp('GET', '/v1/checkout/order-status', array('order_id' => (string)$orderId));
+    if (!$res['ok']) return array('configured' => true, 'paid' => false);
+    $row = (isset($res['data']['data'][0]) && is_array($res['data']['data'][0])) ? $res['data']['data'][0] : array();
+    $st = strtoupper((string)($row['payment_status'] ?? ($res['data']['payment_status'] ?? '')));
+    $isPaid = ($st === 'COMPLETED' || $st === 'PAID' || $st === 'SUCCESSFUL');
+    return array(
+        'configured' => true,
+        'paid' => $isPaid,
+        'paymentStatus' => $st ?: 'PENDING',
+        'reference' => (string)($row['reference'] ?? ($res['data']['reference'] ?? '')),
+        'transId' => (string)($row['transid'] ?? '')
+    );
+}
 
 function isNodeListening($port = 3000) {
     $fp = @fsockopen('127.0.0.1', $port, $errno, $errstr, 0.25);
@@ -63,7 +274,7 @@ if (tryStartNodeServer() && function_exists('curl_init')) {
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HEADER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 12);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 16);
 
     $reqHeaders = array(
         'Content-Type: ' . ($_SERVER['CONTENT_TYPE'] ?? 'application/json'),
@@ -100,7 +311,7 @@ if (tryStartNodeServer() && function_exists('curl_init')) {
     curl_close($ch);
 }
 
-// 2. Native PHP Fallback against data/db.json (Zero-Downtime Resilience)
+// 2. Native PHP Execution against data/db.json + Selcom Payment Gateway
 header('Content-Type: application/json; charset=utf-8');
 
 function locateDbJson() {
@@ -121,9 +332,15 @@ function locateDbJson() {
 
 function readDbPhp() {
     $path = locateDbJson();
-    if (!file_exists($path)) return array('regions' => array(), 'boothPackages' => array(), 'bookings' => array(), 'sponsors' => array(), 'announcements' => array(), 'boothHolds' => array());
+    if (!file_exists($path)) {
+        return array('regions' => array(), 'boothPackages' => array(), 'bookings' => array(), 'sponsors' => array(), 'announcements' => array(), 'boothHolds' => array());
+    }
     $data = json_decode(@file_get_contents($path), true);
-    return is_array($data) ? $data : array();
+    if (!is_array($data)) $data = array();
+    if (!isset($data['bookings']) || !is_array($data['bookings'])) $data['bookings'] = array();
+    if (!isset($data['boothHolds']) || !is_array($data['boothHolds'])) $data['boothHolds'] = array();
+    if (!isset($data['regions']) || !is_array($data['regions'])) $data['regions'] = array();
+    return $data;
 }
 
 function writeDbPhp($db) {
@@ -143,6 +360,21 @@ function writeDbPhp($db) {
     }
 }
 
+function pruneExpiredPhp(&$db) {
+    $nowMs = round(microtime(true) * 1000);
+    $changed = false;
+    $validHolds = array();
+    foreach ($db['boothHolds'] as $h) {
+        if ((float)($h['expiresAt'] ?? 0) > $nowMs) {
+            $validHolds[] = $h;
+        } else {
+            $changed = true;
+        }
+    }
+    $db['boothHolds'] = $validHolds;
+    return $changed;
+}
+
 function buildLiveStatsPhp($db) {
     $bookingsCount = 0;
     if (isset($db['bookings']) && is_array($db['bookings'])) {
@@ -160,30 +392,533 @@ function buildLiveStatsPhp($db) {
     }
     $visitors = max(185, (int)($db['analytics']['totalCookieVisitors'] ?? ($db['analytics']['totalUniqueVisitors'] ?? 185)));
     $attendees = max(240, $regAttendees, (int)($db['analytics']['totalRegisteredAttendees'] ?? 240));
-    $investors = max(2, $sponsorsCount, (int)($db['analytics']['totalPartnersAndInvestors'] ?? 2));
-    $biz = max(10, $bookingsCount, (int)($db['analytics']['totalBusinessesShowcased'] ?? 10));
+    $investors = max(1, $sponsorsCount + 1, (int)($db['analytics']['totalPartnersAndInvestors'] ?? 2));
+    $cfg = getSelcomConfigPhp();
     return array(
         'liveOnlineCount' => 1,
         'totalCookieVisitors' => $visitors,
         'totalRegisteredAttendees' => $attendees,
         'totalPartnersAndInvestors' => $investors,
-        'totalBusinessesShowcased' => $biz
+        'totalBusinessesShowcased' => $bookingsCount,
+        'selcomConfigured' => $cfg['configured']
     );
 }
 
-$db = readDbPhp();
-$payload = json_decode($rawBody, true);
-if (!is_array($payload)) $payload = array();
-
-if ($route === 'data' && $method === 'GET') {
-    echo json_encode(array(
+function sanitizePublicDbPhp($db) {
+    $nowMs = round(microtime(true) * 1000);
+    $publicBookings = array();
+    foreach (($db['bookings'] ?? array()) as $b) {
+        $st = strtolower(trim($b['status'] ?? ''));
+        if ($st === 'cancelled' || $st === 'expired') continue;
+        $publicBookings[] = array(
+            'id' => $b['id'] ?? '',
+            'businessName' => $b['businessName'] ?? '',
+            'tagline' => $b['tagline'] ?? '',
+            'sector' => $b['sector'] ?? '',
+            'packageId' => $b['packageId'] ?? '',
+            'packageName' => $b['packageName'] ?? '',
+            'boothCode' => $b['boothCode'] ?? '',
+            'cities' => $b['cities'] ?? array(),
+            'status' => $b['status'] ?? 'Awaiting Payment',
+            'featured' => true
+        );
+    }
+    $activeHolds = array();
+    foreach (($db['boothHolds'] ?? array()) as $h) {
+        if ((float)($h['expiresAt'] ?? 0) > $nowMs) {
+            $activeHolds[] = array(
+                'boothCode' => $h['boothCode'],
+                'cities' => $h['cities'] ?? array(),
+                'expiresAt' => $h['expiresAt']
+            );
+        }
+    }
+    $cfg = getSelcomConfigPhp();
+    return array(
         'festivalName' => $db['festivalName'] ?? 'Tanzania Biashara Festival (TBF)',
         'motto' => $db['motto'] ?? 'Every business has a place, every city has an opportunity',
         'destination' => $db['destination'] ?? null,
         'regions' => $db['regions'] ?? array(),
         'boothPackages' => $db['boothPackages'] ?? array(),
+        'bookings' => $publicBookings,
+        'activeHolds' => $activeHolds,
         'announcements' => $db['announcements'] ?? array(),
-        'boothHolds' => $db['boothHolds'] ?? array(),
+        'liveStats' => buildLiveStatsPhp($db),
+        'selcomConfigured' => $cfg['configured']
+    );
+}
+
+function findBoothConflictPhp($db, $boothCode, $cities, $excludeHoldToken = '', $excludeBookingId = '') {
+    $nowMs = round(microtime(true) * 1000);
+    foreach (($db['bookings'] ?? array()) as $b) {
+        if ($excludeBookingId !== '' && ($b['id'] ?? '') === $excludeBookingId) continue;
+        $st = strtolower(trim($b['status'] ?? ''));
+        if ($st === 'cancelled' || $st === 'expired') continue;
+        if (strtoupper($b['boothCode'] ?? '') === $boothCode && is_array($b['cities'] ?? null)) {
+            foreach ($b['cities'] as $c) {
+                if (in_array($c, $cities, true)) return array('type' => 'BOOKED', 'ref' => $b['id']);
+            }
+        }
+    }
+    foreach (($db['boothHolds'] ?? array()) as $h) {
+        if ((float)($h['expiresAt'] ?? 0) <= $nowMs) continue;
+        if ($excludeHoldToken !== '' && ($h['holdToken'] ?? '') === $excludeHoldToken) continue;
+        if (strtoupper($h['boothCode'] ?? '') === $boothCode && is_array($h['cities'] ?? null)) {
+            foreach ($h['cities'] as $c) {
+                if (in_array($c, $cities, true)) return array('type' => 'HELD', 'expiresAt' => $h['expiresAt']);
+            }
+        }
+    }
+    return null;
+}
+
+function normalizePhoneTailPhp($phone) {
+    $d = preg_replace('/\D+/', '', (string)$phone);
+    return strlen($d) >= 9 ? substr($d, -9) : $d;
+}
+
+function formatBookingReceiptPhp($b, $unmasked = true, $manageToken = '') {
+    $cfg = getSelcomConfigPhp();
+    $ctrl = (string)($b['controlNumber'] ?? '-');
+    $phone = (string)($b['phone'] ?? '-');
+    $email = (string)($b['email'] ?? '-');
+    $contact = (string)($b['contactPerson'] ?? '-');
+    return array(
+        'id' => $b['id'] ?? '',
+        'controlNumber' => $unmasked ? $ctrl : ('***' . substr($ctrl, -4)),
+        'selcomReference' => $b['selcomReference'] ?? null,
+        'selcomGatewayUrl' => $unmasked ? ($b['selcomGatewayUrl'] ?? null) : null,
+        'selcomPushSent' => !empty($b['selcomPushSent']),
+        'selcomConfigured' => $cfg['configured'],
+        'businessName' => $b['businessName'] ?? '',
+        'tagline' => $b['tagline'] ?? '',
+        'contactPerson' => $unmasked ? $contact : (substr($contact, 0, 2) . '***'),
+        'phone' => $unmasked ? $phone : ('+255 *** *** ' . substr(preg_replace('/\D+/', '', $phone), -3)),
+        'email' => $unmasked ? $email : (substr($email, 0, 1) . '***'),
+        'sector' => $b['sector'] ?? '',
+        'packageId' => $b['packageId'] ?? '',
+        'packageName' => $b['packageName'] ?? '',
+        'boothCode' => $b['boothCode'] ?? '',
+        'cities' => $b['cities'] ?? array(),
+        'totalAmount' => (float)($b['totalAmount'] ?? 0),
+        'paymentMethod' => $b['paymentMethod'] ?? '',
+        'status' => $b['status'] ?? 'Awaiting Payment',
+        'paymentExpiresAt' => $b['paymentExpiresAt'] ?? null,
+        'createdAt' => $b['createdAt'] ?? null,
+        'paidAt' => $b['paidAt'] ?? null,
+        'hasAccessPin' => !empty($b['accessPin']),
+        'unmasked' => $unmasked,
+        'stepUpRequired' => !$unmasked && !empty($b['accessPin']),
+        'manageToken' => $manageToken ?: ($b['manageToken'] ?? null)
+    );
+}
+
+$db = readDbPhp();
+if (pruneExpiredPhp($db)) {
+    writeDbPhp($db);
+}
+$payload = json_decode($rawBody, true);
+if (!is_array($payload)) $payload = array();
+
+if ($route === 'data' && $method === 'GET') {
+    echo json_encode(sanitizePublicDbPhp($db));
+    exit;
+}
+
+if ($route === 'bookings/hold' && $method === 'POST') {
+    $boothCode = strtoupper(trim($payload['boothCode'] ?? ''));
+    $cities = isset($payload['cities']) && is_array($payload['cities']) ? array_values(array_filter($payload['cities'])) : array();
+    $holdToken = trim($payload['holdToken'] ?? '');
+    if ($boothCode === '' || empty($cities)) {
+        http_response_code(400);
+        echo json_encode(array('success' => false, 'error' => 'boothCode and at least one city are required'));
+        exit;
+    }
+    $conflict = findBoothConflictPhp($db, $boothCode, $cities, $holdToken);
+    if ($conflict) {
+        http_response_code(409);
+        echo json_encode(array(
+            'success' => false,
+            'errorCode' => $conflict['type'] === 'HELD' ? 'BOOTH_HELD' : 'BOOTH_BOOKED',
+            'error' => $conflict['type'] === 'HELD'
+                ? 'Banda hili limeshikwa kwa muda na mshiriki mwingine.'
+                : 'Banda hili tayari limechukuliwa kwenye mkoa uliochagua.'
+        ));
+        exit;
+    }
+    if ($holdToken !== '') {
+        $filtered = array();
+        foreach ($db['boothHolds'] as $h) {
+            if (($h['holdToken'] ?? '') !== $holdToken) $filtered[] = $h;
+        }
+        $db['boothHolds'] = $filtered;
+    } else {
+        $holdToken = bin2hex(random_bytes(16));
+    }
+    $nowMs = round(microtime(true) * 1000);
+    $holdRecord = array(
+        'holdId' => 'HLD-' . strtoupper(bin2hex(random_bytes(3))),
+        'holdToken' => $holdToken,
+        'boothCode' => $boothCode,
+        'cities' => $cities,
+        'createdAt' => $nowMs,
+        'expiresAt' => $nowMs + (10 * 60 * 1000)
+    );
+    $db['boothHolds'][] = $holdRecord;
+    writeDbPhp($db);
+    echo json_encode(array(
+        'success' => true,
+        'hold' => $holdRecord,
+        'db' => sanitizePublicDbPhp($db)
+    ));
+    exit;
+}
+
+if ($route === 'bookings/hold' && $method === 'DELETE') {
+    $holdToken = trim($payload['holdToken'] ?? '');
+    if ($holdToken !== '') {
+        $filtered = array();
+        foreach ($db['boothHolds'] as $h) {
+            if (($h['holdToken'] ?? '') !== $holdToken) $filtered[] = $h;
+        }
+        $db['boothHolds'] = $filtered;
+        writeDbPhp($db);
+    }
+    echo json_encode(array('success' => true));
+    exit;
+}
+
+if ($route === 'bookings' && $method === 'POST') {
+    $businessName = trim($payload['businessName'] ?? '');
+    $contactPerson = trim($payload['contactPerson'] ?? '');
+    $phone = trim($payload['phone'] ?? '');
+    $email = strtolower(trim($payload['email'] ?? ''));
+    $boothCode = strtoupper(trim($payload['boothCode'] ?? ''));
+    $cities = isset($payload['cities']) && is_array($payload['cities']) ? array_values(array_filter($payload['cities'])) : array();
+    $holdToken = trim($payload['holdToken'] ?? '');
+    $clientRequestId = trim($payload['clientRequestId'] ?? '');
+
+    if ($businessName === '' || $contactPerson === '' || strlen(normalizePhoneTailPhp($phone)) < 9 || strpos($email, '@') === false || $boothCode === '' || empty($cities)) {
+        http_response_code(400);
+        echo json_encode(array('success' => false, 'error' => 'Tafadhali jaza taarifa zote za biashara, simu, barua pepe na uchague banda.'));
+        exit;
+    }
+
+    if ($clientRequestId !== '') {
+        foreach ($db['bookings'] as $eb) {
+            if (($eb['clientRequestId'] ?? '') === $clientRequestId) {
+                echo json_encode(array(
+                    'success' => true,
+                    'deduplicated' => true,
+                    'booking' => formatBookingReceiptPhp($eb, true),
+                    'accessPin' => $eb['accessPin'] ?? '',
+                    'liveStats' => buildLiveStatsPhp($db),
+                    'db' => sanitizePublicDbPhp($db)
+                ));
+                exit;
+            }
+        }
+    }
+
+    $conflict = findBoothConflictPhp($db, $boothCode, $cities, $holdToken);
+    if ($conflict) {
+        http_response_code(409);
+        echo json_encode(array('success' => false, 'error' => 'Samahani, banda hili limeshachukuliwa. Tafadhali chagua banda lingine lililo wazi.'));
+        exit;
+    }
+
+    if ($holdToken !== '') {
+        $filtered = array();
+        foreach ($db['boothHolds'] as $h) {
+            if (($h['holdToken'] ?? '') !== $holdToken) $filtered[] = $h;
+        }
+        $db['boothHolds'] = $filtered;
+    }
+
+    $refNum = 'TBF-BIZ-' . mt_rand(1000, 9999);
+    $accessPin = (string)mt_rand(100000, 999999);
+    $totalAmount = max(0, (float)($payload['totalAmount'] ?? 350000));
+    $paymentMethod = trim($payload['paymentMethod'] ?? 'M-Pesa / Mixx by Yas / Airtel Money');
+
+    $selcomRes = createSelcomOrderAndPushPhp($refNum, $totalAmount, $contactPerson, $email, $phone, $boothCode, $cities, $paymentMethod, true);
+    $controlNum = (!empty($selcomRes['orderCreated']) && !empty($selcomRes['controlNumber']))
+        ? $selcomRes['controlNumber']
+        : ('TBF-' . str_replace('TBF-BIZ-', '', $refNum) . '-' . mt_rand(1000, 9999));
+
+    $newBooking = array(
+        'id' => $refNum,
+        'controlNumber' => $controlNum,
+        'selcomReference' => $selcomRes['reference'] ?? null,
+        'selcomGatewayUrl' => $selcomRes['gatewayUrl'] ?? null,
+        'selcomPushSent' => !empty($selcomRes['pushSent']),
+        'selcomTransId' => $selcomRes['transId'] ?? null,
+        'accessPin' => $accessPin,
+        'manageToken' => bin2hex(random_bytes(16)),
+        'clientRequestId' => $clientRequestId,
+        'businessName' => $businessName,
+        'tagline' => trim($payload['tagline'] ?? 'Bidhaa na huduma bora kwa wateja na wawekezaji mikoani.'),
+        'contactPerson' => $contactPerson,
+        'phone' => $phone,
+        'email' => $email,
+        'sector' => trim($payload['sector'] ?? 'Biashara & Huduma'),
+        'packageId' => trim($payload['packageId'] ?? 'standard-booth'),
+        'packageName' => trim($payload['packageName'] ?? 'Standard SME Booth (3m x 3m)'),
+        'boothCode' => $boothCode,
+        'cities' => $cities,
+        'totalAmount' => $totalAmount,
+        'paymentMethod' => $paymentMethod,
+        'featured' => true,
+        'status' => 'Awaiting Payment',
+        'paymentExpiresAt' => gmdate('c', time() + 86400),
+        'createdAt' => gmdate('c')
+    );
+
+    array_unshift($db['bookings'], $newBooking);
+    foreach ($db['regions'] as &$reg) {
+        if (in_array($reg['name'] ?? '', $cities, true)) {
+            if (!isset($reg['bookedCodes']) || !is_array($reg['bookedCodes'])) $reg['bookedCodes'] = array();
+            if (!in_array($boothCode, $reg['bookedCodes'], true)) {
+                $reg['bookedCodes'][] = $boothCode;
+                $reg['bookedBooths'] = count($reg['bookedCodes']);
+            }
+        }
+    }
+    unset($reg);
+    writeDbPhp($db);
+
+    http_response_code(201);
+    echo json_encode(array(
+        'success' => true,
+        'booking' => formatBookingReceiptPhp($newBooking, true, $newBooking['manageToken']),
+        'accessPin' => $accessPin,
+        'selcom' => $selcomRes,
+        'liveStats' => buildLiveStatsPhp($db),
+        'db' => sanitizePublicDbPhp($db)
+    ));
+    exit;
+}
+
+if ($route === 'bookings/selcom-push' && $method === 'POST') {
+    $bookingId = strtoupper(trim($payload['bookingId'] ?? ($payload['ref'] ?? '')));
+    $rawPhone = trim($payload['phone'] ?? '');
+    $foundIdx = -1;
+    foreach ($db['bookings'] as $idx => $b) {
+        if (strtoupper($b['id'] ?? '') === $bookingId) { $foundIdx = $idx; break; }
+    }
+    if ($foundIdx < 0) {
+        http_response_code(404);
+        echo json_encode(array('success' => false, 'error' => 'Booking haijapatikana.'));
+        exit;
+    }
+    $found = $db['bookings'][$foundIdx];
+    $st = strtolower(trim($found['status'] ?? ''));
+    if ($st === 'paid' || $st === 'confirmed') {
+        echo json_encode(array(
+            'success' => true,
+            'alreadyPaid' => true,
+            'message' => 'Malipo yako tayari yamethibitishwa!',
+            'booking' => formatBookingReceiptPhp($found, true)
+        ));
+        exit;
+    }
+
+    $cfg = getSelcomConfigPhp();
+    if (!$cfg['configured']) {
+        http_response_code(503);
+        echo json_encode(array(
+            'success' => false,
+            'configured' => false,
+            'error' => 'Selcom API Keys (SELCOM_VENDOR_ID, SELCOM_API_KEY, SELCOM_API_SECRET) bado hazijawekwa kwenye .env ya server.'
+        ));
+        exit;
+    }
+
+    $targetPhone = $rawPhone !== '' ? $rawPhone : ($found['phone'] ?? '');
+    $msisdn = normalizeTzMsisdnPhp($targetPhone);
+    if (!preg_match('/^255[67]\d{8}$/', $msisdn)) {
+        http_response_code(400);
+        echo json_encode(array('success' => false, 'error' => 'Weka namba sahihi ya simu ya Tanzania (mfano 07XXXXXXXX au 2557XXXXXXXX).'));
+        exit;
+    }
+
+    if (empty($found['selcomReference'])) {
+        $created = createSelcomOrderAndPushPhp(
+            $found['id'],
+            $found['totalAmount'] ?? 350000,
+            $found['contactPerson'] ?? 'Exhibitor',
+            $found['email'] ?? 'info@biasharafestival.co.tz',
+            $msisdn,
+            $found['boothCode'] ?? 'B-01',
+            $found['cities'] ?? array('Mwanza'),
+            'M-Pesa / Mobile Money',
+            true
+        );
+        if (empty($created['orderCreated'])) {
+            http_response_code(502);
+            echo json_encode(array('success' => false, 'error' => $created['error'] ?? 'Imeshindikana kuwasiliana na Selcom Gateway.'));
+            exit;
+        }
+        $db['bookings'][$foundIdx]['selcomReference'] = $created['reference'];
+        if (!empty($created['controlNumber'])) $db['bookings'][$foundIdx]['controlNumber'] = $created['controlNumber'];
+        if (!empty($created['gatewayUrl'])) $db['bookings'][$foundIdx]['selcomGatewayUrl'] = $created['gatewayUrl'];
+        $db['bookings'][$foundIdx]['selcomPushSent'] = !empty($created['pushSent']);
+        writeDbPhp($db);
+        echo json_encode(array(
+            'success' => !empty($created['pushSent']),
+            'pushSent' => !empty($created['pushSent']),
+            'controlNumber' => $db['bookings'][$foundIdx]['controlNumber'],
+            'reference' => $created['reference'],
+            'gatewayUrl' => $created['gatewayUrl'],
+            'message' => !empty($created['pushSent'])
+                ? "Prompt ya malipo (Selcom USSD Push) imetumwa kwenye simu $msisdn. Weka PIN yako kukamilisha malipo."
+                : ($created['pushMessage'] ?: 'Oda ya Selcom imeundwa.')
+        ));
+        exit;
+    }
+
+    $transId = 'TBF' . substr((string)time(), -7) . mt_rand(100, 999);
+    $pushRes = selcomApiCallPhp('POST', '/v1/checkout/wallet-payment', array(
+        'transid' => $transId,
+        'order_id' => (string)$found['id'],
+        'msisdn' => $msisdn
+    ));
+    if (!empty($pushRes['ok'])) {
+        $db['bookings'][$foundIdx]['selcomPushSent'] = true;
+        $db['bookings'][$foundIdx]['selcomTransId'] = $transId;
+        writeDbPhp($db);
+    }
+    http_response_code(!empty($pushRes['ok']) ? 200 : 502);
+    echo json_encode(array(
+        'success' => !empty($pushRes['ok']),
+        'pushSent' => !empty($pushRes['ok']),
+        'transId' => $transId,
+        'message' => !empty($pushRes['ok'])
+            ? "Prompt ya malipo (Selcom USSD Push) imetumwa kwenye simu $msisdn. Weka PIN yako ya M-Pesa / Mixx / Airtel / HaloPesa."
+            : ($pushRes['data']['message'] ?? ($pushRes['error'] ?? 'Imeshindikana kutuma USSD Push.')),
+        'error' => empty($pushRes['ok']) ? ($pushRes['data']['message'] ?? ($pushRes['error'] ?? 'Selcom Push failed')) : null
+    ));
+    exit;
+}
+
+if ($route === 'webhooks/selcom' && $method === 'POST') {
+    $orderId = strtoupper(trim($payload['order_id'] ?? ''));
+    $resultcode = (string)($payload['resultcode'] ?? '');
+    $payStatus = strtoupper(trim($payload['payment_status'] ?? ''));
+    if ($orderId === '') {
+        http_response_code(400);
+        echo json_encode(array('result' => 'FAIL', 'message' => 'Missing order_id'));
+        exit;
+    }
+    $verifiedPaid = ($resultcode === '000' && ($payStatus === 'COMPLETED' || $payStatus === 'PAID'));
+    $cfg = getSelcomConfigPhp();
+    if ($cfg['configured']) {
+        $live = querySelcomOrderStatusPhp($orderId);
+        if (!empty($live['paid'])) $verifiedPaid = true;
+    }
+    if ($verifiedPaid) {
+        foreach ($db['bookings'] as &$b) {
+            if (strtoupper($b['id'] ?? '') === $orderId) {
+                $b['status'] = 'Paid';
+                $b['paymentExpiresAt'] = null;
+                $b['paidAt'] = gmdate('c');
+                if (!empty($payload['reference'])) $b['selcomReference'] = (string)$payload['reference'];
+                if (!empty($payload['transid'])) $b['selcomTransId'] = (string)$payload['transid'];
+                break;
+            }
+        }
+        unset($b);
+        writeDbPhp($db);
+    }
+    echo json_encode(array('result' => 'SUCCESS', 'resultcode' => '000', 'order_id' => $orderId, 'verifiedPaid' => $verifiedPaid));
+    exit;
+}
+
+if (($route === 'bookings/lookup' || $route === 'bookings/email-login' || $route === 'bookings/manage') && $method === 'POST') {
+    $refInput = strtoupper(trim($payload['ref'] ?? ''));
+    $phoneTail = normalizePhoneTailPhp($payload['phone'] ?? '');
+    $emailInput = strtolower(trim($payload['email'] ?? ''));
+    $pin = trim($payload['pin'] ?? ($payload['secret'] ?? ''));
+    $action = trim($payload['action'] ?? 'lookup');
+
+    $foundIdx = -1;
+    foreach ($db['bookings'] as $idx => $b) {
+        $bId = strtoupper(trim($b['id'] ?? ''));
+        $bCtrl = strtoupper(trim($b['controlNumber'] ?? ''));
+        $refMatch = ($refInput === '' || $bId === $refInput || $bCtrl === $refInput);
+        if (!$refMatch) continue;
+        $contactMatch = false;
+        if ($emailInput !== '' && strtolower(trim($b['email'] ?? '')) === $emailInput) $contactMatch = true;
+        if ($phoneTail !== '' && normalizePhoneTailPhp($b['phone'] ?? '') === $phoneTail) $contactMatch = true;
+        if ($contactMatch) { $foundIdx = $idx; break; }
+    }
+
+    if ($foundIdx < 0) {
+        http_response_code(404);
+        echo json_encode(array('success' => false, 'error' => 'Hakuna booking iliyopatikana kwa taarifa hizo.'));
+        exit;
+    }
+
+    $found = &$db['bookings'][$foundIdx];
+    $stLower = strtolower(trim($found['status'] ?? ''));
+    if ($stLower !== 'paid' && $stLower !== 'confirmed') {
+        $cfg = getSelcomConfigPhp();
+        if ($cfg['configured']) {
+            $live = querySelcomOrderStatusPhp($found['id']);
+            if (!empty($live['paid'])) {
+                $found['status'] = 'Paid';
+                $found['paymentExpiresAt'] = null;
+                $found['paidAt'] = gmdate('c');
+                if (!empty($live['reference'])) $found['selcomReference'] = $live['reference'];
+                writeDbPhp($db);
+            }
+        }
+    }
+
+    $pinMatches = ($pin !== '' && isset($found['accessPin']) && (string)$found['accessPin'] === $pin);
+    $tokenMatches = (!empty($payload['manageToken']) && isset($found['manageToken']) && $found['manageToken'] === $payload['manageToken']);
+    $unmasked = $pinMatches || $tokenMatches || empty($found['accessPin']);
+
+    if ($route === 'bookings/manage') {
+        if (!$unmasked) {
+            http_response_code(403);
+            echo json_encode(array('success' => false, 'error' => 'PIN ya usalama ya tarakimu 6 si sahihi.'));
+            exit;
+        }
+        if ($action === 'switch_booth') {
+            $newCode = strtoupper(trim($payload['newBoothCode'] ?? ''));
+            if ($newCode !== '') {
+                $oldCode = $found['boothCode'];
+                $found['boothCode'] = $newCode;
+                foreach ($db['regions'] as &$reg) {
+                    if (in_array($reg['name'] ?? '', $found['cities'] ?? array(), true)) {
+                        $reg['bookedCodes'] = array_values(array_diff($reg['bookedCodes'] ?? array(), array($oldCode)));
+                        if (!in_array($newCode, $reg['bookedCodes'], true)) $reg['bookedCodes'][] = $newCode;
+                        $reg['bookedBooths'] = count($reg['bookedCodes']);
+                    }
+                }
+                unset($reg);
+                writeDbPhp($db);
+            }
+        } elseif ($action === 'cancel') {
+            $oldCode = $found['boothCode'];
+            $found['status'] = 'Cancelled';
+            foreach ($db['regions'] as &$reg) {
+                if (in_array($reg['name'] ?? '', $found['cities'] ?? array(), true)) {
+                    $reg['bookedCodes'] = array_values(array_diff($reg['bookedCodes'] ?? array(), array($oldCode)));
+                    $reg['bookedBooths'] = count($reg['bookedCodes']);
+                }
+            }
+            unset($reg);
+            writeDbPhp($db);
+        }
+    }
+
+    echo json_encode(array(
+        'success' => true,
+        'role' => 'exhibitor',
+        'unlocked' => $unmasked,
+        'booking' => formatBookingReceiptPhp($found, $unmasked, $unmasked ? ($found['manageToken'] ?? bin2hex(random_bytes(8))) : ''),
+        'db' => sanitizePublicDbPhp($db),
         'liveStats' => buildLiveStatsPhp($db)
     ));
     exit;
@@ -194,7 +929,7 @@ if ($route === 'visitor-ping' && $method === 'POST') {
         $db['analytics'] = array(
             'totalCookieVisitors' => 185,
             'totalRegisteredAttendees' => 240,
-            'totalBusinessesShowcased' => 10,
+            'totalBusinessesShowcased' => 0,
             'totalPartnersAndInvestors' => 2
         );
     }
