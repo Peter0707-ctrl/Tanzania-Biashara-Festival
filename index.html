@@ -263,6 +263,50 @@
       line-height: 1.65 !important;
     }
 
+    /* Compact 3D Tactile Payment Network Symbols (Form-less) */
+    .pay-3d-chip {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.42rem 0.72rem;
+      border-radius: 9999px;
+      background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 3px 0 #cbd5e1, 0 5px 10px rgba(15, 23, 42, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+      transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease, opacity 0.14s ease;
+      opacity: 0.78;
+      cursor: pointer;
+    }
+    .pay-3d-chip:hover {
+      opacity: 1;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 0 #94a3b8, 0 8px 14px rgba(15, 23, 42, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    }
+    .pay-3d-chip:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #94a3b8, 0 2px 5px rgba(15, 23, 42, 0.08);
+    }
+    .pay-3d-chip.is-active {
+      opacity: 1;
+      border-color: #0b6b68;
+      background: linear-gradient(180deg, #f0fdfa 0%, #dcfce7 100%);
+      box-shadow: 0 3px 0 #08524f, 0 6px 14px rgba(11, 107, 104, 0.22), 0 0 0 2px rgba(11, 107, 104, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    }
+    .pay-3d-orb {
+      width: 24px;
+      height: 24px;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 10px;
+      color: #ffffff;
+      flex-shrink: 0;
+      box-shadow: inset 0 2px 3px rgba(255, 255, 255, 0.45), inset 0 -2px 3px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.22);
+    }
+
     /* Chinese Multi-language Fallback */
     html[lang="zh"] h1, 
     html[lang="zh"] h2, 
@@ -1381,8 +1425,11 @@
                 <input id="form-contact-person" type="text" data-i18n-placeholder="formContactPlaceholder" placeholder="Mfano: Juma Bakari" class="w-full px-4 py-2.5 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]" />
               </div>
               <div>
-                <label for="form-phone" class="block text-xs font-bold mb-1.5" data-i18n="lblPhone">Simu ya Biashara (WhatsApp / Call) *</label>
-                <input id="form-phone" type="tel" placeholder="+255 7XX XXX XXX" class="w-full px-4 py-2.5 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]" />
+                <div class="flex items-center justify-between gap-2 mb-1.5">
+                  <label for="form-phone" class="block text-xs font-bold" data-i18n="lblPhone">Simu ya Biashara (WhatsApp / Call) *</label>
+                  <span id="form-phone-network-badge" class="hidden"></span>
+                </div>
+                <input id="form-phone" type="tel" oninput="handleBookingPhoneChange(this.value)" placeholder="+255 7XX XXX XXX" class="w-full px-4 py-2.5 rounded-xl bg-[#f4f7f6] border border-slate-300 text-sm focus:outline-none focus:border-[#0b6b68]" />
               </div>
               <div>
                 <label for="form-sector" class="block text-xs font-bold mb-1.5" data-i18n="lblSector">Sekta ya Biashara (Sector) *</label>
@@ -1433,23 +1480,56 @@
             <!-- Clean Compact Review Recap -->
             <div id="step3-recap-card" class="rounded-2xl bg-[#f4f7f6] border border-slate-200 p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs"></div>
 
-            <!-- Payment Method Cards -->
-            <div class="space-y-2.5">
-              <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-700" data-i18n="lblPayment">Njia ya Malipo *</label>
-              <input type="hidden" id="form-payment" value="M-Pesa / Mixx by Yas / Airtel Money" />
-              <div id="payment-cards-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <button type="button" data-pay="M-Pesa / Mixx by Yas / Airtel Money" onclick="selectPaymentMethod('M-Pesa / Mixx by Yas / Airtel Money', this)" class="p-4 rounded-2xl border-2 border-[#0b6b68] bg-[#e6f3f2] text-left space-y-1 transition cursor-pointer">
-                  <div class="text-xs font-extrabold text-[#0b6b68]" data-i18n="payCardMobileTitle">Mobile Money</div>
-                  <div class="text-xs font-semibold text-slate-800" data-i18n="optPayMobile">M-Pesa / Mixx by Yas / Airtel Money</div>
+            <!-- Payment Method Compact 3D Symbols (Form-less + Auto Carrier Detection) -->
+            <div class="space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <label class="block text-xs font-extrabold uppercase tracking-wider text-slate-700" data-i18n="lblPayment">Njia ya Malipo *</label>
+                <span id="step3-detected-network" class="hidden"></span>
+              </div>
+              <input type="hidden" id="form-payment" value="M-Pesa (Vodacom)" />
+
+              <div id="payment-cards-grid" class="flex flex-wrap items-center gap-2.5 pt-0.5">
+                <button type="button" data-pay="M-Pesa (Vodacom)" data-carrier="mpesa" onclick="selectPaymentMethod('M-Pesa (Vodacom)', this, true)" class="pay-3d-chip is-active" title="Vodacom M-Pesa">
+                  <span class="pay-3d-orb" style="background: linear-gradient(145deg, #ff3b30 0%, #b91c1c 100%);">M</span>
+                  <span class="text-xs font-extrabold text-slate-900">M-Pesa</span>
                 </button>
-                <button type="button" data-pay="CRDB / NMB Bank Control Number" onclick="selectPaymentMethod('CRDB / NMB Bank Control Number', this)" class="p-4 rounded-2xl border border-slate-200 bg-white hover:border-[#0b6b68] text-left space-y-1 transition cursor-pointer">
-                  <div class="text-xs font-extrabold text-slate-700" data-i18n="payCardBankTitle">Bank Transfer</div>
-                  <div class="text-xs font-semibold text-slate-700" data-i18n="optPayBank">CRDB / NMB Bank Control Number</div>
+
+                <button type="button" data-pay="Mixx by Yas (Tigo)" data-carrier="yas" onclick="selectPaymentMethod('Mixx by Yas (Tigo)', this, true)" class="pay-3d-chip" title="Mixx by Yas (Tigo / Zantel)">
+                  <span class="pay-3d-orb" style="background: linear-gradient(145deg, #0057b8 0%, #002b6b 100%); color: #ffd200;">Y</span>
+                  <span class="text-xs font-extrabold text-slate-900">Mixx by Yas</span>
                 </button>
-                <button type="button" data-pay="Visa / Mastercard Online" onclick="selectPaymentMethod('Visa / Mastercard Online', this)" class="p-4 rounded-2xl border border-slate-200 bg-white hover:border-[#0b6b68] text-left space-y-1 transition cursor-pointer">
-                  <div class="text-xs font-extrabold text-slate-700" data-i18n="payCardOnlineTitle">Card Online</div>
-                  <div class="text-xs font-semibold text-slate-700" data-i18n="optPayCard">Visa / Mastercard Online</div>
+
+                <button type="button" data-pay="Airtel Money" data-carrier="airtel" onclick="selectPaymentMethod('Airtel Money', this, true)" class="pay-3d-chip" title="Airtel Money">
+                  <span class="pay-3d-orb" style="background: linear-gradient(145deg, #ef4444 0%, #991b1b 100%);">A</span>
+                  <span class="text-xs font-extrabold text-slate-900">Airtel Money</span>
                 </button>
+
+                <button type="button" data-pay="HaloPesa (Halotel)" data-carrier="halopesa" onclick="selectPaymentMethod('HaloPesa (Halotel)', this, true)" class="pay-3d-chip" title="Halotel HaloPesa">
+                  <span class="pay-3d-orb" style="background: linear-gradient(145deg, #fb923c 0%, #c2410c 100%);">H</span>
+                  <span class="text-xs font-extrabold text-slate-900">HaloPesa</span>
+                </button>
+
+                <button type="button" data-pay="CRDB / NMB Bank Control Number" data-carrier="bank" onclick="selectPaymentMethod('CRDB / NMB Bank Control Number', this, true)" class="pay-3d-chip" title="CRDB / NMB Bank Transfer">
+                  <span class="pay-3d-orb" style="background: linear-gradient(145deg, #10b981 0%, #065f46 100%);">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M5 10v8m4-8v8m6-8v8m4-8v8M2 18h20M12 3l9 5H3l9-5z"/></svg>
+                  </span>
+                  <span class="text-xs font-extrabold text-slate-900">CRDB / NMB</span>
+                </button>
+
+                <button type="button" data-pay="Visa / Mastercard Online" data-carrier="card" onclick="selectPaymentMethod('Visa / Mastercard Online', this, true)" class="pay-3d-chip" title="Visa / Mastercard">
+                  <span class="pay-3d-orb" style="background: linear-gradient(145deg, #1d4ed8 0%, #1e1b4b 100%);">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle cx="9.5" cy="12" r="5" fill="#EB001B"/><circle cx="14.5" cy="12" r="5" fill="#F79E1B" fill-opacity="0.88"/></svg>
+                  </span>
+                  <span class="text-xs font-extrabold text-slate-900">Visa / Card</span>
+                </button>
+              </div>
+
+              <!-- Auto-Detecting Underline Phone Number Input for Instant Push -->
+              <div id="step3-mobile-phone-row" class="pt-1 flex flex-col sm:flex-row sm:items-end gap-3">
+                <div class="flex-1 min-w-0">
+                  <label for="step3-pay-phone" class="block text-[10.5px] font-bold uppercase tracking-wider text-slate-500" data-i18n="step3PayPhoneLbl">Namba ya Simu ya Malipo (Inatambua Mtandao Kiotomatiki)</label>
+                  <input id="step3-pay-phone" type="tel" oninput="handleStep3PhoneInput(this.value)" placeholder="07XX / 06XX / +255..." class="w-full px-0 py-2 bg-transparent border-0 border-b-2 border-slate-300 focus:outline-none focus:border-[#0b6b68] rounded-none text-sm font-mono font-bold text-slate-900 placeholder-slate-400 transition-colors" />
+                </div>
               </div>
             </div>
 
@@ -2068,9 +2148,12 @@
           <span class="px-2 py-0.5 rounded-full bg-[#e6f3f2] text-[#08524f] text-[10px] font-extrabold">M-Pesa • Mixx • Airtel • Halo</span>
         </div>
         <div class="space-y-1.5">
-          <label for="selcom-push-phone" class="block text-[11px] font-bold text-slate-600">Namba ya Simu ya Kulipia (Mobile Money):</label>
+          <div class="flex items-center justify-between gap-2">
+            <label for="selcom-push-phone" class="block text-[11px] font-bold text-slate-600">Namba ya Simu ya Kulipia (Mobile Money):</label>
+            <span id="selcom-push-network-badge" class="hidden"></span>
+          </div>
           <div class="flex gap-1.5">
-            <input id="selcom-push-phone" type="tel" placeholder="07XXXXXXXX / 2557XXXXXXXX" class="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#f4f7f6] border border-slate-300 text-xs font-mono font-bold focus:outline-none focus:border-[#0b6b68]" />
+            <input id="selcom-push-phone" type="tel" oninput="renderCarrierBadgeInto('selcom-push-network-badge', this.value)" placeholder="07XXXXXXXX / 2557XXXXXXXX" class="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#f4f7f6] border border-slate-300 text-xs font-mono font-bold focus:outline-none focus:border-[#0b6b68]" />
             <button id="btn-selcom-push" type="button" onclick="triggerSelcomUssdPush()" class="px-3.5 py-2 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs transition cursor-pointer shrink-0">
               Tuma Prompt
             </button>

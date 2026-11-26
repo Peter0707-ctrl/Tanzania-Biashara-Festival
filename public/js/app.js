@@ -538,6 +538,7 @@ const I18N = {
     lblPhone: 'Simu ya Biashara (WhatsApp / Call) *',
     lblEmail: 'Barua Pepe (Email) *',
     lblPayment: 'Njia ya Malipo *',
+    step3PayPhoneLbl: 'Namba ya Simu ya Malipo (Inatambua Mtandao Kiotomatiki)',
     sumHeader: 'Muhtasari wa Usajili',
     sumTitle: 'Risiti ya Kidijitali',
     sumOfficialPass: 'KIBALI RASMI CHA TBF',
@@ -965,6 +966,7 @@ const I18N = {
     lblPhone: 'Business Phone (WhatsApp / Call) *',
     lblEmail: 'Email Address *',
     lblPayment: 'Payment Method *',
+    step3PayPhoneLbl: 'Mobile Money Number (Auto-detects Network)',
     sumHeader: 'Registration Summary',
     sumTitle: 'Digital Receipt & Pass',
     sumOfficialPass: 'Exhibitor Pass & Summary',
@@ -1393,6 +1395,7 @@ const I18N = {
     lblPhone: '联系电话 (微信/电话) *',
     lblEmail: '电子邮箱 *',
     lblPayment: '付款方式 *',
+    step3PayPhoneLbl: '移动钱包付款号码（自动识别运营商）',
     sumHeader: '登记汇总信息',
     sumTitle: '数字收据与参展通行证',
     sumOfficialPass: '官方参展企业通行凭证 (OFFICIAL PASS)',
@@ -5836,6 +5839,17 @@ function renderBookingWizardState() {
         <button type="button" onclick="goToBookingStep(2)" class="text-[11px] font-extrabold text-[#0b6b68] hover:underline shrink-0 cursor-pointer">${escapeBookingHtml(msg.recapEditInfo)}</button>
       </div>
     `;
+    const step3PhoneEl = document.getElementById('step3-pay-phone');
+    if (step3PhoneEl && ph && ph !== '-' && step3PhoneEl.value !== ph) {
+      step3PhoneEl.value = ph;
+    }
+    const detected = detectTanzaniaNetwork(step3PhoneEl?.value || ph);
+    renderCarrierBadgeInto('step3-detected-network', step3PhoneEl?.value || ph);
+    if (detected && !appState.manualPaymentOverride) {
+      selectPaymentMethod(detected.payValue, null, false);
+    } else {
+      selectPaymentMethod(document.getElementById('form-payment')?.value || 'M-Pesa (Vodacom)', null, false);
+    }
   }
 }
 
@@ -5934,17 +5948,89 @@ async function goToBookingStep(targetStep) {
   document.getElementById('booking-panel-book')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function selectPaymentMethod(methodValue, btnEl) {
+const TZ_NETWORK_DEFS = {
+  mpesa: { id: 'mpesa', shortName: 'M-Pesa', payValue: 'M-Pesa (Vodacom)', dotBg: '#dc2626', pillClass: 'bg-red-50 text-red-700 border-red-200' },
+  yas: { id: 'yas', shortName: 'Mixx by Yas', payValue: 'Mixx by Yas (Tigo)', dotBg: '#00377b', pillClass: 'bg-blue-50 text-blue-800 border-blue-200' },
+  airtel: { id: 'airtel', shortName: 'Airtel Money', payValue: 'Airtel Money', dotBg: '#b91c1c', pillClass: 'bg-rose-50 text-rose-700 border-rose-200' },
+  halopesa: { id: 'halopesa', shortName: 'HaloPesa', payValue: 'HaloPesa (Halotel)', dotBg: '#ea580c', pillClass: 'bg-orange-50 text-orange-700 border-orange-200' },
+  tpesa: { id: 'tpesa', shortName: 'T-Pesa (TTCL)', payValue: 'Mobile Money (T-Pesa)', dotBg: '#0b6b68', pillClass: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
+};
+
+const TZ_PREFIX_TO_NETWORK = {
+  '074': 'mpesa', '075': 'mpesa', '076': 'mpesa', '079': 'mpesa',
+  '071': 'yas', '065': 'yas', '067': 'yas', '077': 'yas',
+  '078': 'airtel', '068': 'airtel', '069': 'airtel',
+  '062': 'halopesa', '061': 'halopesa',
+  '073': 'tpesa'
+};
+
+function detectTanzaniaNetwork(rawPhone) {
+  const digits = String(rawPhone || '').replace(/\D/g, '');
+  let local3 = '';
+  if (digits.startsWith('255') && digits.length >= 5) {
+    local3 = '0' + digits.slice(3, 5);
+  } else if (digits.startsWith('0') && digits.length >= 3) {
+    local3 = digits.slice(0, 3);
+  } else if ((digits.startsWith('7') || digits.startsWith('6')) && digits.length >= 2) {
+    local3 = '0' + digits.slice(0, 2);
+  }
+  const key = TZ_PREFIX_TO_NETWORK[local3];
+  return key ? TZ_NETWORK_DEFS[key] : null;
+}
+
+function renderCarrierBadgeInto(elId, rawPhone) {
+  const el = document.getElementById(elId);
+  if (!el) return null;
+  const net = detectTanzaniaNetwork(rawPhone);
+  if (!net) {
+    el.className = 'hidden';
+    el.textContent = '';
+    return null;
+  }
+  el.className = `inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-[10.5px] font-extrabold ${net.pillClass}`;
+  el.innerHTML = `<span class="w-2 h-2 rounded-full shrink-0" style="background:${net.dotBg}"></span><span>${escapeBookingHtml(net.shortName)}</span>`;
+  return net;
+}
+
+function handleBookingPhoneChange(rawPhone) {
+  const net = renderCarrierBadgeInto('form-phone-network-badge', rawPhone);
+  const step3PhoneEl = document.getElementById('step3-pay-phone');
+  if (step3PhoneEl && step3PhoneEl.value !== rawPhone) step3PhoneEl.value = rawPhone;
+  renderCarrierBadgeInto('step3-detected-network', rawPhone);
+  if (net) {
+    appState.manualPaymentOverride = false;
+    selectPaymentMethod(net.payValue, null, false);
+  }
+}
+
+function handleStep3PhoneInput(rawPhone) {
+  const formPhoneEl = document.getElementById('form-phone');
+  if (formPhoneEl && formPhoneEl.value !== rawPhone) formPhoneEl.value = rawPhone;
+  renderCarrierBadgeInto('form-phone-network-badge', rawPhone);
+  const net = renderCarrierBadgeInto('step3-detected-network', rawPhone);
+  if (net) {
+    appState.manualPaymentOverride = false;
+    selectPaymentMethod(net.payValue, null, false);
+  }
+}
+
+function selectPaymentMethod(methodValue, btnEl, isManual = true) {
+  if (isManual) appState.manualPaymentOverride = true;
   const hiddenInput = document.getElementById('form-payment');
   if (hiddenInput) hiddenInput.value = methodValue;
   const grid = document.getElementById('payment-cards-grid');
-  if (!grid) return;
-  grid.querySelectorAll('button[data-pay]').forEach(btn => {
-    const isActive = btn === btnEl || btn.dataset.pay === methodValue;
-    btn.className = isActive
-      ? 'p-4 rounded-2xl border-2 border-[#0b6b68] bg-[#e6f3f2] text-left space-y-1 transition cursor-pointer'
-      : 'p-4 rounded-2xl border border-slate-200 bg-white hover:border-[#0b6b68] text-left space-y-1 transition cursor-pointer';
-  });
+  if (grid) {
+    grid.querySelectorAll('button[data-pay]').forEach(btn => {
+      const isActive = (btnEl && btn === btnEl) || (!btnEl && btn.dataset.pay === methodValue);
+      btn.classList.toggle('is-active', Boolean(isActive));
+      btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  }
+  const phoneRow = document.getElementById('step3-mobile-phone-row');
+  if (phoneRow) {
+    const isNonMobile = /card|visa|mastercard|bank|crdb|nmb/i.test(String(methodValue || ''));
+    phoneRow.classList.toggle('hidden', isNonMobile);
+  }
 }
 
 function handleSummaryPrimaryAction() {
@@ -5984,6 +6070,9 @@ function renderBookingGateState() {
 
 window.goToBookingStep = goToBookingStep;
 window.selectPaymentMethod = selectPaymentMethod;
+window.handleBookingPhoneChange = handleBookingPhoneChange;
+window.handleStep3PhoneInput = handleStep3PhoneInput;
+window.renderCarrierBadgeInto = renderCarrierBadgeInto;
 window.handleSummaryPrimaryAction = handleSummaryPrimaryAction;
 
 function isBookingPaidStatus(status) {
@@ -7013,6 +7102,7 @@ function renderDedicatedReceiptPage(booking, accessPin) {
   if (selcomPhoneEl && booking.phone && !String(booking.phone).includes('*')) {
     selcomPhoneEl.value = booking.phone;
   }
+  renderCarrierBadgeInto('selcom-push-network-badge', selcomPhoneEl?.value || booking.phone || '');
   const selcomGwBtn = document.getElementById('btn-selcom-gateway-url');
   if (selcomGwBtn) {
     if (!isPaid && booking.selcomGatewayUrl) {
