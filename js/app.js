@@ -128,20 +128,23 @@ let appState = {
   lang: 'en',
   activeSectorFilter: 'ALL',
   activeUpdateFilter: 'ALL',
-  activeRegionId: 'mwanza',
+  activeRegionId: 'tba',
   activeMapView: 'venue',
   destination: {
-    regionId: 'mwanza',
-    regionName: 'Mwanza',
-    zone: 'Kanda ya Ziwa (Lake Zone Commercial Hub)',
-    venue: 'Rock City / Furahisha Exhibition Grounds',
-    venueLocation: 'Barabara ya Nyerere, Ilemela, Mwanza',
-    eventDates: 'Tarehe 15 - 20 Julai 2026',
-    notes: 'Viwanja rasmi vya wazi vya maonyesho na minada ya wazi, karibu na Rock City Mall.',
+    regionId: 'tba',
+    regionName: 'Host Region To Be Announced',
+    regionNameSw: 'Mkoa Utatangazwa Hivi Karibuni',
+    regionNameEn: 'Host Region To Be Announced',
+    regionNameZh: '首站举办省份即将公布',
+    zone: 'Nationwide Regional Tour (All 31 Regions of Tanzania)',
+    venue: 'Official Regional Fairgrounds (To Be Announced)',
+    venueLocation: 'United Republic of Tanzania (Nationwide Tour)',
+    eventDates: 'Official Dates To Be Announced Soon',
+    notes: 'Early booth reservations and sponsorship applications are open now. The official host region, venue, and dates will be announced soon.',
     pinX: 260,
     pinY: 210
   },
-  selectedBookingCities: ['Mwanza'],
+  selectedBookingCities: ['Upcoming National Edition (TBA)'],
   selectedPackageId: 'standard-booth',
   selectedBoothCode: '',
   bookingStep: 1,
@@ -2723,10 +2726,11 @@ window.handleExhibitorLogin = handleExhibitorLogin;
 window.clearExhibitorLoginSession = clearExhibitorLoginSession;
 window.refreshActiveLookupBooking = refreshActiveLookupBooking;
 
-const DATA_CACHE_KEY = 'tbf_api_cache_v3';
+const DATA_CACHE_KEY = 'tbf_api_cache_v4';
 try {
   localStorage.removeItem('tbf_api_cache_v1');
   localStorage.removeItem('tbf_api_cache_v2');
+  localStorage.removeItem('tbf_api_cache_v3');
 } catch (e) {}
 
 async function fetchWithRetry(url, fetchOpts = {}, retryCfg = {}) {
@@ -3011,17 +3015,17 @@ function localizeSectorLabel(rawSector, lang) {
 
 function getLocalizedDestinationInfo(dest, lang) {
   const fallback = {
-    regionId: 'mwanza',
-    regionName: 'Mwanza',
-    venue: 'Rock City / Furahisha Exhibition Grounds',
-    venueLocation: 'Barabara ya Nyerere, Ilemela, Mwanza',
-    eventDates: 'Tarehe 15 - 20 Julai 2026'
+    regionId: 'tba',
+    regionName: 'Host Region To Be Announced',
+    venue: 'Official Regional Fairgrounds (To Be Announced)',
+    venueLocation: 'United Republic of Tanzania (Nationwide Tour)',
+    eventDates: 'Official Dates To Be Announced Soon'
   };
   const d = dest || fallback;
-  const regId = String(d.regionId || 'mwanza').toLowerCase();
+  const regId = String(d.regionId || 'tba').toLowerCase();
   const locInfo = REGION_LOCALIZED_INFO[regId] || null;
   const geoInfo = REGION_GEO_COORDS[regId] || null;
-  const baseName = d.regionName || (locInfo ? locInfo.nameSw : (geoInfo ? geoInfo.name : 'Mwanza'));
+  const baseName = d.regionName || (locInfo ? locInfo.nameSw : (geoInfo ? geoInfo.name : 'Host Region To Be Announced'));
 
   const defaultVenue = locInfo
     ? (lang === 'zh' ? locInfo.venueZh : (lang === 'en' ? locInfo.venueEn : locInfo.venueSw))
@@ -3326,6 +3330,20 @@ const TOUR_CIRCUIT_NODES = [
 
 
 const REGION_LOCALIZED_INFO = {
+  tba: {
+    nameSw: 'Mkoa Utatangazwa Hivi Karibuni',
+    nameEn: 'Host Region To Be Announced',
+    nameZh: '首站举办省份即将公布',
+    venueSw: 'Viwanja Rasmi vya Maonyesho (Vitatangazwa Rasmi)',
+    venueEn: 'Official Regional Fairgrounds (To Be Announced)',
+    venueZh: '官方认证大型会展广场（即将公布）',
+    locSw: 'Jamhuri ya Muungano wa Tanzania (Mikoa Yote 31)',
+    locEn: 'United Republic of Tanzania (Nationwide 31-Region Tour)',
+    locZh: '坦桑尼亚联合共和国（全国 31 省巡展）',
+    datesSw: 'Tarehe Rasmi Zitatangazwa Hivi Karibuni',
+    datesEn: 'Official Dates To Be Announced Soon',
+    datesZh: '官方正式展期即将发布'
+  },
   mwanza: {
     nameSw: 'Mwanza',
     nameEn: 'Mwanza',
@@ -3535,6 +3553,7 @@ const REGION_VENUE_PHOTOS = {
   ]
 };
 const REGION_GEO_COORDS = {
+  tba: { lat: -6.3690, lng: 34.8888, zoom: 6, name: 'Host Region To Be Announced', venue: 'Official Regional Fairgrounds (To Be Announced)', location: 'United Republic of Tanzania (Nationwide Tour)' },
   mwanza: { lat: -2.5085, lng: 32.9065, zoom: 14, name: 'Mwanza', venue: 'Rock City / Furahisha Exhibition Grounds', location: 'Barabara ya Nyerere, Ilemela, Mwanza' },
   dar: { lat: -6.8180, lng: 39.2780, zoom: 14, name: 'Dar es Salaam', venue: 'Dar es Salaam Exhibition Grounds (Mnazi Mmoja)', location: 'Mnazi Mmoja / Kivukoni, Dar es Salaam' },
   arusha: { lat: -3.3725, lng: 36.6870, zoom: 14, name: 'Arusha', venue: 'Sheikh Amri Abeid Exhibition Grounds', location: 'Kaloleni / Katikati ya Jiji, Arusha' },
@@ -3881,10 +3900,12 @@ function renderRegionsExplorer() {
         <!-- Action Buttons -->
         <div class="flex flex-wrap items-center gap-3 pt-2">
           <button onclick="jumpToCityBooking('${escapeBookingHtml(String(dest.regionName || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"))}')" class="flex-1 py-3 px-4 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs uppercase tracking-wider shadow transition text-center">
-            ${escapeBookingHtml(dict.destBookBtnPrefix)} ${escapeBookingHtml(regionDisplayName)} &rarr;
+            ${regId === 'tba'
+              ? (lang === 'zh' ? '+ 提前预订全国巡展展位 &rarr;' : (lang === 'sw' ? '+ HIFADHI BANDA LA MAONYESHO SASA &rarr;' : '+ RESERVE EXHIBITION BOOTH NOW &rarr;'))
+              : `${escapeBookingHtml(dict.destBookBtnPrefix)} ${escapeBookingHtml(regionDisplayName)} &rarr;`}
           </button>
           <a
-            href="https://www.google.com/maps/search/?api=1&query=${gmapsQuery}"
+            href="https://www.google.com/maps/search/?api=1&query=${regId === 'tba' ? 'Tanzania' : gmapsQuery}"
             target="_blank"
             rel="noopener noreferrer"
             class="py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs uppercase tracking-wider transition text-center flex items-center justify-center gap-1.5"
@@ -3935,9 +3956,10 @@ function renderAdminDestinationSelect() {
   const select = document.getElementById('admin-dest-region-select');
   if (!select) return;
   const currentDest = appState.destination || {};
-  const activeId = currentDest.regionId || 'mwanza';
+  const activeId = currentDest.regionId || 'tba';
 
-  select.innerHTML = TANZANIA_ALL_REGIONS.map(rName => {
+  const tbaOpt = `<option value="tba" data-region-name="Host Region To Be Announced">Haijatangazwa Bado — Host Region To Be Announced (Nationwide Tanzania View)</option>`;
+  select.innerHTML = tbaOpt + TANZANIA_ALL_REGIONS.map(rName => {
     const rid = getRegionIdForName(rName);
     const existing = appState.regions.find(r => r.id === rid || String(r.name || '').toLowerCase() === rName.toLowerCase());
     const label = existing && existing.venueSw ? `${rName} — ${existing.venueSw}` : `${rName} Region`;
