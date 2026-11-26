@@ -7,6 +7,7 @@ DirectoryIndex index.html public/index.html
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteRule ^api/(.*)$ api.php?route=$1 [QSA,L]
+    RewriteRule ^(booking|about|sponsors|events|news|contacts|login)/?$ index.html [QSA,L]
 </IfModule>
 
 <IfModule mod_headers.c>

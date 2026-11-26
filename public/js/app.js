@@ -2866,7 +2866,18 @@ async function loadFestivalData() {
   initExhibitorSession();
   initHoldSession();
 
-  const rawHash = window.location.hash.replace('#', '').replace('sec-', '').trim();
+  const pathSeg = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
+  const pathSectionMap = {
+    booking: 'booking',
+    about: 'about',
+    sponsors: 'sponsors',
+    events: 'events',
+    news: 'events',
+    contacts: 'contacts',
+    login: 'login',
+    receipt: 'receipt'
+  };
+  const rawHash = window.location.hash.replace('#', '').replace('sec-', '').trim() || pathSectionMap[pathSeg] || '';
   const validSections = ['home', 'about', 'booking', 'sponsors', 'events', 'contacts', 'receipt', 'login', 'admin'];
   if (validSections.includes(rawHash)) {
     switchSection(rawHash);

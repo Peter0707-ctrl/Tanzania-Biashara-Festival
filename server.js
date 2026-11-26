@@ -2388,7 +2388,10 @@ const server = http.createServer(async (req, res) => {
     return res.end('Forbidden');
   }
 
-  const relativePath = decodedPath === '/' ? 'index.html' : decodedPath.replace(/^[/\\]+/, '');
+  const cleanSectionRoutes = new Set(['/booking', '/about', '/sponsors', '/events', '/news', '/contacts', '/login']);
+  const relativePath = (decodedPath === '/' || cleanSectionRoutes.has(decodedPath.replace(/\/+$/, '').toLowerCase()))
+    ? 'index.html'
+    : decodedPath.replace(/^[/\\]+/, '');
   const resolvedPublic = path.resolve(PUBLIC_DIR);
   const resolvedTarget = path.resolve(resolvedPublic, relativePath);
   if (resolvedTarget !== resolvedPublic && !resolvedTarget.startsWith(resolvedPublic + path.sep)) {
