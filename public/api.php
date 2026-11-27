@@ -734,10 +734,14 @@ function pruneExpiredPhp(&$db) {
     $db['boothHolds'] = $validHolds;
     foreach ($db['bookings'] as &$b) {
         $st = strtolower(trim($b['status'] ?? ''));
-        if ($st === 'awaiting payment' && !empty($b['paymentExpiresAt'])) {
-            $expTs = strtotime((string)$b['paymentExpiresAt']);
-            if ($expTs !== false && $expTs <= $nowSec) {
+        if ($st === 'awaiting payment') {
+            $expTs = !empty($b['paymentExpiresAt']) ? strtotime((string)$b['paymentExpiresAt']) : false;
+            $createdTs = !empty($b['createdAt']) ? strtotime((string)$b['createdAt']) : false;
+            $capTs = ($createdTs !== false) ? ($createdTs + 600) : PHP_INT_MAX;
+            $effectiveExp = min($expTs !== false ? $expTs : PHP_INT_MAX, $capTs);
+            if ($effectiveExp <= $nowSec) {
                 $b['status'] = 'Expired';
+                $b['paymentExpiresAt'] = null;
                 $changed = true;
                 $oldCode = strtoupper((string)($b['boothCode'] ?? ''));
                 foreach (($b['cities'] ?? array()) as $cityName) {
@@ -1226,7 +1230,7 @@ if ($route === 'bookings' && $method === 'POST') {
         'featured' => true,
         'clientIp' => $clientIp,
         'status' => 'Awaiting Payment',
-        'paymentExpiresAt' => gmdate('c', time() + 3600),
+        'paymentExpiresAt' => gmdate('c', time() + 600),
         'createdAt' => gmdate('c')
     );
 
@@ -1396,6 +1400,8 @@ if ($route === 'webhooks/selcom' && $method === 'POST') {
         foreach ($db['bookings'] as &$b) {
             if (strtoupper($b['id'] ?? '') === $orderId) {
                 $b['status'] = 'Paid';
+                $b['lastPaymentOutcome'] = 'PAID';
+                $b['lastGatewayMessage'] = $live['gatewayMessage'] ?? '';
                 $b['paymentExpiresAt'] = null;
                 $b['paidAt'] = gmdate('c');
                 if (!empty($live['reference']) || !empty($payload['reference'])) {
@@ -1403,6 +1409,38 @@ if ($route === 'webhooks/selcom' && $method === 'POST') {
                 }
                 if (!empty($live['transId']) || !empty($payload['transid'])) {
                     $b['selcomTransId'] = (string)($live['transId'] ?: $payload['transid']);
+                }
+                break;
+            }
+        }
+        unset($b);
+        writeDbPhp($db);
+    } elseif (in_array($live['outcome'] ?? '', array('INSUFFICIENT_FUNDS', 'CANCELLED', 'FAILED'), true)) {
+        foreach ($db['bookings'] as &$b) {
+            if (strtoupper($b['id'] ?? '') === $orderId && strtolower(trim($b['status'] ?? '')) === 'awaiting payment') {
+                $b['lastPaymentOutcome'] = $live['outcome'];
+                $b['lastGatewayMessage'] = $live['gatewayMessage'] ?? '';
+                $b['status'] = ($live['outcome'] === 'CANCELLED') ? 'Cancelled' : 'Expired';
+                $b['paymentExpiresAt'] = null;
+                $relCode = strtoupper((string)($b['boothCode'] ?? ''));
+                foreach (($b['cities'] ?? array()) as $cityName) {
+                    $stillUsed = false;
+                    foreach ($db['bookings'] as $other) {
+                        $ost = strtolower(trim($other['status'] ?? ''));
+                        if (($other['id'] ?? '') !== ($b['id'] ?? '') && $ost !== 'cancelled' && $ost !== 'expired' && strtoupper((string)($other['boothCode'] ?? '')) === $relCode && in_array($cityName, $other['cities'] ?? array(), true)) {
+                            $stillUsed = true;
+                            break;
+                        }
+                    }
+                    if (!$stillUsed && is_array($db['regions'] ?? null)) {
+                        foreach ($db['regions'] as &$reg) {
+                            if (($reg['name'] ?? '') === $cityName && is_array($reg['bookedCodes'] ?? null)) {
+                                $reg['bookedCodes'] = array_values(array_diff($reg['bookedCodes'], array($relCode)));
+                                $reg['bookedBooths'] = count($reg['bookedCodes']);
+                            }
+                        }
+                        unset($reg);
+                    }
                 }
                 break;
             }
@@ -1461,6 +1499,30 @@ if (($route === 'bookings/lookup' || $route === 'bookings/email-login' || $route
             } elseif (in_array($livePaymentStatus, array('INSUFFICIENT_FUNDS', 'CANCELLED', 'FAILED'), true)) {
                 $found['lastPaymentOutcome'] = $livePaymentStatus;
                 $found['lastGatewayMessage'] = $gatewayMessage;
+                if (strtolower(trim($found['status'] ?? '')) === 'awaiting payment') {
+                    $found['status'] = ($livePaymentStatus === 'CANCELLED') ? 'Cancelled' : 'Expired';
+                    $found['paymentExpiresAt'] = null;
+                    $relCode = strtoupper((string)($found['boothCode'] ?? ''));
+                    foreach (($found['cities'] ?? array()) as $cityName) {
+                        $stillUsed = false;
+                        foreach ($db['bookings'] as $other) {
+                            $ost = strtolower(trim($other['status'] ?? ''));
+                            if (($other['id'] ?? '') !== ($found['id'] ?? '') && $ost !== 'cancelled' && $ost !== 'expired' && strtoupper((string)($other['boothCode'] ?? '')) === $relCode && in_array($cityName, $other['cities'] ?? array(), true)) {
+                                $stillUsed = true;
+                                break;
+                            }
+                        }
+                        if (!$stillUsed && is_array($db['regions'] ?? null)) {
+                            foreach ($db['regions'] as &$reg) {
+                                if (($reg['name'] ?? '') === $cityName && is_array($reg['bookedCodes'] ?? null)) {
+                                    $reg['bookedCodes'] = array_values(array_diff($reg['bookedCodes'], array($relCode)));
+                                    $reg['bookedBooths'] = count($reg['bookedCodes']);
+                                }
+                            }
+                            unset($reg);
+                        }
+                    }
+                }
                 writeDbPhp($db);
             }
         }

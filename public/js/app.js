@@ -5222,7 +5222,7 @@ const BOOKING_MSG = {
     lookupFoundUnlocked: 'TIKETI KAMILI IMEFUNGULIWA (ACCESS VERIFIED)',
     lookupStatusPending: 'Inasubiri Malipo (Risiti Tayari)',
     lookupStatusPaid: 'Imelipiwa',
-    lookupStatusExpired: 'Muda Umeisha (1h Expired)',
+    lookupStatusExpired: 'Muda Umeisha (10m Expired)',
     lookupStatusCancelled: 'Imeghairiwa',
     autoPayPending: 'Inafuatilia uthibitisho wa malipo moja kwa moja kutoka Selcom... Tafadhali kamilisha kuweka PIN kwenye simu yako.',
     autoPayPaid: 'Malipo yamethibitishwa (OK)! Risiti halisi na QR Pass yako zimefunguliwa.',
@@ -5294,7 +5294,7 @@ const BOOKING_MSG = {
     lookupFoundUnlocked: 'FULL BOOKING PASS UNLOCKED (PIN VERIFIED)',
     lookupStatusPending: 'Awaiting Payment (Receipt Ready)',
     lookupStatusPaid: 'Paid',
-    lookupStatusExpired: 'Expired After 1h Unpaid',
+    lookupStatusExpired: 'Expired After 10m Unpaid',
     lookupStatusCancelled: 'Cancelled',
     autoPayPending: 'Automatically checking live payment confirmation with Selcom... Complete the PIN prompt on your phone.',
     autoPayPaid: 'Payment confirmed (OK)! Your official receipt and entry QR Pass are unlocked.',
@@ -5366,7 +5366,7 @@ const BOOKING_MSG = {
     lookupFoundUnlocked: '完整电子凭证已解锁（安全验证通过）',
     lookupStatusPending: '待支付（24小时内有效）',
     lookupStatusPaid: '已付款确认',
-    lookupStatusExpired: '超时未支付已自动释放 (1h)',
+    lookupStatusExpired: '超时未支付已释放 (10分钟)',
     lookupStatusCancelled: '已取消',
     autoPayPending: '正在自动实时检测 Selcom 到账状态，请在手机上确认付款 PIN...',
     autoPayPaid: '付款已确认 (OK)！官方收据与入场二维码已自动解锁。',
@@ -7069,15 +7069,23 @@ function startReceiptAutoPolling(booking) {
           appState.lastConfirmedBooking = updatedBooking;
           saveReceiptToSession(updatedBooking, pin);
 
+          if (data.db) {
+            if (Array.isArray(data.db.regions)) appState.regions = data.db.regions;
+            if (Array.isArray(data.db.bookings)) appState.bookings = data.db.bookings;
+            if (Array.isArray(data.db.activeHolds)) appState.activeHolds = data.db.activeHolds;
+          }
+
           if (isBookingPaidStatus(updatedBooking.status) || liveOutcome === 'PAID') {
             stopReceiptAutoPolling();
             renderDedicatedReceiptPage(updatedBooking, pin);
+            renderAll();
             showToast(BOOKING_MSG[appState.lang || 'en']?.autoPayPaid || 'Payment confirmed!', 'success');
             return;
           }
           if (liveOutcome === 'INSUFFICIENT_FUNDS' || liveOutcome === 'CANCELLED' || liveOutcome === 'FAILED') {
             stopReceiptAutoPolling();
-            updateReceiptLiveBanner(updatedBooking, liveOutcome, gwMsg);
+            renderDedicatedReceiptPage(updatedBooking, pin);
+            renderAll();
             showToast(
               liveOutcome === 'INSUFFICIENT_FUNDS'
                 ? (BOOKING_MSG[appState.lang || 'en']?.autoPayInsufficient || 'Insufficient funds')

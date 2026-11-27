@@ -271,7 +271,7 @@ dbAdapter.initialize().catch(err => {
 });
 
 const HOLD_TTL_MS = 10 * 60 * 1000; // 10 minutes temporary booth reservation hold
-const UNPAID_BOOKING_TTL_MS = 60 * 60 * 1000; // 1 hour auto-expiry for unpaid online reservations to prevent bot hoarding
+const UNPAID_BOOKING_TTL_MS = 10 * 60 * 1000; // 10 minutes industry-standard unpaid reservation auto-expiry
 const ADMIN_SESSION_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours sliding session
 const MANAGE_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes step-up management token
 
@@ -686,11 +686,18 @@ function pruneExpiredRecords(db) {
 
   db.bookings.forEach(b => {
     const st = String(b.status || '').toLowerCase();
-    if (st === 'awaiting payment' && b.paymentExpiresAt && Date.parse(b.paymentExpiresAt) <= now) {
-      b.status = 'Expired';
-      changed = true;
-      if (Array.isArray(b.cities)) {
-        b.cities.forEach(cityName => recalcRegionCodeIfUnused(db, cityName, b.boothCode));
+    if (st === 'awaiting payment') {
+      const expMs = b.paymentExpiresAt ? Date.parse(b.paymentExpiresAt) : NaN;
+      const createdMs = b.createdAt ? Date.parse(b.createdAt) : NaN;
+      const capMs = !Number.isNaN(createdMs) ? (createdMs + UNPAID_BOOKING_TTL_MS) : Infinity;
+      const effectiveExp = Math.min(!Number.isNaN(expMs) ? expMs : Infinity, capMs);
+      if (effectiveExp <= now) {
+        b.status = 'Expired';
+        b.paymentExpiresAt = null;
+        changed = true;
+        if (Array.isArray(b.cities)) {
+          b.cities.forEach(cityName => recalcRegionCodeIfUnused(db, cityName, b.boothCode));
+        }
       }
     }
   });
@@ -2108,11 +2115,24 @@ const server = http.createServer(async (req, res) => {
           const b = (db.bookings || []).find(x => String(x.id || '').toUpperCase() === orderId);
           if (!b) return { dirty: false };
           b.status = 'Paid';
+          b.lastPaymentOutcome = 'PAID';
+          b.lastGatewayMessage = liveCheck.gatewayMessage || '';
           b.paymentExpiresAt = null;
           b.paidAt = new Date().toISOString();
           if (liveCheck.reference || payload.reference) b.selcomReference = String(liveCheck.reference || payload.reference);
           if (liveCheck.transId || payload.transid) b.selcomTransId = String(liveCheck.transId || payload.transid);
           if (liveCheck.channel || payload.channel) b.paymentMethod = `Selcom (${sanitizeTextInput(liveCheck.channel || payload.channel, 40)})`;
+          return { dirty: true };
+        });
+      } else if (['INSUFFICIENT_FUNDS', 'CANCELLED', 'FAILED'].includes(liveCheck.outcome)) {
+        await withDbTransaction(db => {
+          const b = (db.bookings || []).find(x => String(x.id || '').toUpperCase() === orderId);
+          if (!b || String(b.status || '').toLowerCase() !== 'awaiting payment') return { dirty: false };
+          b.lastPaymentOutcome = liveCheck.outcome;
+          b.lastGatewayMessage = liveCheck.gatewayMessage || '';
+          b.status = liveCheck.outcome === 'CANCELLED' ? 'Cancelled' : 'Expired';
+          b.paymentExpiresAt = null;
+          (b.cities || []).forEach(cityName => recalcRegionCodeIfUnused(db, cityName, b.boothCode));
           return { dirty: true };
         });
       }
@@ -2194,6 +2214,7 @@ const server = http.createServer(async (req, res) => {
       const stLower = String(found.status || '').toLowerCase();
       let livePaymentStatus = (stLower === 'paid' || stLower === 'confirmed') ? 'PAID' : (found.lastPaymentOutcome || 'PENDING');
       let gatewayMessage = found.lastGatewayMessage || '';
+      let updatedPublicDb = null;
       if (stLower !== 'paid' && stLower !== 'confirmed' && getSelcomConfig().configured) {
         const liveSelcom = await querySelcomOrderStatus(found.id);
         livePaymentStatus = liveSelcom.outcome || (liveSelcom.paid ? 'PAID' : 'PENDING');
@@ -2209,18 +2230,29 @@ const server = http.createServer(async (req, res) => {
             b.paidAt = new Date().toISOString();
             if (liveSelcom.reference) b.selcomReference = liveSelcom.reference;
             if (liveSelcom.transId) b.selcomTransId = liveSelcom.transId;
-            return { dirty: true, value: b };
+            return { dirty: true, value: { booking: b, pubDb: sanitizePublicDb(txDb) } };
           });
-          if (updated) found = updated;
+          if (updated && updated.booking) {
+            found = updated.booking;
+            updatedPublicDb = updated.pubDb;
+          }
         } else if (['INSUFFICIENT_FUNDS', 'CANCELLED', 'FAILED'].includes(livePaymentStatus)) {
           const updated = await withDbTransaction(txDb => {
             const b = txDb.bookings.find(x => x.id === found.id);
             if (!b) return { dirty: false, value: null };
             b.lastPaymentOutcome = livePaymentStatus;
             b.lastGatewayMessage = gatewayMessage;
-            return { dirty: true, value: b };
+            if (String(b.status || '').toLowerCase() === 'awaiting payment') {
+              b.status = livePaymentStatus === 'CANCELLED' ? 'Cancelled' : 'Expired';
+              b.paymentExpiresAt = null;
+              (b.cities || []).forEach(cityName => recalcRegionCodeIfUnused(txDb, cityName, b.boothCode));
+            }
+            return { dirty: true, value: { booking: b, pubDb: sanitizePublicDb(txDb) } };
           });
-          if (updated) found = updated;
+          if (updated && updated.booking) {
+            found = updated.booking;
+            updatedPublicDb = updated.pubDb;
+          }
         }
       }
 
@@ -2230,6 +2262,7 @@ const server = http.createServer(async (req, res) => {
           success: true,
           livePaymentStatus,
           gatewayMessage,
+          ...(updatedPublicDb ? { db: updatedPublicDb } : {}),
           booking: toSafeBookingReceipt(found, { unmasked: false, hasPin, stepUpRequired: hasPin })
         }, {}, deviceCookieList);
       }
@@ -2266,6 +2299,7 @@ const server = http.createServer(async (req, res) => {
         success: true,
         livePaymentStatus,
         gatewayMessage,
+        ...(updatedPublicDb ? { db: updatedPublicDb } : {}),
         booking: toSafeBookingReceipt(found, { unmasked: true, hasPin: true, stepUpRequired: false, manageToken })
       }, {}, deviceCookieList);
     } catch (err) {
