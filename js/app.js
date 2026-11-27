@@ -164,6 +164,9 @@ let appState = {
   bookings: [],
   sponsors: [],
   announcements: [],
+  botToken: '',
+  receiptPollTimer: null,
+  receiptPollCount: 0,
   liveStats: {
     totalCookieVisitors: 227,
     totalRegisteredAttendees: 240,
@@ -2295,6 +2298,9 @@ function switchSection(secId) {
   if (history.replaceState) {
     history.replaceState(null, '', '#' + targetSec);
   }
+  if (targetSec !== 'receipt' && typeof stopReceiptAutoPolling === 'function') {
+    stopReceiptAutoPolling();
+  }
   if (targetSec === 'receipt') {
     if (!appState.lastConfirmedBooking && typeof restoreLastReceiptFromSession === 'function') {
       restoreLastReceiptFromSession();
@@ -2338,11 +2344,20 @@ async function handleContactSubmit() {
   }
 
   try {
+    const botToken = await ensureBotToken();
     const res = await fetch('/api/contact-messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ name, phone, email, type, message: msg })
+      body: JSON.stringify({
+        name,
+        phone,
+        email,
+        type,
+        message: msg,
+        website_url: (document.getElementById('hp-contact-web')?.value || '').trim(),
+        _tbfBotToken: botToken
+      })
     });
     const data = await res.json();
     if (!res.ok || !data.success) {
@@ -2734,9 +2749,25 @@ function applyFestivalDataPayload(data) {
   appState.activeHolds = data.activeHolds || [];
   appState.sponsors = data.sponsors || [];
   appState.announcements = data.announcements || [];
+  if (data.botToken) appState.botToken = data.botToken;
   if (data.liveStats) appState.liveStats = data.liveStats;
   if (data.destination) appState.destination = data.destination;
   syncBookingCitiesFromDestination();
+}
+
+async function ensureBotToken() {
+  if (appState.botToken) return appState.botToken;
+  try {
+    const res = await fetch('/api/bot-token', { cache: 'no-store', credentials: 'same-origin' });
+    if (res.ok) {
+      const json = await res.json();
+      if (json && json.botToken) {
+        appState.botToken = json.botToken;
+        return appState.botToken;
+      }
+    }
+  } catch (e) {}
+  return '';
 }
 
 function generateTbfQrSvg(text, pixelSize = 140) {
@@ -3612,11 +3643,18 @@ async function handleNewsletterSubmit(e) {
   }
 
   try {
+    const botToken = await ensureBotToken();
     const res = await fetch('/api/newsletter/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ email, name, region })
+      body: JSON.stringify({
+        email,
+        name,
+        region,
+        website_url: (document.getElementById('hp-newsletter-web')?.value || '').trim(),
+        _tbfBotToken: botToken
+      })
     });
     const data = await res.json();
     if (!res.ok || !data.success) {
@@ -5184,8 +5222,13 @@ const BOOKING_MSG = {
     lookupFoundUnlocked: 'TIKETI KAMILI IMEFUNGULIWA (ACCESS VERIFIED)',
     lookupStatusPending: 'Inasubiri Malipo (Risiti Tayari)',
     lookupStatusPaid: 'Imelipiwa',
-    lookupStatusExpired: 'Muda Umeisha (24h Expired)',
+    lookupStatusExpired: 'Muda Umeisha (1h Expired)',
     lookupStatusCancelled: 'Imeghairiwa',
+    autoPayPending: 'Inafuatilia uthibitisho wa malipo moja kwa moja kutoka Selcom... Tafadhali kamilisha kuweka PIN kwenye simu yako.',
+    autoPayPaid: 'Malipo yamethibitishwa (OK)! Risiti halisi na QR Pass yako zimefunguliwa.',
+    autoPayInsufficient: 'Salio halitoshi (Insufficient Funds) kwenye laini yako. Tafadhali ongeza salio kisha ufanye malipo tena.',
+    autoPayCancelled: 'Prompt ya malipo imeghairiwa (Cancelled). Hukukamilisha kuweka PIN kwenye simu yako.',
+    autoPayFailed: 'Muamala wa malipo haujakamilika. Tafadhali jaribu tena au wasiliana nasi.',
     pinUnlockHint: 'Weka Security Access PIN yako ya tarakimu 6 kufungua Payment Reference kamili, kuchapisha risiti, kubadilisha banda, au kughairi booking:',
     pinUnlockBtn: 'Fungua Risiti Kamili (Unlock)',
     pinMissing: 'Weka PIN ya usalama ya tarakimu 6 kwanza.',
@@ -5251,8 +5294,13 @@ const BOOKING_MSG = {
     lookupFoundUnlocked: 'FULL BOOKING PASS UNLOCKED (PIN VERIFIED)',
     lookupStatusPending: 'Awaiting Payment (Receipt Ready)',
     lookupStatusPaid: 'Paid',
-    lookupStatusExpired: 'Expired After 24h Unpaid',
+    lookupStatusExpired: 'Expired After 1h Unpaid',
     lookupStatusCancelled: 'Cancelled',
+    autoPayPending: 'Automatically checking live payment confirmation with Selcom... Complete the PIN prompt on your phone.',
+    autoPayPaid: 'Payment confirmed (OK)! Your official receipt and entry QR Pass are unlocked.',
+    autoPayInsufficient: 'Insufficient funds reported by Mobile Money. Please top up your wallet balance and retry.',
+    autoPayCancelled: 'The payment prompt was cancelled before PIN entry.',
+    autoPayFailed: 'Payment transaction failed to complete. Please try again.',
     pinUnlockHint: 'Enter your 6-digit Security Access PIN to reveal your full Payment Reference, print receipt, switch booth, or cancel reservation:',
     pinUnlockBtn: 'Unlock Full Details',
     pinMissing: 'Please enter your 6-digit Security Access PIN.',
@@ -5318,8 +5366,13 @@ const BOOKING_MSG = {
     lookupFoundUnlocked: '完整电子凭证已解锁（安全验证通过）',
     lookupStatusPending: '待支付（24小时内有效）',
     lookupStatusPaid: '已付款确认',
-    lookupStatusExpired: '超时未支付已自动释放',
+    lookupStatusExpired: '超时未支付已自动释放 (1h)',
     lookupStatusCancelled: '已取消',
+    autoPayPending: '正在自动实时检测 Selcom 到账状态，请在手机上确认付款 PIN...',
+    autoPayPaid: '付款已确认 (OK)！官方收据与入场二维码已自动解锁。',
+    autoPayInsufficient: '账户余额不足 (Insufficient Funds)，请充值后重新支付。',
+    autoPayCancelled: '付款弹窗已被取消 (Cancelled)，未完成 PIN 验证。',
+    autoPayFailed: '支付交易未成功完成，请重试。',
     pinUnlockHint: '请输入6位安全PIN码以解锁完整缴费识别码、打印收据、更换展位或取消未付款预订：',
     pinUnlockBtn: '验证PIN并解锁',
     pinMissing: '请先输入6位安全PIN码。',
@@ -6586,7 +6639,9 @@ async function submitVendorBooking() {
     totalAmount,
     paymentMethod,
     holdToken: appState.currentHold?.holdToken || '',
-    clientRequestId: appState.pendingBookingRequestId
+    clientRequestId: appState.pendingBookingRequestId,
+    website_url: (document.getElementById('hp-booking-web')?.value || '').trim(),
+    _tbfBotToken: await ensureBotToken()
   };
 
   try {
@@ -6920,7 +6975,7 @@ function downloadActiveLookupPass() {
   }
 }
 
-function setModalPaymentMsg(text, isSuccess) {
+function setModalPaymentMsg(text, statusState = 'pending') {
   const msgBox = document.getElementById('modal-payment-check-msg');
   if (!msgBox) return;
   if (!text) {
@@ -6928,66 +6983,116 @@ function setModalPaymentMsg(text, isSuccess) {
     msgBox.textContent = '';
     return;
   }
-  msgBox.textContent = text;
-  msgBox.className = isSuccess
-    ? 'rounded-xl p-3 text-xs font-semibold bg-emerald-50 border border-emerald-200 text-emerald-900'
-    : 'rounded-xl p-3 text-xs font-semibold bg-amber-50 border border-amber-200 text-amber-900';
+  const mode = statusState === true ? 'paid' : (statusState === false ? 'pending' : statusState);
+  let cls = 'rounded-xl p-3 text-xs font-semibold border flex items-start gap-2 ';
+  let dotHtml = '';
+  if (mode === 'paid') {
+    cls += 'bg-emerald-50 border-emerald-200 text-emerald-900';
+    dotHtml = '<span class="w-2.5 h-2.5 mt-0.5 rounded-full bg-emerald-600 shrink-0"></span>';
+  } else if (mode === 'error') {
+    cls += 'bg-rose-50 border-rose-300 text-rose-900';
+    dotHtml = '<span class="w-2.5 h-2.5 mt-0.5 rounded-full bg-rose-600 shrink-0"></span>';
+  } else {
+    cls += 'bg-amber-50 border-amber-200 text-amber-900';
+    dotHtml = '<span class="w-2.5 h-2.5 mt-0.5 rounded-full bg-amber-500 animate-pulse shrink-0"></span>';
+  }
+  msgBox.className = cls;
+  msgBox.innerHTML = `${dotHtml}<span>${escapeBookingHtml(text)}</span>`;
   msgBox.classList.remove('hidden');
 }
 
-function copyModalControlNumber() {
-  const cn = appState.lastConfirmedBooking?.controlNumber || '';
-  const btn = document.getElementById('btn-copy-modal-control');
+function updateReceiptLiveBanner(booking, outcomeInput = '', gatewayMsg = '') {
+  if (!booking) return;
   const lang = appState.lang || 'en';
   const msg = BOOKING_MSG[lang] || BOOKING_MSG.en;
-  if (!cn) return;
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(cn).catch(() => {});
-  }
-  if (btn) {
-    btn.textContent = msg.copiedControlBtn;
-    setTimeout(() => {
-      if (btn) btn.textContent = msg.copyControlBtn;
-    }, 2000);
+  const outcome = String(outcomeInput || booking.lastPaymentOutcome || '').toUpperCase();
+  const extraMsg = String(gatewayMsg || booking.lastGatewayMessage || '').trim();
+  const isPaid = isBookingPaidStatus(booking.status) || outcome === 'PAID';
+  const stLower = String(booking.status || '').toLowerCase();
+
+  if (isPaid) {
+    setModalPaymentMsg(msg.autoPayPaid, 'paid');
+  } else if (outcome === 'INSUFFICIENT_FUNDS') {
+    setModalPaymentMsg(extraMsg ? `${msg.autoPayInsufficient} (${extraMsg})` : msg.autoPayInsufficient, 'error');
+  } else if (outcome === 'CANCELLED' || stLower === 'cancelled') {
+    setModalPaymentMsg(extraMsg ? `${msg.autoPayCancelled} (${extraMsg})` : msg.autoPayCancelled, 'error');
+  } else if (outcome === 'FAILED' || stLower === 'expired') {
+    setModalPaymentMsg(extraMsg ? `${msg.autoPayFailed} (${extraMsg})` : msg.autoPayFailed, 'error');
+  } else {
+    setModalPaymentMsg(msg.autoPayPending, 'pending');
   }
 }
 
-async function verifyCurrentModalPayment() {
-  const b = appState.lastConfirmedBooking;
-  const pin = appState.lastConfirmedPin || '';
-  if (!b) return;
-  const lang = appState.lang || 'en';
-  const msg = BOOKING_MSG[lang] || BOOKING_MSG.en;
-  const lbl = document.getElementById('btn-verify-modal-payment-lbl');
-  const btn = document.getElementById('btn-verify-modal-payment');
+function stopReceiptAutoPolling() {
+  if (appState.receiptPollTimer) {
+    clearTimeout(appState.receiptPollTimer);
+    appState.receiptPollTimer = null;
+  }
+}
 
-  if (btn) btn.disabled = true;
-  if (lbl) lbl.textContent = msg.checkingPaymentBtn;
-  setModalPaymentMsg('', false);
+function startReceiptAutoPolling(booking) {
+  stopReceiptAutoPolling();
+  if (!booking || !booking.id) return;
+  const st = String(booking.status || '').toLowerCase();
+  const outcome = String(booking.lastPaymentOutcome || '').toUpperCase();
+  if (isBookingPaidStatus(booking.status) || st === 'cancelled' || st === 'expired' || outcome === 'INSUFFICIENT_FUNDS' || outcome === 'CANCELLED' || outcome === 'FAILED') {
+    return;
+  }
+  appState.receiptPollCount = 0;
 
-  try {
-    const res = await fetchWithRetry('/api/bookings/lookup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ref: b.id, phone: b.phone || '', pin })
-    }, { retries: 1, timeoutMs: 9000 });
-    const data = await res.json();
-    if (res.ok && data.success && data.booking) {
-      showBookingConfirmationModal(data.booking, pin);
-      if (isBookingPaidStatus(data.booking.status)) {
-        setModalPaymentMsg(msg.paymentUnlockedMsg, true);
-      } else {
-        setModalPaymentMsg(msg.paymentStillPendingMsg, false);
-      }
+  const tick = async () => {
+    const receiptSec = document.getElementById('sec-receipt');
+    const cur = appState.lastConfirmedBooking;
+    if (!receiptSec || receiptSec.classList.contains('hidden') || !cur || cur.id !== booking.id) {
+      stopReceiptAutoPolling();
       return;
     }
-    setModalPaymentMsg(data.error || msg.paymentStillPendingMsg, false);
-  } catch (err) {
-    setModalPaymentMsg(msg.lookupError, false);
-  } finally {
-    if (btn) btn.disabled = false;
-    if (lbl) lbl.textContent = msg.verifyPaymentBtn;
-  }
+    if (appState.receiptPollCount >= 80) {
+      stopReceiptAutoPolling();
+      return;
+    }
+    appState.receiptPollCount += 1;
+    try {
+      const pin = appState.lastConfirmedPin || '';
+      const res = await fetch('/api/bookings/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ ref: cur.id, phone: cur.phone || '', email: cur.email || '', pin })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && data.booking) {
+          const liveOutcome = String(data.livePaymentStatus || data.booking.lastPaymentOutcome || '').toUpperCase();
+          const gwMsg = String(data.gatewayMessage || data.booking.lastGatewayMessage || '');
+          const updatedBooking = { ...data.booking, lastPaymentOutcome: liveOutcome || data.booking.lastPaymentOutcome, lastGatewayMessage: gwMsg || data.booking.lastGatewayMessage };
+          appState.lastConfirmedBooking = updatedBooking;
+          saveReceiptToSession(updatedBooking, pin);
+
+          if (isBookingPaidStatus(updatedBooking.status) || liveOutcome === 'PAID') {
+            stopReceiptAutoPolling();
+            renderDedicatedReceiptPage(updatedBooking, pin);
+            showToast(BOOKING_MSG[appState.lang || 'en']?.autoPayPaid || 'Payment confirmed!', 'success');
+            return;
+          }
+          if (liveOutcome === 'INSUFFICIENT_FUNDS' || liveOutcome === 'CANCELLED' || liveOutcome === 'FAILED') {
+            stopReceiptAutoPolling();
+            updateReceiptLiveBanner(updatedBooking, liveOutcome, gwMsg);
+            showToast(
+              liveOutcome === 'INSUFFICIENT_FUNDS'
+                ? (BOOKING_MSG[appState.lang || 'en']?.autoPayInsufficient || 'Insufficient funds')
+                : (BOOKING_MSG[appState.lang || 'en']?.autoPayCancelled || 'Payment cancelled'),
+              'warning'
+            );
+            return;
+          }
+        }
+      }
+    } catch (e) { /* retry quietly on transient network blips */ }
+    appState.receiptPollTimer = setTimeout(tick, 3500);
+  };
+
+  appState.receiptPollTimer = setTimeout(tick, 3000);
 }
 
 function openLookupInReceiptPage() {
@@ -6997,61 +7102,10 @@ function openLookupInReceiptPage() {
   }
 }
 
-async function triggerSelcomUssdPush() {
-  const b = appState.lastConfirmedBooking;
-  if (!b) return;
-  const phoneInput = document.getElementById('selcom-push-phone');
-  const pushBtn = document.getElementById('btn-selcom-push');
-  const phone = (phoneInput?.value || b.phone || '').trim();
-  const lang = appState.lang || 'en';
-  if (!phone) {
-    setModalPaymentMsg(lang === 'sw' ? 'Weka namba ya simu ya Mobile Money kwanza.' : 'Please enter your Mobile Money phone number first.', false);
-    return;
-  }
-  if (pushBtn) {
-    pushBtn.disabled = true;
-    pushBtn.textContent = lang === 'sw' ? 'Inatuma...' : 'Sending...';
-  }
-  setModalPaymentMsg('', false);
-  try {
-    const res = await fetch('/api/bookings/selcom-push', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({ bookingId: b.id, phone })
-    });
-    const data = await res.json();
-    if (data.alreadyPaid && data.booking) {
-      showBookingConfirmationModal(data.booking, appState.lastConfirmedPin || '');
-      setModalPaymentMsg(data.message || 'Malipo yamethibitishwa!', true);
-      return;
-    }
-    if (res.ok && data.success) {
-      if (data.controlNumber && appState.lastConfirmedBooking) {
-        appState.lastConfirmedBooking.controlNumber = data.controlNumber;
-        if (data.gatewayUrl) appState.lastConfirmedBooking.selcomGatewayUrl = data.gatewayUrl;
-        renderDedicatedReceiptPage(appState.lastConfirmedBooking, appState.lastConfirmedPin || '');
-      }
-      setModalPaymentMsg(data.message || 'Prompt ya malipo (Selcom USSD Push) imetumwa kwenye simu yako!', true);
-    } else {
-      setModalPaymentMsg(data.error || data.message || 'Imeshindikana kutuma Selcom USSD Push kwa sasa.', false);
-    }
-  } catch (err) {
-    setModalPaymentMsg(lang === 'sw' ? 'Hitilafu ya mtandao wakati wa kuwasiliana na Selcom.' : 'Network error while contacting Selcom gateway.', false);
-  } finally {
-    if (pushBtn) {
-      pushBtn.disabled = false;
-      pushBtn.textContent = lang === 'sw' ? 'Tuma Prompt' : 'Send Push';
-    }
-  }
-}
-
 window.downloadCurrentModalPass = downloadCurrentModalPass;
 window.downloadActiveLookupPass = downloadActiveLookupPass;
-window.verifyCurrentModalPayment = verifyCurrentModalPayment;
-window.copyModalControlNumber = copyModalControlNumber;
 window.openLookupInReceiptPage = openLookupInReceiptPage;
-window.triggerSelcomUssdPush = triggerSelcomUssdPush;
+window.stopReceiptAutoPolling = stopReceiptAutoPolling;
 
 function saveReceiptToSession(booking, accessPin) {
   try {
@@ -7094,15 +7148,12 @@ function renderDedicatedReceiptPage(booking, accessPin) {
   const btnDownload = document.getElementById('btn-download-modal-pass');
   const btnPrint = document.getElementById('btn-print-modal-pass');
   const btnHome = document.getElementById('btn-receipt-home');
-  const btnVerify = document.getElementById('btn-verify-modal-payment');
-  const btnVerifyLbl = document.getElementById('btn-verify-modal-payment-lbl');
-  const btnCopy = document.getElementById('btn-copy-modal-control');
 
   if (badgeEl && dotEl && statusTxtEl) {
     badgeEl.className = isPaid
       ? 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] font-semibold'
       : 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-semibold';
-    dotEl.className = isPaid ? 'w-1.5 h-1.5 rounded-full bg-emerald-500' : 'w-1.5 h-1.5 rounded-full bg-amber-500';
+    dotEl.className = isPaid ? 'w-1.5 h-1.5 rounded-full bg-emerald-500' : 'w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse';
     statusTxtEl.textContent = isPaid ? msg.paidBadgeLabel : dict.modalBookingConfirmed;
   }
   if (btnDownload) btnDownload.classList.remove('hidden');
@@ -7111,39 +7162,8 @@ function renderDedicatedReceiptPage(booking, accessPin) {
     btnHome.classList.add('col-span-1');
     btnHome.classList.remove('col-span-2');
   }
-  if (btnVerify) btnVerify.classList.toggle('hidden', isPaid);
-  if (btnCopy) {
-    btnCopy.classList.toggle('hidden', isPaid);
-    btnCopy.textContent = msg.copyControlBtn;
-  }
-  const selcomBox = document.getElementById('selcom-payment-box');
-  if (selcomBox) {
-    selcomBox.classList.toggle('hidden', isPaid);
-  }
-  const selcomPhoneEl = document.getElementById('selcom-push-phone');
-  if (selcomPhoneEl && booking.phone && !String(booking.phone).includes('*')) {
-    selcomPhoneEl.value = booking.phone;
-  }
-  renderCarrierBadgeInto('selcom-push-network-badge', selcomPhoneEl?.value || booking.phone || '');
-  const selcomGwBtn = document.getElementById('btn-selcom-gateway-url');
-  if (selcomGwBtn) {
-    if (!isPaid && booking.selcomGatewayUrl) {
-      selcomGwBtn.href = booking.selcomGatewayUrl;
-      selcomGwBtn.classList.remove('hidden');
-    } else {
-      selcomGwBtn.classList.add('hidden');
-    }
-  }
-  if (btnVerifyLbl) btnVerifyLbl.textContent = msg.verifyPaymentBtn;
-  setModalPaymentMsg('', false);
-  if (!isPaid && booking.selcomPushSent) {
-    setModalPaymentMsg(
-      lang === 'sw'
-        ? 'Prompt ya malipo ya Selcom (USSD Push) imetumwa kwenye simu yako! Weka PIN kukamilisha malipo kisha bonyeza "Nimeshalipa".'
-        : 'Selcom USSD Push prompt sent to your phone! Enter your Mobile Money PIN, then click "I Have Paid".',
-      true
-    );
-  }
+  updateReceiptLiveBanner(booking, booking.lastPaymentOutcome || '', booking.lastGatewayMessage || '');
+  startReceiptAutoPolling(booking);
 
   const destInfo = getLocalizedDestinationInfo(appState.destination, lang);
   const boothCode = String(booking.boothCode || '--').toUpperCase();
@@ -7510,17 +7530,37 @@ async function submitSponsorForm(e) {
   }
 
   try {
+    const botToken = await ensureBotToken();
     const res = await fetch('/api/sponsors', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ organization, contactName, phone, email, tier, targetRegions })
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        organization,
+        contactName,
+        phone,
+        email,
+        tier,
+        targetRegions,
+        website_url: (document.getElementById('hp-sponsor-web')?.value || '').trim(),
+        _tbfBotToken: botToken
+      })
     });
     const result = await res.json();
-    if (result.success) {
-      if (result.db?.sponsors) appState.sponsors = result.db.sponsors;
-      if (result.liveStats) appState.liveStats = result.liveStats;
-      renderAll();
+    if (!res.ok || !result.success) {
+      if (errBox) {
+        errBox.textContent = result.error || msg.submitErr;
+        errBox.classList.remove('hidden');
+      }
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('opacity-60', 'cursor-wait');
+      }
+      return;
     }
+    if (result.db?.sponsors) appState.sponsors = result.db.sponsors;
+    if (result.liveStats) appState.liveStats = result.liveStats;
+    renderAll();
   } catch (err) {
     if (errBox) {
       errBox.textContent = msg.submitErr;

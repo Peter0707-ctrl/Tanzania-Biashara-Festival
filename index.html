@@ -1414,6 +1414,7 @@
             </div>
 
             <div id="booking-step2-error" class="hidden p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold"></div>
+            <input id="hp-booking-web" type="text" name="website_url" tabindex="-1" autocomplete="off" aria-hidden="true" class="hidden" />
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -1707,6 +1708,7 @@
 
       <form id="sponsor-apply-form" onsubmit="submitSponsorForm(event)" class="max-w-2xl mx-auto space-y-10 pt-8">
         <div id="sp-error" class="hidden py-2.5 border-b-2 border-red-400 text-red-700 text-xs sm:text-sm font-bold text-center"></div>
+        <input id="hp-sponsor-web" type="text" name="website_url" tabindex="-1" autocomplete="off" aria-hidden="true" class="hidden" />
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-10">
           <div class="space-y-1.5">
@@ -2002,6 +2004,7 @@
           <label for="contact-form-msg" class="block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500" data-i18n="ctMsgLabel">Ujumbe Wako *</label>
           <textarea id="contact-form-msg" rows="2" placeholder="Andika maelezo ya swali au ombi lako hapa..." class="w-full px-0 py-3 bg-transparent border-0 border-b-2 border-slate-300 focus:outline-none focus:border-[#0b6b68] rounded-none text-base text-slate-900 placeholder-slate-400 transition-colors resize-none" data-i18n-placeholder="ctMsgPlaceholder"></textarea>
         </div>
+        <input id="hp-contact-web" type="text" name="website_url" tabindex="-1" autocomplete="off" aria-hidden="true" class="hidden" />
 
         <div class="pt-4 text-center space-y-4">
           <button type="button" onclick="handleContactSubmit()" class="px-10 py-4 rounded-full bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm uppercase tracking-[0.16em] shadow-lg hover:shadow-xl transition transform hover:scale-[1.02] inline-flex items-center gap-2.5 cursor-pointer" data-i18n="ctSubmitBtn">
@@ -2039,6 +2042,7 @@
 
     <!-- Open, Form-less Editorial Inputs (No Rectangular Card or Boxed Inputs) -->
     <form id="newsletter-form" onsubmit="handleNewsletterSubmit(event)" class="max-w-2xl mx-auto space-y-10 pt-2">
+      <input id="hp-newsletter-web" type="text" name="website_url" tabindex="-1" autocomplete="off" aria-hidden="true" class="hidden" />
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-10">
         <div class="space-y-1.5">
           <label for="newsletter-name" class="block text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500" data-i18n="newsletterNameLabel">Full Name (Optional)</label>
@@ -2133,44 +2137,9 @@
       <div class="tra-edge-bottom"></div>
     </div>
 
-    <!-- Payment Verification / Selcom Live USSD Push / Download Actions (Only Shown Below Receipt, Not Printed) -->
+    <!-- Automatic Real-Time Payment Status & Download Actions (Shown Below Receipt, Not Printed) -->
     <div class="no-print w-full max-w-[368px] mx-auto space-y-2.5">
       <div id="modal-payment-check-msg" class="hidden rounded-xl p-3 text-xs font-semibold"></div>
-
-      <!-- Selcom Direct Mobile Money USSD Push & Card Checkout Box -->
-      <div id="selcom-payment-box" class="rounded-2xl bg-white border-2 border-[#0b6b68]/25 p-3.5 space-y-2.5 shadow-sm">
-        <div class="flex items-center justify-between gap-2">
-          <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#0b6b68]">Selcom Instant Payment (USSD Push)</span>
-          <span class="px-2 py-0.5 rounded-full bg-[#e6f3f2] text-[#08524f] text-[10px] font-extrabold">M-Pesa • Mixx • Airtel • Halo</span>
-        </div>
-        <div class="space-y-1.5">
-          <div class="flex items-center justify-between gap-2">
-            <label for="selcom-push-phone" class="block text-[11px] font-bold text-slate-600">Namba ya Simu ya Kulipia (Mobile Money):</label>
-            <span id="selcom-push-network-badge" class="hidden"></span>
-          </div>
-          <div class="flex gap-1.5">
-            <input id="selcom-push-phone" type="tel" oninput="renderCarrierBadgeInto('selcom-push-network-badge', this.value)" placeholder="07XXXXXXXX / 2557XXXXXXXX" class="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#f4f7f6] border border-slate-300 text-xs font-mono font-bold focus:outline-none focus:border-[#0b6b68]" />
-            <button id="btn-selcom-push" type="button" onclick="triggerSelcomUssdPush()" class="px-3.5 py-2 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs transition cursor-pointer shrink-0">
-              Tuma Prompt
-            </button>
-          </div>
-          <p class="text-[10.5px] text-slate-600 leading-snug">
-            Bonyeza <strong>Tuma Prompt</strong> kupokea menyu ya PIN kwenye simu yako. Jina la mpokeaji kwenye Selcom / M-Pesa / Mixx / Airtel litatokea kama <strong>RELIANCE SOLUTIONS AND TECHNOLOGY T LIMITED</strong> (Mshirika Rasmi wa Tanzania Biashara Festival).
-          </p>
-        </div>
-        <a id="btn-selcom-gateway-url" href="#" target="_blank" rel="noopener noreferrer" class="hidden w-full py-2.5 px-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-xs text-center block shadow-sm transition">
-          Fungua Ukurasa wa Malipo wa Selcom (M-Pesa / Kadi / Benki) &rarr;
-        </a>
-      </div>
-
-      <button id="btn-verify-modal-payment" type="button" onclick="verifyCurrentModalPayment()" class="w-full py-3 px-4 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm shadow-md transition inline-flex items-center justify-center gap-2 cursor-pointer">
-        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-        <span id="btn-verify-modal-payment-lbl">Nimeshalipa — Hakiki &amp; Fungua Pass</span>
-      </button>
-
-      <button id="btn-copy-modal-control" type="button" onclick="copyModalControlNumber()" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-bold text-xs transition cursor-pointer">
-        Nakili Payment Reference
-      </button>
 
       <button id="btn-download-modal-pass" type="button" onclick="downloadCurrentModalPass()" class="w-full py-3 px-4 rounded-xl bg-[#0b6b68] hover:bg-[#08524f] text-white font-extrabold text-xs sm:text-sm shadow-md transition inline-flex items-center justify-center gap-2 cursor-pointer">
         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"></path></svg>

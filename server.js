@@ -212,16 +212,45 @@ async function createSelcomOrderAndPush({ orderId, amount, buyerName, buyerEmail
 
 async function querySelcomOrderStatus(orderId) {
   const cfg = getSelcomConfig();
-  if (!cfg.configured || !orderId) return { configured: cfg.configured, paid: false };
+  if (!cfg.configured || !orderId) return { configured: cfg.configured, paid: false, outcome: 'PENDING', paymentStatus: 'PENDING', gatewayMessage: '' };
   const statusRes = await selcomApiCall('GET', '/v1/checkout/order-status', { order_id: String(orderId) });
-  if (!statusRes.ok) return { configured: true, paid: false, raw: statusRes.data };
   const row = Array.isArray(statusRes.data?.data) && statusRes.data.data[0] ? statusRes.data.data[0] : {};
   const payStatus = String(row.payment_status || statusRes.data?.payment_status || '').toUpperCase();
+  const gatewayMessage = String(row.message || statusRes.data?.message || row.result || statusRes.data?.result || '').trim();
+  const combined = `${payStatus} ${gatewayMessage}`;
+
+  if (!statusRes.ok) {
+    let outcome = 'PENDING';
+    if (/(insufficient|low\s*balance|not\s*enough\s*fund|salio)/i.test(combined)) outcome = 'INSUFFICIENT_FUNDS';
+    else if (/(user_cancelled|cancelled|canceled|abort|rejected\s*by\s*user)/i.test(combined)) outcome = 'CANCELLED';
+    return {
+      configured: true,
+      paid: false,
+      outcome,
+      paymentStatus: payStatus || 'PENDING',
+      gatewayMessage,
+      raw: statusRes.data
+    };
+  }
+
   const isPaid = payStatus === 'COMPLETED' || payStatus === 'PAID' || payStatus === 'SUCCESSFUL';
+  let outcome = 'PENDING';
+  if (isPaid) {
+    outcome = 'PAID';
+  } else if (payStatus === 'INSUFFICIENT_FUNDS' || payStatus === 'INSUFFICIENT_BALANCE' || /(insufficient|low\s*balance|not\s*enough\s*fund|salio)/i.test(combined)) {
+    outcome = 'INSUFFICIENT_FUNDS';
+  } else if (payStatus === 'CANCELLED' || payStatus === 'CANCELED' || payStatus === 'USER_CANCELLED' || payStatus === 'ABORTED' || /(user_cancelled|cancelled|canceled|abort|rejected\s*by\s*user)/i.test(combined)) {
+    outcome = 'CANCELLED';
+  } else if (payStatus === 'FAILED' || payStatus === 'DECLINED' || payStatus === 'REJECTED' || payStatus === 'EXPIRED' || payStatus === 'TIMEOUT') {
+    outcome = 'FAILED';
+  }
+
   return {
     configured: true,
     paid: isPaid,
+    outcome,
     paymentStatus: payStatus || 'PENDING',
+    gatewayMessage,
     reference: String(row.reference || statusRes.data?.reference || ''),
     transId: String(row.transid || ''),
     channel: String(row.channel || '')
@@ -242,7 +271,7 @@ dbAdapter.initialize().catch(err => {
 });
 
 const HOLD_TTL_MS = 10 * 60 * 1000; // 10 minutes temporary booth reservation hold
-const UNPAID_BOOKING_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours auto-expiry for unpaid online reservations
+const UNPAID_BOOKING_TTL_MS = 60 * 60 * 1000; // 1 hour auto-expiry for unpaid online reservations to prevent bot hoarding
 const ADMIN_SESSION_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours sliding session
 const MANAGE_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes step-up management token
 
@@ -518,6 +547,16 @@ function isMaliciousOrAutomatedBot(req, isMutation = false) {
     return true;
   }
   return false;
+}
+
+function signBotFormToken() {
+  return signPayload({ role: 'bot_form', iatMs: Date.now() }, 6 * 60 * 60 * 1000);
+}
+
+function verifyBotFormToken(token, minAgeMs = 800) {
+  const parsed = verifySignedToken(token);
+  if (!parsed || parsed.role !== 'bot_form' || typeof parsed.iatMs !== 'number') return false;
+  return (Date.now() - parsed.iatMs) >= minAgeMs;
 }
 
 function hasHoneypotTripped(payload) {
@@ -1146,6 +1185,8 @@ function toSafeBookingReceipt(b, { unmasked = false, hasPin = false, stepUpRequi
     totalAmount: Number(b.totalAmount) || 0,
     paymentMethod: b.paymentMethod,
     status: b.status,
+    lastPaymentOutcome: b.lastPaymentOutcome || null,
+    lastGatewayMessage: b.lastGatewayMessage || null,
     paymentExpiresAt: b.paymentExpiresAt || null,
     createdAt: b.createdAt || null,
     paidAt: b.paidAt || null,
@@ -1246,8 +1287,14 @@ const server = http.createServer(async (req, res) => {
     const db = readDbClean();
     return sendJSON(res, 200, {
       ...sanitizePublicDb(db),
-      liveStats: getLiveStats(db)
+      liveStats: getLiveStats(db),
+      botToken: signBotFormToken()
     }, {}, deviceCookieList);
+  }
+
+  // API: Fresh Anti-Bot Form Challenge Token
+  if (pathname === '/api/bot-token' && req.method === 'GET') {
+    return sendJSON(res, 200, { success: true, botToken: signBotFormToken() }, {}, deviceCookieList);
   }
 
   // API: Auth - Check Admin Session
@@ -1737,8 +1784,8 @@ const server = http.createServer(async (req, res) => {
 
     try {
       const payload = await parseBody(req);
-      if (hasHoneypotTripped(payload)) {
-        return sendJSON(res, 403, { success: false, error: 'Automated bot submission rejected.' }, {}, deviceCookieList);
+      if (hasHoneypotTripped(payload) || !verifyBotFormToken(payload._tbfBotToken, 800)) {
+        return sendJSON(res, 403, { success: false, error: 'Automated bot submission rejected. Please refresh the page and submit normally.' }, {}, deviceCookieList);
       }
       const businessName = sanitizeTextInput(payload.businessName, 120);
       const contactPerson = sanitizeTextInput(payload.contactPerson, 100);
@@ -1754,6 +1801,20 @@ const server = http.createServer(async (req, res) => {
         return sendJSON(res, 400, {
           success: false,
           error: 'Business name, contact person, valid email, valid 9+ digit phone, boothCode, and at least one city are required.'
+        }, {}, deviceCookieList);
+      }
+
+      const reqDeviceHash = crypto.createHash('sha256').update(ctx.deviceId).digest('hex').slice(0, 16);
+      const reqEmailIdx = computeBlindIndex(email);
+      const reqPhoneIdx = computeBlindIndex(normalizePhoneTail(phone));
+      const activeUnpaidCount = (dbSnapshot.bookings || []).filter(b => {
+        if (String(b.status || '').toLowerCase() !== 'awaiting payment') return false;
+        return b.ownerDeviceHash === reqDeviceHash || (b.emailIdx && b.emailIdx === reqEmailIdx) || (b.phoneIdx && b.phoneIdx === reqPhoneIdx);
+      }).length;
+      if (activeUnpaidCount >= 2) {
+        return sendJSON(res, 429, {
+          success: false,
+          error: 'Una booking 2 ambazo bado hazijalipiwa. Tafadhali kamilisha malipo au ghairi booking iliyopo kwanza.'
         }, {}, deviceCookieList);
       }
 
@@ -1897,10 +1958,24 @@ const server = http.createServer(async (req, res) => {
       const payload = await parseBody(req);
       const bookingId = String(payload.bookingId || payload.ref || '').trim().toUpperCase();
       const rawPhone = String(payload.phone || '').trim();
+      const manageToken = String(payload.manageToken || '').trim();
+      const pin = String(payload.pin || '').trim();
       const db = readDbClean();
       const found = (db.bookings || []).find(b => String(b.id || '').toUpperCase() === bookingId);
       if (!found) {
         return sendJSON(res, 404, { success: false, error: 'Booking haijapatikana.' }, {}, deviceCookieList);
+      }
+      const reqDeviceHash = crypto.createHash('sha256').update(ctx.deviceId).digest('hex').slice(0, 16);
+      const claims = manageToken ? verifySignedToken(manageToken) : null;
+      const isAuthorizedPush = (found.ownerDeviceHash && found.ownerDeviceHash === reqDeviceHash)
+        || (claims && claims.role === 'booking_owner' && claims.bookingId === found.id)
+        || (pin && found.accessPinHash && verifySecret(pin, found.accessPinHash));
+      if (!isAuthorizedPush) {
+        return sendJSON(res, 403, { success: false, error: 'Uthibitisho wa mmiliki wa booking unahitajika kutuma prompt ya malipo.' }, {}, deviceCookieList);
+      }
+      if (found.lastSelcomPushAt && (Date.now() - Number(found.lastSelcomPushAt)) < 60000) {
+        const waitSec = Math.max(1, Math.ceil((60000 - (Date.now() - Number(found.lastSelcomPushAt))) / 1000));
+        return sendJSON(res, 429, { success: false, retryAfterSec: waitSec, error: `Prompt imeshatumwa. Subiri sekunde ${waitSec} kabla ya kutuma tena.` }, {}, deviceCookieList);
       }
       if (String(found.status || '').toLowerCase() === 'paid' || String(found.status || '').toLowerCase() === 'confirmed') {
         return sendJSON(res, 200, {
@@ -1958,6 +2033,7 @@ const server = http.createServer(async (req, res) => {
           if (b) {
             b.selcomReference = selcomOrderRef;
             if (selcomCtrl) b.controlNumber = encryptField(selcomCtrl);
+            b.lastSelcomPushAt = Date.now();
             if (selcomGwUrl) b.selcomGatewayUrl = selcomGwUrl;
             b.selcomPushSent = Boolean(created.pushSent);
           }
@@ -1988,6 +2064,7 @@ const server = http.createServer(async (req, res) => {
           if (b) {
             b.selcomPushSent = true;
             b.selcomTransId = transId;
+            b.lastSelcomPushAt = Date.now();
           }
           return { dirty: true, value: true };
         });
@@ -2115,17 +2192,32 @@ const server = http.createServer(async (req, res) => {
 
       // Live Selcom payment verification whenever an unpaid booking is checked
       const stLower = String(found.status || '').toLowerCase();
+      let livePaymentStatus = (stLower === 'paid' || stLower === 'confirmed') ? 'PAID' : (found.lastPaymentOutcome || 'PENDING');
+      let gatewayMessage = found.lastGatewayMessage || '';
       if (stLower !== 'paid' && stLower !== 'confirmed' && getSelcomConfig().configured) {
         const liveSelcom = await querySelcomOrderStatus(found.id);
+        livePaymentStatus = liveSelcom.outcome || (liveSelcom.paid ? 'PAID' : 'PENDING');
+        gatewayMessage = liveSelcom.gatewayMessage || '';
         if (liveSelcom.paid) {
           const updated = await withDbTransaction(txDb => {
             const b = txDb.bookings.find(x => x.id === found.id);
             if (!b) return { dirty: false, value: null };
             b.status = 'Paid';
+            b.lastPaymentOutcome = 'PAID';
+            b.lastGatewayMessage = gatewayMessage;
             b.paymentExpiresAt = null;
             b.paidAt = new Date().toISOString();
             if (liveSelcom.reference) b.selcomReference = liveSelcom.reference;
             if (liveSelcom.transId) b.selcomTransId = liveSelcom.transId;
+            return { dirty: true, value: b };
+          });
+          if (updated) found = updated;
+        } else if (['INSUFFICIENT_FUNDS', 'CANCELLED', 'FAILED'].includes(livePaymentStatus)) {
+          const updated = await withDbTransaction(txDb => {
+            const b = txDb.bookings.find(x => x.id === found.id);
+            if (!b) return { dirty: false, value: null };
+            b.lastPaymentOutcome = livePaymentStatus;
+            b.lastGatewayMessage = gatewayMessage;
             return { dirty: true, value: b };
           });
           if (updated) found = updated;
@@ -2136,6 +2228,8 @@ const server = http.createServer(async (req, res) => {
       if (!pin) {
         return sendJSON(res, 200, {
           success: true,
+          livePaymentStatus,
+          gatewayMessage,
           booking: toSafeBookingReceipt(found, { unmasked: false, hasPin, stepUpRequired: hasPin })
         }, {}, deviceCookieList);
       }
@@ -2170,6 +2264,8 @@ const server = http.createServer(async (req, res) => {
 
       return sendJSON(res, 200, {
         success: true,
+        livePaymentStatus,
+        gatewayMessage,
         booking: toSafeBookingReceipt(found, { unmasked: true, hasPin: true, stepUpRequired: false, manageToken })
       }, {}, deviceCookieList);
     } catch (err) {
@@ -2329,6 +2425,9 @@ const server = http.createServer(async (req, res) => {
     }
     try {
       const payload = await parseBody(req);
+      if (hasHoneypotTripped(payload) || !verifyBotFormToken(payload._tbfBotToken, 600)) {
+        return sendJSON(res, 403, { success: false, error: 'Automated bot submission rejected. Please reload and try again.' }, {}, deviceCookieList);
+      }
       const organization = sanitizeTextInput(payload.organization, 140);
       const contactName = sanitizeTextInput(payload.contactName, 100);
       const phone = sanitizeTextInput(payload.phone, 32);
@@ -2486,8 +2585,8 @@ const server = http.createServer(async (req, res) => {
     }
     try {
       const payload = await parseBody(req);
-      if (hasHoneypotTripped(payload)) {
-        return sendJSON(res, 403, { success: false, error: 'Automated bot submission rejected.' }, {}, deviceCookieList);
+      if (hasHoneypotTripped(payload) || !verifyBotFormToken(payload._tbfBotToken, 800)) {
+        return sendJSON(res, 403, { success: false, error: 'Automated bot submission rejected. Please refresh the page and submit normally.' }, {}, deviceCookieList);
       }
       const name = sanitizeTextInput(payload.name, 100);
       const phone = sanitizeTextInput(payload.phone, 32);
@@ -2528,8 +2627,8 @@ const server = http.createServer(async (req, res) => {
     }
     try {
       const payload = await parseBody(req);
-      if (hasHoneypotTripped(payload)) {
-        return sendJSON(res, 403, { success: false, error: 'Automated bot submission rejected.' }, {}, deviceCookieList);
+      if (hasHoneypotTripped(payload) || !verifyBotFormToken(payload._tbfBotToken, 800)) {
+        return sendJSON(res, 403, { success: false, error: 'Automated bot submission rejected. Please refresh the page and submit normally.' }, {}, deviceCookieList);
       }
       const email = sanitizeTextInput(payload.email, 120).toLowerCase();
       if (!isValidEmail(email)) {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tbf-shell-v100';
+const CACHE_NAME = 'tbf-shell-v101';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

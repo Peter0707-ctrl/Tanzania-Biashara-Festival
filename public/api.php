@@ -66,6 +66,122 @@ function rejectIfHoneypotPhp($payload) {
     }
 }
 
+function b64UrlEncodePhp($data) {
+    return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+}
+
+function b64UrlDecodePhp($data) {
+    $pad = strlen($data) % 4;
+    if ($pad) $data .= str_repeat('=', 4 - $pad);
+    return base64_decode(strtr($data, '-_', '+/'), true);
+}
+
+function getHmacSecretPhp() {
+    $envSecret = trim(getEnvVar('TBF_SESSION_SECRET', ''));
+    if (strlen($envSecret) >= 32) return $envSecret;
+    $paths = array(
+        __DIR__ . '/data/.auth_secret',
+        dirname(__DIR__) . '/data/.auth_secret',
+        '/home/reliancetech/www.biasharafestival.co.tz/data/.auth_secret',
+        '/home/reliancetech/biasharafestival.co.tz/data/.auth_secret',
+        '/home/reliancetech/data/.auth_secret'
+    );
+    foreach ($paths as $p) {
+        if (file_exists($p) && is_readable($p)) {
+            $val = trim((string)@file_get_contents($p));
+            if (strlen($val) >= 32) return $val;
+        }
+    }
+    $targetDir = __DIR__ . '/data';
+    if (!is_dir($targetDir)) @mkdir($targetDir, 0700, true);
+    $secretFile = $targetDir . '/.auth_secret';
+    $created = bin2hex(random_bytes(32));
+    @file_put_contents($secretFile, $created, LOCK_EX);
+    @chmod($secretFile, 0600);
+    return $created;
+}
+
+function getAuthSigningKeyPhp() {
+    static $key = null;
+    if ($key === null) {
+        $key = hash_hmac('sha256', 'tbf:auth-signing:v2', getHmacSecretPhp(), true);
+    }
+    return $key;
+}
+
+function getUaFamilyPhp() {
+    global $userAgent;
+    $norm = preg_replace('/[\d.]+/', 'x', $userAgent ?: 'unknown');
+    return substr(hash('sha256', $norm), 0, 16);
+}
+
+function getOrCreateDeviceIdPhp() {
+    $existing = trim((string)($_COOKIE['tbf_device_id'] ?? ''));
+    if ($existing !== '' && preg_match('/^[a-zA-Z0-9_-]{12,64}$/', $existing)) {
+        return $existing;
+    }
+    return bin2hex(random_bytes(16));
+}
+
+function signPayloadPhp($obj, $ttlMs) {
+    $obj['exp'] = round(microtime(true) * 1000) + $ttlMs;
+    $encoded = b64UrlEncodePhp(json_encode($obj));
+    $sig = b64UrlEncodePhp(hash_hmac('sha256', $encoded, getAuthSigningKeyPhp(), true));
+    return $encoded . '.' . $sig;
+}
+
+function verifySignedTokenPhp($token) {
+    if (!is_string($token) || strpos($token, '.') === false) return null;
+    $parts = explode('.', $token, 2);
+    if (count($parts) !== 2 || $parts[0] === '' || $parts[1] === '') return null;
+    $expected = b64UrlEncodePhp(hash_hmac('sha256', $parts[0], getAuthSigningKeyPhp(), true));
+    if (!hash_equals($expected, $parts[1])) return null;
+    $raw = b64UrlDecodePhp($parts[0]);
+    if ($raw === false) return null;
+    $parsed = json_decode($raw, true);
+    if (!is_array($parsed) || !isset($parsed['exp']) || (float)$parsed['exp'] < (microtime(true) * 1000)) {
+        return null;
+    }
+    return $parsed;
+}
+
+function signBotFormTokenPhp() {
+    return signPayloadPhp(array('role' => 'bot_form', 'iatMs' => round(microtime(true) * 1000)), 6 * 3600 * 1000);
+}
+
+function rejectUnlessValidBotTokenPhp($payload, $minAgeMs = 700) {
+    $token = is_array($payload) ? trim((string)($payload['_tbfBotToken'] ?? '')) : '';
+    $claims = verifySignedTokenPhp($token);
+    $ok = is_array($claims) && (($claims['role'] ?? '') === 'bot_form') && isset($claims['iatMs'])
+        && ((round(microtime(true) * 1000) - (float)$claims['iatMs']) >= $minAgeMs);
+    if (!$ok) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(array('success' => false, 'error' => 'Automated bot submission rejected. Please refresh the page and submit normally.'));
+        exit;
+    }
+}
+
+function verifyAdminRequestPhp() {
+    $token = $_COOKIE['tbf_admin_session'] ?? '';
+    $session = verifySignedTokenPhp($token);
+    if (!is_array($session) || ($session['role'] ?? '') !== 'admin' || empty($session['jti'])) return null;
+    if (($session['uaFamily'] ?? '') !== getUaFamilyPhp()) return null;
+    $cookieDev = trim((string)($_COOKIE['tbf_device_id'] ?? ''));
+    if ($cookieDev === '' || ($session['deviceId'] ?? '') !== $cookieDev) return null;
+    return $session;
+}
+
+function requireAdminAuthPhp() {
+    $session = verifyAdminRequestPhp();
+    if (!$session) {
+        http_response_code(401);
+        echo json_encode(array('success' => false, 'error' => 'Admin authentication required'));
+        exit;
+    }
+    return $session;
+}
+
 function loadEnvPhp() {
     $envCandidates = array(
         __DIR__ . '/.env',
@@ -296,16 +412,35 @@ function createSelcomOrderAndPushPhp($orderId, $amount, $buyerName, $buyerEmail,
 
 function querySelcomOrderStatusPhp($orderId) {
     $cfg = getSelcomConfigPhp();
-    if (!$cfg['configured'] || !$orderId) return array('configured' => $cfg['configured'], 'paid' => false);
+    if (!$cfg['configured'] || !$orderId) return array('configured' => $cfg['configured'], 'paid' => false, 'outcome' => 'PENDING', 'paymentStatus' => 'PENDING', 'gatewayMessage' => '');
     $res = selcomApiCallPhp('GET', '/v1/checkout/order-status', array('order_id' => (string)$orderId));
-    if (!$res['ok']) return array('configured' => true, 'paid' => false);
     $row = (isset($res['data']['data'][0]) && is_array($res['data']['data'][0])) ? $res['data']['data'][0] : array();
     $st = strtoupper((string)($row['payment_status'] ?? ($res['data']['payment_status'] ?? '')));
+    $gwMsg = trim((string)($row['message'] ?? ($res['data']['message'] ?? ($row['result'] ?? ($res['data']['result'] ?? '')))));
+    $combined = $st . ' ' . $gwMsg;
+    if (empty($res['ok'])) {
+        $outcome = 'PENDING';
+        if (preg_match('/(insufficient|low\s*balance|not\s*enough\s*fund|salio)/i', $combined)) $outcome = 'INSUFFICIENT_FUNDS';
+        elseif (preg_match('/(user_cancelled|cancelled|canceled|abort|rejected\s*by\s*user)/i', $combined)) $outcome = 'CANCELLED';
+        return array('configured' => true, 'paid' => false, 'outcome' => $outcome, 'paymentStatus' => $st ?: 'PENDING', 'gatewayMessage' => $gwMsg);
+    }
     $isPaid = ($st === 'COMPLETED' || $st === 'PAID' || $st === 'SUCCESSFUL');
+    $outcome = 'PENDING';
+    if ($isPaid) {
+        $outcome = 'PAID';
+    } elseif ($st === 'INSUFFICIENT_FUNDS' || $st === 'INSUFFICIENT_BALANCE' || preg_match('/(insufficient|low\s*balance|not\s*enough\s*fund|salio)/i', $combined)) {
+        $outcome = 'INSUFFICIENT_FUNDS';
+    } elseif ($st === 'CANCELLED' || $st === 'CANCELED' || $st === 'USER_CANCELLED' || $st === 'ABORTED' || preg_match('/(user_cancelled|cancelled|canceled|abort|rejected\s*by\s*user)/i', $combined)) {
+        $outcome = 'CANCELLED';
+    } elseif ($st === 'FAILED' || $st === 'DECLINED' || $st === 'REJECTED' || $st === 'EXPIRED' || $st === 'TIMEOUT') {
+        $outcome = 'FAILED';
+    }
     return array(
         'configured' => true,
         'paid' => $isPaid,
+        'outcome' => $outcome,
         'paymentStatus' => $st ?: 'PENDING',
+        'gatewayMessage' => $gwMsg,
         'reference' => (string)($row['reference'] ?? ($res['data']['reference'] ?? '')),
         'transId' => (string)($row['transid'] ?? '')
     );
@@ -418,6 +553,26 @@ function locateDbJson() {
     return $dir . '/db.json';
 }
 
+$DB_LOCK_FP = null;
+function acquireDbLockPhp() {
+    global $DB_LOCK_FP;
+    if ($DB_LOCK_FP) return;
+    $lockPath = dirname(locateDbJson()) . '/.db.lock';
+    if (!is_dir(dirname($lockPath))) @mkdir(dirname($lockPath), 0755, true);
+    $fp = @fopen($lockPath, 'c+');
+    if ($fp) {
+        @flock($fp, LOCK_EX);
+        $DB_LOCK_FP = $fp;
+        register_shutdown_function(function () use (&$DB_LOCK_FP) {
+            if ($DB_LOCK_FP) {
+                @flock($DB_LOCK_FP, LOCK_UN);
+                @fclose($DB_LOCK_FP);
+                $DB_LOCK_FP = null;
+            }
+        });
+    }
+}
+
 function getMysqlPdoPhp() {
     static $pdo = null;
     static $attempted = false;
@@ -447,6 +602,7 @@ function getMysqlPdoPhp() {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
         return $pdo;
     } catch (Exception $e) {
+        error_log('[TBF PHP DB] MySQL connection error: ' . $e->getMessage());
         $pdo = null;
         return null;
     }
@@ -480,7 +636,9 @@ function readDbPhp() {
                     }
                 }
             }
-        } catch (Exception $e) {}
+        } catch (Exception $e) {
+            error_log('[TBF PHP DB] MySQL read error: ' . $e->getMessage());
+        }
     }
     $path = locateDbJson();
     if (!file_exists($path)) {
@@ -501,7 +659,9 @@ function writeDbPhp($db) {
         try {
             $stmt = $pdo->prepare("INSERT INTO `tbf_state_store` (`state_key`, `state_json`, `version`) VALUES ('primary', ?, 1) ON DUPLICATE KEY UPDATE `state_json` = VALUES(`state_json`), `version` = `version` + 1");
             $stmt->execute(array($json));
-        } catch (Exception $e) {}
+        } catch (Exception $e) {
+            error_log('[TBF PHP DB] MySQL read error: ' . $e->getMessage());
+        }
 
         // Separate try/catch so relational table sync can never interrupt primary state store
         try {
@@ -536,7 +696,9 @@ function writeDbPhp($db) {
                     ));
                 }
             }
-        } catch (Exception $e) {}
+        } catch (Exception $e) {
+            error_log('[TBF PHP DB] MySQL read error: ' . $e->getMessage());
+        }
     }
     $targets = array(
         __DIR__ . '/data/db.json',
@@ -548,13 +710,18 @@ function writeDbPhp($db) {
     foreach ($targets as $t) {
         $d = dirname($t);
         if (is_dir($d) || @mkdir($d, 0755, true)) {
-            @file_put_contents($t, $json, LOCK_EX);
+            $tmp = $d . '/.db.tmp.' . getmypid() . '.' . mt_rand(100, 999);
+            if (@file_put_contents($tmp, $json, LOCK_EX) !== false) {
+                @chmod($tmp, 0600);
+                @rename($tmp, $t);
+            }
         }
     }
 }
 
 function pruneExpiredPhp(&$db) {
     $nowMs = round(microtime(true) * 1000);
+    $nowSec = time();
     $changed = false;
     $validHolds = array();
     foreach ($db['boothHolds'] as $h) {
@@ -565,6 +732,37 @@ function pruneExpiredPhp(&$db) {
         }
     }
     $db['boothHolds'] = $validHolds;
+    foreach ($db['bookings'] as &$b) {
+        $st = strtolower(trim($b['status'] ?? ''));
+        if ($st === 'awaiting payment' && !empty($b['paymentExpiresAt'])) {
+            $expTs = strtotime((string)$b['paymentExpiresAt']);
+            if ($expTs !== false && $expTs <= $nowSec) {
+                $b['status'] = 'Expired';
+                $changed = true;
+                $oldCode = strtoupper((string)($b['boothCode'] ?? ''));
+                foreach (($b['cities'] ?? array()) as $cityName) {
+                    $stillUsed = false;
+                    foreach ($db['bookings'] as $other) {
+                        $ost = strtolower(trim($other['status'] ?? ''));
+                        if ($ost !== 'cancelled' && $ost !== 'expired' && strtoupper((string)($other['boothCode'] ?? '')) === $oldCode && in_array($cityName, $other['cities'] ?? array(), true)) {
+                            $stillUsed = true;
+                            break;
+                        }
+                    }
+                    if (!$stillUsed && is_array($db['regions'] ?? null)) {
+                        foreach ($db['regions'] as &$reg) {
+                            if (($reg['name'] ?? '') === $cityName && is_array($reg['bookedCodes'] ?? null)) {
+                                $reg['bookedCodes'] = array_values(array_diff($reg['bookedCodes'], array($oldCode)));
+                                $reg['bookedBooths'] = count($reg['bookedCodes']);
+                            }
+                        }
+                        unset($reg);
+                    }
+                }
+            }
+        }
+    }
+    unset($b);
     return $changed;
 }
 
@@ -697,6 +895,8 @@ function formatBookingReceiptPhp($b, $unmasked = true, $manageToken = '') {
         'totalAmount' => (float)($b['totalAmount'] ?? 0),
         'paymentMethod' => $b['paymentMethod'] ?? '',
         'status' => $b['status'] ?? 'Awaiting Payment',
+        'lastPaymentOutcome' => $b['lastPaymentOutcome'] ?? null,
+        'lastGatewayMessage' => $b['lastGatewayMessage'] ?? null,
         'paymentExpiresAt' => $b['paymentExpiresAt'] ?? null,
         'createdAt' => $b['createdAt'] ?? null,
         'paidAt' => $b['paidAt'] ?? null,
@@ -707,6 +907,9 @@ function formatBookingReceiptPhp($b, $unmasked = true, $manageToken = '') {
     );
 }
 
+if ($method !== 'GET' && $method !== 'HEAD') {
+    acquireDbLockPhp();
+}
 $db = readDbPhp();
 if (pruneExpiredPhp($db)) {
     writeDbPhp($db);
@@ -714,8 +917,132 @@ if (pruneExpiredPhp($db)) {
 $payload = json_decode($rawBody, true);
 if (!is_array($payload)) $payload = array();
 
+if ($route === 'bot-token' && $method === 'GET') {
+    echo json_encode(array('success' => true, 'botToken' => signBotFormTokenPhp()));
+    exit;
+}
+
 if ($route === 'data' && $method === 'GET') {
-    echo json_encode(sanitizePublicDbPhp($db));
+    $pub = sanitizePublicDbPhp($db);
+    $pub['botToken'] = signBotFormTokenPhp();
+    echo json_encode($pub);
+    exit;
+}
+
+if ($route === 'auth/session' && $method === 'GET') {
+    $session = verifyAdminRequestPhp();
+    echo json_encode(array(
+        'authenticated' => (bool)$session,
+        'user' => $session ? array('identifier' => $session['sub'] ?? 'admin', 'role' => 'admin') : null
+    ));
+    exit;
+}
+
+if ($route === 'auth/login' && $method === 'POST') {
+    checkIpRateLimitPhp('auth-login', 15, 900);
+    $identifier = strtolower(trim((string)($payload['identifier'] ?? '')));
+    $password = (string)($payload['password'] ?? '');
+    if ($identifier === '' || $password === '') {
+        http_response_code(400);
+        echo json_encode(array('success' => false, 'error' => 'Identifier and password are required'));
+        exit;
+    }
+    $adminEmail = strtolower(trim(getEnvVar('TBF_ADMIN_EMAIL', 'info@biasharafestival.co.tz')));
+    $adminPass = trim(getEnvVar('TBF_ADMIN_PASSWORD', ''));
+    $matchedUser = null;
+    if ($adminPass !== '' && $identifier === $adminEmail && hash_equals($adminPass, $password)) {
+        $matchedUser = array('identifier' => $adminEmail, 'name' => 'Festival Organizer', 'role' => 'admin');
+    } elseif (is_array($db['organizerAccounts'] ?? null)) {
+        foreach ($db['organizerAccounts'] as $acc) {
+            if (($acc['active'] ?? true) === false) continue;
+            $accEmail = strtolower(trim((string)($acc['email'] ?? '')));
+            $accHash = (string)($acc['passwordHash'] ?? '');
+            if ($accEmail === $identifier && $accHash !== '' && password_verify($password, $accHash)) {
+                $matchedUser = array('identifier' => $accEmail, 'name' => (string)($acc['name'] ?? 'Festival Organizer'), 'role' => 'admin');
+                break;
+            }
+        }
+    }
+    if (!$matchedUser) {
+        http_response_code(401);
+        echo json_encode(array('success' => false, 'error' => 'Invalid credentials'));
+        exit;
+    }
+    $devId = getOrCreateDeviceIdPhp();
+    $token = signPayloadPhp(array(
+        'role' => 'admin',
+        'sub' => $matchedUser['identifier'],
+        'jti' => bin2hex(random_bytes(12)),
+        'deviceId' => $devId,
+        'uaFamily' => getUaFamilyPhp()
+    ), 7200 * 1000);
+    $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    $cookieOpts = array('expires' => time() + 7200, 'path' => '/', 'secure' => $isSecure, 'httponly' => true, 'samesite' => 'Lax');
+    setcookie('tbf_device_id', $devId, array_merge($cookieOpts, array('expires' => time() + 31536000)));
+    setcookie('tbf_admin_session', $token, $cookieOpts);
+    echo json_encode(array('success' => true, 'user' => $matchedUser));
+    exit;
+}
+
+if ($route === 'auth/logout' && $method === 'POST') {
+    $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    setcookie('tbf_admin_session', '', array('expires' => time() - 3600, 'path' => '/', 'secure' => $isSecure, 'httponly' => true, 'samesite' => 'Lax'));
+    echo json_encode(array('success' => true));
+    exit;
+}
+
+if ($route === 'admin/overview' && $method === 'GET') {
+    requireAdminAuthPhp();
+    echo json_encode(array(
+        'success' => true,
+        'bookings' => $db['bookings'] ?? array(),
+        'sponsors' => $db['sponsors'] ?? array(),
+        'organizers' => array(),
+        'activeHolds' => $db['boothHolds'] ?? array(),
+        'newsletterCount' => count($db['newsletterSubscribers'] ?? array()),
+        'securityLog' => array_slice($db['securityLog'] ?? array(), 0, 15),
+        'liveStats' => buildLiveStatsPhp($db)
+    ));
+    exit;
+}
+
+if ($route === 'admin/bookings/status' && $method === 'POST') {
+    requireAdminAuthPhp();
+    $bookingId = trim((string)($payload['bookingId'] ?? ''));
+    $newStatus = trim((string)($payload['status'] ?? 'Confirmed'));
+    if ($bookingId === '' || !in_array($newStatus, array('Confirmed', 'Paid', 'Awaiting Payment', 'Cancelled'), true)) {
+        http_response_code(400);
+        echo json_encode(array('success' => false, 'error' => 'Valid bookingId and status required'));
+        exit;
+    }
+    $updatedBooking = null;
+    foreach ($db['bookings'] as &$b) {
+        if (($b['id'] ?? '') === $bookingId) {
+            $b['status'] = $newStatus;
+            if ($newStatus === 'Confirmed' || $newStatus === 'Paid') {
+                $b['paymentExpiresAt'] = null;
+            } elseif ($newStatus === 'Cancelled') {
+                $oldCode = strtoupper((string)($b['boothCode'] ?? ''));
+                foreach (($db['regions'] ?? array()) as &$reg) {
+                    if (in_array($reg['name'] ?? '', $b['cities'] ?? array(), true)) {
+                        $reg['bookedCodes'] = array_values(array_diff($reg['bookedCodes'] ?? array(), array($oldCode)));
+                        $reg['bookedBooths'] = count($reg['bookedCodes']);
+                    }
+                }
+                unset($reg);
+            }
+            $updatedBooking = $b;
+            break;
+        }
+    }
+    unset($b);
+    if (!$updatedBooking) {
+        http_response_code(404);
+        echo json_encode(array('success' => false, 'error' => 'Booking not found'));
+        exit;
+    }
+    writeDbPhp($db);
+    echo json_encode(array('success' => true, 'booking' => $updatedBooking));
     exit;
 }
 
@@ -790,6 +1117,7 @@ if ($route === 'bookings/hold' && $method === 'DELETE') {
 if ($route === 'bookings' && $method === 'POST') {
     checkIpRateLimitPhp('book', 6, 900);
     rejectIfHoneypotPhp($payload);
+    rejectUnlessValidBotTokenPhp($payload, 800);
     $businessName = trim($payload['businessName'] ?? '');
     $contactPerson = trim($payload['contactPerson'] ?? '');
     $phone = trim($payload['phone'] ?? '');
@@ -802,6 +1130,20 @@ if ($route === 'bookings' && $method === 'POST') {
     if ($businessName === '' || $contactPerson === '' || strlen(normalizePhoneTailPhp($phone)) < 9 || strpos($email, '@') === false || $boothCode === '' || empty($cities)) {
         http_response_code(400);
         echo json_encode(array('success' => false, 'error' => 'Tafadhali jaza taarifa zote za biashara, simu, barua pepe na uchague banda.'));
+        exit;
+    }
+
+    $unpaidCount = 0;
+    $reqTail = normalizePhoneTailPhp($phone);
+    foreach (($db['bookings'] ?? array()) as $eb) {
+        if (strtolower(trim($eb['status'] ?? '')) !== 'awaiting payment') continue;
+        if (($eb['clientIp'] ?? '') === $clientIp || strtolower(trim($eb['email'] ?? '')) === $email || ($reqTail !== '' && normalizePhoneTailPhp($eb['phone'] ?? '') === $reqTail)) {
+            $unpaidCount++;
+        }
+    }
+    if ($unpaidCount >= 2) {
+        http_response_code(429);
+        echo json_encode(array('success' => false, 'error' => 'Una booking 2 ambazo bado hazijalipiwa. Tafadhali kamilisha malipo au ghairi booking iliyopo kwanza.'));
         exit;
     }
 
@@ -882,8 +1224,9 @@ if ($route === 'bookings' && $method === 'POST') {
         'totalAmount' => $totalAmount,
         'paymentMethod' => $paymentMethod,
         'featured' => true,
+        'clientIp' => $clientIp,
         'status' => 'Awaiting Payment',
-        'paymentExpiresAt' => gmdate('c', time() + 86400),
+        'paymentExpiresAt' => gmdate('c', time() + 3600),
         'createdAt' => gmdate('c')
     );
 
@@ -913,8 +1256,11 @@ if ($route === 'bookings' && $method === 'POST') {
 }
 
 if ($route === 'bookings/selcom-push' && $method === 'POST') {
+    checkIpRateLimitPhp('selcom-push', 15, 600);
     $bookingId = strtoupper(trim($payload['bookingId'] ?? ($payload['ref'] ?? '')));
     $rawPhone = trim($payload['phone'] ?? '');
+    $pin = trim($payload['pin'] ?? '');
+    $manageToken = trim($payload['manageToken'] ?? '');
     $foundIdx = -1;
     foreach ($db['bookings'] as $idx => $b) {
         if (strtoupper($b['id'] ?? '') === $bookingId) { $foundIdx = $idx; break; }
@@ -925,6 +1271,20 @@ if ($route === 'bookings/selcom-push' && $method === 'POST') {
         exit;
     }
     $found = $db['bookings'][$foundIdx];
+    $pinOk = ($pin !== '' && isset($found['accessPin']) && hash_equals((string)$found['accessPin'], $pin));
+    $tokOk = ($manageToken !== '' && isset($found['manageToken']) && hash_equals((string)$found['manageToken'], $manageToken));
+    $ipOk = (!empty($found['clientIp']) && $found['clientIp'] === $clientIp);
+    if (!$pinOk && !$tokOk && !$ipOk) {
+        http_response_code(403);
+        echo json_encode(array('success' => false, 'error' => 'Uthibitisho wa mmiliki wa booking unahitajika kutuma prompt ya malipo.'));
+        exit;
+    }
+    if (!empty($found['lastSelcomPushAt']) && (time() - (int)$found['lastSelcomPushAt']) < 60) {
+        $waitSec = max(1, 60 - (time() - (int)$found['lastSelcomPushAt']));
+        http_response_code(429);
+        echo json_encode(array('success' => false, 'retryAfterSec' => $waitSec, 'error' => "Prompt imeshatumwa. Subiri sekunde {$waitSec} kabla ya kutuma tena."));
+        exit;
+    }
     $st = strtolower(trim($found['status'] ?? ''));
     if ($st === 'paid' || $st === 'confirmed') {
         echo json_encode(array(
@@ -976,6 +1336,7 @@ if ($route === 'bookings/selcom-push' && $method === 'POST') {
         if (!empty($created['controlNumber'])) $db['bookings'][$foundIdx]['controlNumber'] = $created['controlNumber'];
         if (!empty($created['gatewayUrl'])) $db['bookings'][$foundIdx]['selcomGatewayUrl'] = $created['gatewayUrl'];
         $db['bookings'][$foundIdx]['selcomPushSent'] = !empty($created['pushSent']);
+        $db['bookings'][$foundIdx]['lastSelcomPushAt'] = time();
         writeDbPhp($db);
         echo json_encode(array(
             'success' => !empty($created['pushSent']),
@@ -999,6 +1360,7 @@ if ($route === 'bookings/selcom-push' && $method === 'POST') {
     if (!empty($pushRes['ok'])) {
         $db['bookings'][$foundIdx]['selcomPushSent'] = true;
         $db['bookings'][$foundIdx]['selcomTransId'] = $transId;
+        $db['bookings'][$foundIdx]['lastSelcomPushAt'] = time();
         writeDbPhp($db);
     }
     http_response_code(!empty($pushRes['ok']) ? 200 : 502);
@@ -1053,6 +1415,7 @@ if ($route === 'webhooks/selcom' && $method === 'POST') {
 }
 
 if (($route === 'bookings/lookup' || $route === 'bookings/email-login' || $route === 'bookings/manage') && $method === 'POST') {
+    checkIpRateLimitPhp('lookup', 40, 900);
     $refInput = strtoupper(trim($payload['ref'] ?? ''));
     $phoneTail = normalizePhoneTailPhp($payload['phone'] ?? '');
     $emailInput = strtolower(trim($payload['email'] ?? ''));
@@ -1079,23 +1442,33 @@ if (($route === 'bookings/lookup' || $route === 'bookings/email-login' || $route
 
     $found = &$db['bookings'][$foundIdx];
     $stLower = strtolower(trim($found['status'] ?? ''));
+    $livePaymentStatus = ($stLower === 'paid' || $stLower === 'confirmed') ? 'PAID' : ($found['lastPaymentOutcome'] ?? 'PENDING');
+    $gatewayMessage = (string)($found['lastGatewayMessage'] ?? '');
     if ($stLower !== 'paid' && $stLower !== 'confirmed') {
         $cfg = getSelcomConfigPhp();
         if ($cfg['configured']) {
             $live = querySelcomOrderStatusPhp($found['id']);
+            $livePaymentStatus = $live['outcome'] ?? (!empty($live['paid']) ? 'PAID' : 'PENDING');
+            $gatewayMessage = (string)($live['gatewayMessage'] ?? '');
             if (!empty($live['paid'])) {
                 $found['status'] = 'Paid';
+                $found['lastPaymentOutcome'] = 'PAID';
+                $found['lastGatewayMessage'] = $gatewayMessage;
                 $found['paymentExpiresAt'] = null;
                 $found['paidAt'] = gmdate('c');
                 if (!empty($live['reference'])) $found['selcomReference'] = $live['reference'];
+                writeDbPhp($db);
+            } elseif (in_array($livePaymentStatus, array('INSUFFICIENT_FUNDS', 'CANCELLED', 'FAILED'), true)) {
+                $found['lastPaymentOutcome'] = $livePaymentStatus;
+                $found['lastGatewayMessage'] = $gatewayMessage;
                 writeDbPhp($db);
             }
         }
     }
 
-    $pinMatches = ($pin !== '' && isset($found['accessPin']) && (string)$found['accessPin'] === $pin);
-    $tokenMatches = (!empty($payload['manageToken']) && isset($found['manageToken']) && $found['manageToken'] === $payload['manageToken']);
-    $unmasked = $pinMatches || $tokenMatches || empty($found['accessPin']);
+    $pinMatches = ($pin !== '' && isset($found['accessPin']) && hash_equals((string)$found['accessPin'], $pin));
+    $tokenMatches = (!empty($payload['manageToken']) && isset($found['manageToken']) && hash_equals((string)$found['manageToken'], (string)$payload['manageToken']));
+    $unmasked = $pinMatches || $tokenMatches;
 
     if ($route === 'bookings/manage') {
         if (!$unmasked) {
@@ -1103,24 +1476,45 @@ if (($route === 'bookings/lookup' || $route === 'bookings/email-login' || $route
             echo json_encode(array('success' => false, 'error' => 'PIN ya usalama ya tarakimu 6 si sahihi.'));
             exit;
         }
+        $curSt = strtolower(trim($found['status'] ?? ''));
         if ($action === 'switch_booth') {
-            $newCode = strtoupper(trim($payload['newBoothCode'] ?? ''));
-            if ($newCode !== '') {
-                $oldCode = $found['boothCode'];
-                $found['boothCode'] = $newCode;
-                foreach ($db['regions'] as &$reg) {
-                    if (in_array($reg['name'] ?? '', $found['cities'] ?? array(), true)) {
-                        $reg['bookedCodes'] = array_values(array_diff($reg['bookedCodes'] ?? array(), array($oldCode)));
-                        if (!in_array($newCode, $reg['bookedCodes'], true)) $reg['bookedCodes'][] = $newCode;
-                        $reg['bookedBooths'] = count($reg['bookedCodes']);
-                    }
-                }
-                unset($reg);
-                writeDbPhp($db);
+            if ($curSt === 'cancelled' || $curSt === 'expired') {
+                http_response_code(400);
+                echo json_encode(array('success' => false, 'error' => 'Cannot switch booth on an inactive booking'));
+                exit;
             }
+            $newCode = strtoupper(trim($payload['newBoothCode'] ?? ''));
+            if ($newCode === '') {
+                http_response_code(400);
+                echo json_encode(array('success' => false, 'error' => 'newBoothCode is required'));
+                exit;
+            }
+            $conflict = findBoothConflictPhp($db, $newCode, $found['cities'] ?? array(), '', $found['id']);
+            if ($conflict) {
+                http_response_code(409);
+                echo json_encode(array('success' => false, 'error' => "Banda {$newCode} tayari limechukuliwa katika mkoa uliouchagua."));
+                exit;
+            }
+            $oldCode = $found['boothCode'];
+            $found['boothCode'] = $newCode;
+            foreach ($db['regions'] as &$reg) {
+                if (in_array($reg['name'] ?? '', $found['cities'] ?? array(), true)) {
+                    $reg['bookedCodes'] = array_values(array_diff($reg['bookedCodes'] ?? array(), array($oldCode)));
+                    if (!in_array($newCode, $reg['bookedCodes'], true)) $reg['bookedCodes'][] = $newCode;
+                    $reg['bookedBooths'] = count($reg['bookedCodes']);
+                }
+            }
+            unset($reg);
+            writeDbPhp($db);
         } elseif ($action === 'cancel') {
+            if ($curSt === 'paid' || $curSt === 'confirmed') {
+                http_response_code(400);
+                echo json_encode(array('success' => false, 'error' => 'Paid bookings require organizer desk review to cancel.'));
+                exit;
+            }
             $oldCode = $found['boothCode'];
             $found['status'] = 'Cancelled';
+            $found['paymentExpiresAt'] = null;
             foreach ($db['regions'] as &$reg) {
                 if (in_array($reg['name'] ?? '', $found['cities'] ?? array(), true)) {
                     $reg['bookedCodes'] = array_values(array_diff($reg['bookedCodes'] ?? array(), array($oldCode)));
@@ -1136,6 +1530,8 @@ if (($route === 'bookings/lookup' || $route === 'bookings/email-login' || $route
         'success' => true,
         'role' => 'exhibitor',
         'unlocked' => $unmasked,
+        'livePaymentStatus' => $livePaymentStatus,
+        'gatewayMessage' => $gatewayMessage,
         'booking' => formatBookingReceiptPhp($found, $unmasked, $unmasked ? ($found['manageToken'] ?? bin2hex(random_bytes(8))) : ''),
         'db' => sanitizePublicDbPhp($db),
         'liveStats' => buildLiveStatsPhp($db)
@@ -1175,12 +1571,60 @@ if ($route === 'visitor-ping' && $method === 'POST') {
     exit;
 }
 
-if ($route === 'admin/set-destination' && $method === 'POST') {
-    if (empty($_COOKIE['tbf_admin_session']) || strpos($_COOKIE['tbf_admin_session'], '.') === false) {
-        http_response_code(401);
-        echo json_encode(array('success' => false, 'error' => 'Admin authentication required'));
+if ($route === 'sponsors' && $method === 'POST') {
+    checkIpRateLimitPhp('sponsors', 10, 900);
+    rejectIfHoneypotPhp($payload);
+    rejectUnlessValidBotTokenPhp($payload, 600);
+    $organization = trim((string)($payload['organization'] ?? ''));
+    $contactName = trim((string)($payload['contactName'] ?? ''));
+    $phone = trim((string)($payload['phone'] ?? ''));
+    $email = strtolower(trim((string)($payload['email'] ?? '')));
+    if ($organization === '' || $contactName === '' || strlen(normalizePhoneTailPhp($phone)) < 7 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        http_response_code(400);
+        echo json_encode(array('success' => false, 'error' => 'Complete organization contact details are required'));
         exit;
     }
+    if (!isset($db['sponsors']) || !is_array($db['sponsors'])) $db['sponsors'] = array();
+    $newSponsor = array(
+        'id' => 'SP-' . mt_rand(100, 999),
+        'organization' => substr($organization, 0, 140),
+        'contactName' => substr($contactName, 0, 100),
+        'phone' => substr($phone, 0, 32),
+        'email' => substr($email, 0, 120),
+        'tier' => substr(trim((string)($payload['tier'] ?? 'Sponsor')), 0, 48),
+        'targetRegions' => substr(trim((string)($payload['targetRegions'] ?? 'National Tour (All Regions)')), 0, 140),
+        'status' => 'New Inquiry',
+        'createdAt' => gmdate('c')
+    );
+    array_unshift($db['sponsors'], $newSponsor);
+    writeDbPhp($db);
+    http_response_code(201);
+    echo json_encode(array('success' => true, 'sponsorId' => $newSponsor['id'], 'liveStats' => buildLiveStatsPhp($db)));
+    exit;
+}
+
+if ($route === 'announcements' && $method === 'POST') {
+    requireAdminAuthPhp();
+    $rawType = strtoupper(trim((string)($payload['type'] ?? 'EVENT')));
+    $postType = in_array($rawType, array('EVENT', 'NEWS', 'ADVERTISEMENT', 'ADVISORY'), true) ? $rawType : 'EVENT';
+    if (!isset($db['announcements']) || !is_array($db['announcements'])) $db['announcements'] = array();
+    $newAnn = array(
+        'id' => 'UPD-' . mt_rand(100, 999),
+        'type' => $postType,
+        'category' => substr(trim((string)($payload['category'] ?? ($postType . ' UPDATE'))), 0, 60),
+        'region' => substr(trim((string)($payload['region'] ?? 'All Regions')), 0, 60),
+        'title' => substr(trim((string)($payload['title'] ?? 'Taarifa Mpya ya Tanzania Biashara Festival')), 0, 180),
+        'summary' => substr(trim((string)($payload['summary'] ?? '')), 0, 1500)
+    );
+    array_unshift($db['announcements'], $newAnn);
+    writeDbPhp($db);
+    http_response_code(201);
+    echo json_encode(array('success' => true, 'announcement' => $newAnn, 'db' => sanitizePublicDbPhp($db)));
+    exit;
+}
+
+if ($route === 'admin/set-destination' && $method === 'POST') {
+    requireAdminAuthPhp();
     $regionId = strtolower(trim($payload['regionId'] ?? 'mwanza'));
     $regionName = trim($payload['regionName'] ?? 'Mwanza');
     $venue = trim($payload['venue'] ?? ($regionName . ' Exhibition Grounds'));
@@ -1233,6 +1677,7 @@ if ($route === 'admin/set-destination' && $method === 'POST') {
 if ($route === 'contact-messages' && $method === 'POST') {
     checkIpRateLimitPhp('contact', 10, 900);
     rejectIfHoneypotPhp($payload);
+    rejectUnlessValidBotTokenPhp($payload, 600);
     $name = trim($payload['name'] ?? '');
     $phone = trim($payload['phone'] ?? '');
     $email = strtolower(trim($payload['email'] ?? ''));
@@ -1271,6 +1716,7 @@ if ($route === 'attendee-rsvp' && $method === 'POST') {
 if ($route === 'newsletter/subscribe' && $method === 'POST') {
     checkIpRateLimitPhp('newsletter', 10, 900);
     rejectIfHoneypotPhp($payload);
+    rejectUnlessValidBotTokenPhp($payload, 500);
     $email = strtolower(trim($payload['email'] ?? ''));
     $name = trim($payload['name'] ?? '');
     $region = trim($payload['region'] ?? 'All Regions');
@@ -1308,7 +1754,9 @@ if ($route === 'newsletter/subscribe' && $method === 'POST') {
             try {
                 $nStmt = $pdo->prepare("INSERT IGNORE INTO `newsletter_subscribers` (`email_enc`, `email_idx`, `name_enc`, `ip_hash`) VALUES (?, ?, ?, ?)");
                 $nStmt->execute(array($email, $emailHash, substr($name, 0, 120), substr(hash('sha256', $clientIp), 0, 32)));
-            } catch (Exception $e) {}
+            } catch (Exception $e) {
+            error_log('[TBF PHP DB] MySQL read error: ' . $e->getMessage());
+        }
         }
 
         // Send instant Welcome Email from info@biasharafestival.co.tz
@@ -1332,11 +1780,7 @@ if ($route === 'newsletter/subscribe' && $method === 'POST') {
 }
 
 if ($route === 'admin/newsletter/send' && $method === 'POST') {
-    if (empty($_COOKIE['tbf_admin_session']) || strpos($_COOKIE['tbf_admin_session'], '.') === false) {
-        http_response_code(401);
-        echo json_encode(array('success' => false, 'error' => 'Admin authentication required'));
-        exit;
-    }
+    requireAdminAuthPhp();
     $subject = trim($payload['subject'] ?? '');
     $message = trim($payload['message'] ?? '');
     $targetRegion = trim($payload['targetRegion'] ?? 'ALL');
@@ -1382,4 +1826,5 @@ if ($route === 'admin/newsletter/send' && $method === 'POST') {
     exit;
 }
 
-echo json_encode(array('success' => true, 'authenticated' => false));
+http_response_code(404);
+echo json_encode(array('success' => false, 'error' => 'API route not found'));
